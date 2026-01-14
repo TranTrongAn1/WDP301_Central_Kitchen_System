@@ -16,10 +16,161 @@ servers:
 tags:
   - name: Health
     description: System health check endpoints
+  - name: Authentication
+    description: User authentication and authorization endpoints
   - name: Batches
     description: Batch management endpoints
 
 paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account. StoreStaff must be assigned to a store, while Manager/KitchenStaff/Admin cannot have a storeId.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - fullName
+                - email
+                - roleId
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  example: 'john.doe'
+                password:
+                  type: string
+                  minLength: 6
+                  example: 'password123'
+                fullName:
+                  type: string
+                  example: 'John Doe'
+                email:
+                  type: string
+                  format: email
+                  example: 'john.doe@kendomooncake.com'
+                roleId:
+                  type: string
+                  format: objectId
+                  description: Role ObjectId - use seeded role IDs
+                  example: '507f1f77bcf86cd799439011'
+                storeId:
+                  type: string
+                  format: objectId
+                  description: Store ObjectId (required only for StoreStaff role)
+                  example: '507f1f77bcf86cd799439012'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'User registered successfully'
+                  token:
+                    type: string
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user with username and password, returns JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: 'admin'
+                password:
+                  type: string
+                  example: 'admin123'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Login successful'
+                  token:
+                    type: string
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get the currently authenticated user's information
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized - no token or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /health:
     get:
       tags:
@@ -369,3 +520,145 @@ components:
         stack:
           type: string
           description: Error stack trace (only in development)
+
+    User:
+      type: object
+      required:
+        - username
+        - passwordHash
+        - fullName
+        - email
+        - roleId
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        username:
+          type: string
+          minLength: 3
+          description: Unique username
+          example: 'john.doe'
+        passwordHash:
+          type: string
+          description: Hashed password (never exposed in responses)
+        fullName:
+          type: string
+          description: User's full name
+          example: 'John Doe'
+        email:
+          type: string
+          format: email
+          description: Unique email address
+          example: 'john.doe@kendomooncake.com'
+        roleId:
+          type: string
+          format: objectId
+          description: Reference to Role
+          example: '507f1f77bcf86cd799439011'
+        storeId:
+          type: string
+          format: objectId
+          nullable: true
+          description: Reference to Store (required for StoreStaff, null for others)
+          example: '507f1f77bcf86cd799439012'
+        isActive:
+          type: boolean
+          default: true
+          description: Whether the user account is active
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+          example: '507f1f77bcf86cd799439011'
+        username:
+          type: string
+          example: 'admin'
+        fullName:
+          type: string
+          example: 'System Administrator'
+        email:
+          type: string
+          example: 'admin@kendomooncake.com'
+        role:
+          type: string
+          description: Role name
+          example: 'Admin'
+        storeId:
+          type: string
+          format: objectId
+          nullable: true
+          example: null
+        storeName:
+          type: string
+          nullable: true
+          example: null
+        isActive:
+          type: boolean
+          example: true
+
+    Role:
+      type: object
+      required:
+        - roleName
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        roleName:
+          type: string
+          enum: ['Admin', 'Manager', 'StoreStaff', 'KitchenStaff', 'Coordinator']
+          description: Role name
+          example: 'Admin'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Store:
+      type: object
+      required:
+        - storeName
+        - address
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        storeName:
+          type: string
+          description: Store name
+          example: 'Kendo Central Store'
+        address:
+          type: string
+          description: Store address
+          example: '123 Main Street, District 1, Ho Chi Minh City'
+        status:
+          type: boolean
+          default: true
+          description: Store operational status
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT token in the format **Bearer &lt;token&gt;**

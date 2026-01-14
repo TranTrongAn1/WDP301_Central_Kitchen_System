@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
+    "seed": "node seeder.js",
+    "seed:destroy": "node seeder.js -d",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
