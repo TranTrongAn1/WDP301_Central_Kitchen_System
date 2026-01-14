@@ -1,0 +1,28 @@
+{
+  "name": "wdp301_central_kitchen_system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TranTrongAn1/WDP301_Central_Kitchen_System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/TranTrongAn1/WDP301_Central_Kitchen_System/issues"
+  },
+  "homepage": "https://github.com/TranTrongAn1/WDP301_Central_Kitchen_System#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.1.3",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}
