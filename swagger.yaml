@@ -18,6 +18,12 @@ tags:
     description: System health check endpoints
   - name: Authentication
     description: User authentication and authorization endpoints
+  - name: Categories
+    description: Product category management endpoints
+  - name: Ingredients
+    description: Ingredient and raw material management endpoints
+  - name: Products
+    description: Product management with recipe and bundle capabilities
   - name: Batches
     description: Batch management endpoints
 
@@ -170,6 +176,696 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /api/categories:
+    get:
+      tags:
+        - Categories
+      summary: Get all categories
+      description: Retrieve list of all product categories
+      operationId: getCategories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Categories
+      summary: Create new category
+      description: Create a new product category (Admin/Manager only)
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 'Mooncake'
+                description:
+                  type: string
+                  example: 'Traditional mooncake products'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Category created successfully'
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      description: Retrieve a single category by its ID
+      operationId: getCategoryById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Successfully retrieved category
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Categories
+      summary: Update category
+      description: Update an existing category (Admin/Manager only)
+      operationId: updateCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 'Mooncake - Updated'
+                description:
+                  type: string
+                  example: 'Updated description'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Category updated successfully'
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      description: Delete a category (Admin/Manager only). Cannot delete if used by products.
+      operationId: deleteCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Category deleted successfully'
+                  data:
+                    type: object
+        '400':
+          description: Cannot delete - category in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ingredients:
+    get:
+      tags:
+        - Ingredients
+      summary: Get all ingredients
+      description: Retrieve list of all ingredients
+      operationId: getIngredients
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved ingredients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ingredient'
+
+    post:
+      tags:
+        - Ingredients
+      summary: Create new ingredient
+      description: Create a new ingredient (Admin/Manager only)
+      operationId: createIngredient
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - unit
+                - costPrice
+              properties:
+                name:
+                  type: string
+                  example: 'Flour'
+                unit:
+                  type: string
+                  enum: ['kg', 'g', 'l', 'ml', 'pcs']
+                  example: 'kg'
+                costPrice:
+                  type: number
+                  example: 50000
+                warningThreshold:
+                  type: number
+                  example: 10
+      responses:
+        '201':
+          description: Ingredient created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Ingredient created successfully'
+                  data:
+                    $ref: '#/components/schemas/Ingredient'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ingredients/{id}:
+    get:
+      tags:
+        - Ingredients
+      summary: Get ingredient by ID
+      description: Retrieve a single ingredient by its ID
+      operationId: getIngredientById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Successfully retrieved ingredient
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Ingredient'
+        '404':
+          description: Ingredient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Ingredients
+      summary: Update ingredient
+      description: Update an existing ingredient (Admin/Manager only)
+      operationId: updateIngredient
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                unit:
+                  type: string
+                  enum: ['kg', 'g', 'l', 'ml', 'pcs']
+                costPrice:
+                  type: number
+                warningThreshold:
+                  type: number
+      responses:
+        '200':
+          description: Ingredient updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Ingredient updated successfully'
+                  data:
+                    $ref: '#/components/schemas/Ingredient'
+
+    delete:
+      tags:
+        - Ingredients
+      summary: Delete ingredient
+      description: Delete an ingredient (Admin/Manager only). Cannot delete if used in recipes.
+      operationId: deleteIngredient
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Ingredient deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Ingredient deleted successfully'
+                  data:
+                    type: object
+
+  /api/products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      description: Retrieve list of all products with optional category filter
+      operationId: getProducts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+          description: Filter by category ID
+      responses:
+        '200':
+          description: Successfully retrieved products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 15
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+
+    post:
+      tags:
+        - Products
+      summary: Create new product
+      description: Create a new product with recipe and/or bundle items (Admin/Manager only)
+      operationId: createProduct
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - sku
+                - categoryId
+                - price
+                - shelfLifeDays
+              properties:
+                name:
+                  type: string
+                  example: 'Green Bean Mooncake'
+                sku:
+                  type: string
+                  example: 'MOON-GB-001'
+                categoryId:
+                  type: string
+                  format: objectId
+                  example: '507f1f77bcf86cd799439011'
+                price:
+                  type: number
+                  example: 150000
+                shelfLifeDays:
+                  type: number
+                  example: 30
+                image:
+                  type: string
+                  example: 'https://example.com/mooncake.jpg'
+                recipe:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ingredientId:
+                        type: string
+                        format: objectId
+                      quantity:
+                        type: number
+                  example:
+                    - ingredientId: '507f1f77bcf86cd799439012'
+                      quantity: 0.5
+                    - ingredientId: '507f1f77bcf86cd799439013'
+                      quantity: 0.2
+                bundleItems:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      childProductId:
+                        type: string
+                        format: objectId
+                      quantity:
+                        type: number
+                  example:
+                    - childProductId: '507f1f77bcf86cd799439014'
+                      quantity: 2
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Product created successfully'
+                  data:
+                    $ref: '#/components/schemas/Product'
+
+  /api/products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Retrieve a single product with full details
+      operationId: getProductById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Successfully retrieved product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Product'
+
+    put:
+      tags:
+        - Products
+      summary: Update product
+      description: Update an existing product (Admin/Manager only)
+      operationId: updateProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                sku:
+                  type: string
+                categoryId:
+                  type: string
+                price:
+                  type: number
+                shelfLifeDays:
+                  type: number
+                image:
+                  type: string
+                recipe:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ingredientId:
+                        type: string
+                      quantity:
+                        type: number
+                bundleItems:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      childProductId:
+                        type: string
+                      quantity:
+                        type: number
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Product updated successfully'
+                  data:
+                    $ref: '#/components/schemas/Product'
+
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Delete a product (Admin/Manager only). Cannot delete if used in bundles.
+      operationId: deleteProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Product deleted successfully'
+                  data:
+                    type: object
 
   /health:
     get:
@@ -649,6 +1345,164 @@ components:
           type: boolean
           default: true
           description: Store operational status
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Category:
+      type: object
+      required:
+        - name
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        name:
+          type: string
+          description: Category name
+          example: 'Mooncake'
+        description:
+          type: string
+          description: Category description
+          example: 'Traditional mooncake products'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Ingredient:
+      type: object
+      required:
+        - name
+        - unit
+        - costPrice
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        name:
+          type: string
+          description: Ingredient name
+          example: 'Flour'
+        unit:
+          type: string
+          enum: ['kg', 'g', 'l', 'ml', 'pcs']
+          description: Unit of measurement
+          example: 'kg'
+        costPrice:
+          type: number
+          description: Cost price per unit
+          minimum: 0
+          example: 50000
+        warningThreshold:
+          type: number
+          description: Warning threshold for low stock
+          minimum: 0
+          default: 10
+          example: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      required:
+        - name
+        - sku
+        - categoryId
+        - price
+        - shelfLifeDays
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        name:
+          type: string
+          description: Product name
+          example: 'Green Bean Mooncake'
+        sku:
+          type: string
+          description: Stock Keeping Unit (unique identifier)
+          example: 'MOON-GB-001'
+        categoryId:
+          type: object
+          description: Product category (populated)
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+        price:
+          type: number
+          description: Wholesale price
+          minimum: 0
+          example: 150000
+        shelfLifeDays:
+          type: number
+          description: Product shelf life in days
+          minimum: 1
+          example: 30
+        image:
+          type: string
+          description: Product image URL
+          example: 'https://example.com/mooncake.jpg'
+        recipe:
+          type: array
+          description: Recipe ingredients with quantities
+          items:
+            type: object
+            properties:
+              ingredientId:
+                type: object
+                description: Ingredient details (populated)
+                properties:
+                  _id:
+                    type: string
+                  name:
+                    type: string
+                  unit:
+                    type: string
+                  costPrice:
+                    type: number
+              quantity:
+                type: number
+                description: Quantity of ingredient required
+                example: 0.5
+        bundleItems:
+          type: array
+          description: Bundle/combo product items
+          items:
+            type: object
+            properties:
+              childProductId:
+                type: object
+                description: Child product details (populated)
+                properties:
+                  _id:
+                    type: string
+                  name:
+                    type: string
+                  sku:
+                    type: string
+                  price:
+                    type: number
+              quantity:
+                type: number
+                description: Quantity of child product in bundle
+                example: 2
         createdAt:
           type: string
           format: date-time

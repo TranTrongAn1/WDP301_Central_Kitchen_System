@@ -4,6 +4,9 @@ const connectDB = require('./config/db');
 const Role = require('./models/Role');
 const Store = require('./models/Store');
 const User = require('./models/User');
+const Category = require('./models/Category');
+const Ingredient = require('./models/Ingredient');
+const Product = require('./models/Product');
 
 // Sample data
 const roles = [
@@ -32,6 +35,70 @@ const stores = [
   },
 ];
 
+const categories = [
+  {
+    name: 'Mooncake',
+    description: 'Traditional mooncake products for Mid-Autumn Festival',
+  },
+  {
+    name: 'Gift Box',
+    description: 'Premium gift boxes and packaging',
+  },
+  {
+    name: 'Raw Material',
+    description: 'Raw materials and semi-finished products',
+  },
+  {
+    name: 'Combo Set',
+    description: 'Bundle products with multiple items',
+  },
+];
+
+const ingredients = [
+  {
+    name: 'Flour',
+    unit: 'kg',
+    costPrice: 25000,
+    warningThreshold: 50,
+  },
+  {
+    name: 'Sugar',
+    unit: 'kg',
+    costPrice: 30000,
+    warningThreshold: 30,
+  },
+  {
+    name: 'Salted Egg Yolk',
+    unit: 'pcs',
+    costPrice: 5000,
+    warningThreshold: 100,
+  },
+  {
+    name: 'Green Bean Paste',
+    unit: 'kg',
+    costPrice: 80000,
+    warningThreshold: 20,
+  },
+  {
+    name: 'Lotus Seed Paste',
+    unit: 'kg',
+    costPrice: 120000,
+    warningThreshold: 15,
+  },
+  {
+    name: 'Cooking Oil',
+    unit: 'l',
+    costPrice: 45000,
+    warningThreshold: 10,
+  },
+  {
+    name: 'Egg',
+    unit: 'pcs',
+    costPrice: 3000,
+    warningThreshold: 200,
+  },
+];
+
 /**
  * Import data into database
  */
@@ -43,6 +110,9 @@ const importData = async () => {
     await Role.deleteMany();
     await Store.deleteMany();
     await User.deleteMany();
+    await Category.deleteMany();
+    await Ingredient.deleteMany();
+    await Product.deleteMany();
 
     console.log('📦 Inserting Roles...');
     const createdRoles = await Role.insertMany(roles);
@@ -51,6 +121,14 @@ const importData = async () => {
     console.log('📦 Inserting Stores...');
     const createdStores = await Store.insertMany(stores);
     console.log(`✅ ${createdStores.length} stores inserted`);
+
+    console.log('📦 Inserting Categories...');
+    const createdCategories = await Category.insertMany(categories);
+    console.log(`✅ ${createdCategories.length} categories inserted`);
+
+    console.log('📦 Inserting Ingredients...');
+    const createdIngredients = await Ingredient.insertMany(ingredients);
+    console.log(`✅ ${createdIngredients.length} ingredients inserted`);
 
     // Get role IDs
     const adminRole = createdRoles.find((r) => r.roleName === 'Admin');
@@ -112,6 +190,113 @@ const importData = async () => {
       console.log(`✅ Store Staff created: ${storeUser.username} (${store.storeName})`);
     }
 
+    // Create sample products
+    console.log('\n📦 Creating sample products...');
+
+    // Get category and ingredient IDs
+    const mooncakeCategory = createdCategories.find((c) => c.name === 'Mooncake');
+    const giftBoxCategory = createdCategories.find((c) => c.name === 'Gift Box');
+    const comboCategory = createdCategories.find((c) => c.name === 'Combo Set');
+
+    const flour = createdIngredients.find((i) => i.name === 'Flour');
+    const sugar = createdIngredients.find((i) => i.name === 'Sugar');
+    const saltedEgg = createdIngredients.find((i) => i.name === 'Salted Egg Yolk');
+    const greenBeanPaste = createdIngredients.find((i) => i.name === 'Green Bean Paste');
+    const lotusPaste = createdIngredients.find((i) => i.name === 'Lotus Seed Paste');
+    const oil = createdIngredients.find((i) => i.name === 'Cooking Oil');
+    const egg = createdIngredients.find((i) => i.name === 'Egg');
+
+    // Product 1: Green Bean Mooncake
+    const greenBeanMooncake = await Product.create({
+      name: 'Green Bean Mooncake',
+      sku: 'MOON-GB-001',
+      categoryId: mooncakeCategory._id,
+      price: 150000,
+      shelfLifeDays: 30,
+      image: 'https://example.com/green-bean-mooncake.jpg',
+      recipe: [
+        { ingredientId: flour._id, quantity: 0.05 }, // 50g
+        { ingredientId: sugar._id, quantity: 0.02 }, // 20g
+        { ingredientId: greenBeanPaste._id, quantity: 0.08 }, // 80g
+        { ingredientId: saltedEgg._id, quantity: 1 }, // 1 piece
+        { ingredientId: oil._id, quantity: 0.01 }, // 10ml
+        { ingredientId: egg._id, quantity: 1 }, // 1 for brushing
+      ],
+      bundleItems: [],
+    });
+    console.log(`✅ Product created: ${greenBeanMooncake.name}`);
+
+    // Product 2: Lotus Seed Mooncake
+    const lotusMooncake = await Product.create({
+      name: 'Lotus Seed Mooncake',
+      sku: 'MOON-LS-002',
+      categoryId: mooncakeCategory._id,
+      price: 180000,
+      shelfLifeDays: 30,
+      image: 'https://example.com/lotus-mooncake.jpg',
+      recipe: [
+        { ingredientId: flour._id, quantity: 0.05 },
+        { ingredientId: sugar._id, quantity: 0.02 },
+        { ingredientId: lotusPaste._id, quantity: 0.1 }, // 100g
+        { ingredientId: saltedEgg._id, quantity: 2 }, // 2 pieces
+        { ingredientId: oil._id, quantity: 0.01 },
+        { ingredientId: egg._id, quantity: 1 },
+      ],
+      bundleItems: [],
+    });
+    console.log(`✅ Product created: ${lotusMooncake.name}`);
+
+    // Product 3: Mixed Mooncake (no recipe - just for bundle example)
+    const mixedMooncake = await Product.create({
+      name: 'Mixed Flavor Mooncake',
+      sku: 'MOON-MIX-003',
+      categoryId: mooncakeCategory._id,
+      price: 160000,
+      shelfLifeDays: 30,
+      image: 'https://example.com/mixed-mooncake.jpg',
+      recipe: [
+        { ingredientId: flour._id, quantity: 0.05 },
+        { ingredientId: sugar._id, quantity: 0.02 },
+        { ingredientId: greenBeanPaste._id, quantity: 0.04 },
+        { ingredientId: lotusPaste._id, quantity: 0.04 },
+        { ingredientId: saltedEgg._id, quantity: 1 },
+        { ingredientId: oil._id, quantity: 0.01 },
+        { ingredientId: egg._id, quantity: 1 },
+      ],
+      bundleItems: [],
+    });
+    console.log(`✅ Product created: ${mixedMooncake.name}`);
+
+    // Product 4: Gift Box (no recipe, just packaging)
+    const giftBox = await Product.create({
+      name: 'Premium Gift Box',
+      sku: 'BOX-PREM-001',
+      categoryId: giftBoxCategory._id,
+      price: 50000,
+      shelfLifeDays: 365,
+      image: 'https://example.com/gift-box.jpg',
+      recipe: [],
+      bundleItems: [],
+    });
+    console.log(`✅ Product created: ${giftBox.name}`);
+
+    // Product 5: Combo Set (bundle of products)
+    const comboSet = await Product.create({
+      name: 'Mid-Autumn Festival Combo Set',
+      sku: 'COMBO-MAF-001',
+      categoryId: comboCategory._id,
+      price: 450000,
+      shelfLifeDays: 30,
+      image: 'https://example.com/combo-set.jpg',
+      recipe: [], // No recipe for bundle products
+      bundleItems: [
+        { childProductId: greenBeanMooncake._id, quantity: 2 },
+        { childProductId: lotusMooncake._id, quantity: 2 },
+        { childProductId: giftBox._id, quantity: 1 },
+      ],
+    });
+    console.log(`✅ Product created: ${comboSet.name} (Bundle)`);
+
     console.log('\n🎉 Data imported successfully!');
     console.log('\n📝 Sample Login Credentials:');
     console.log('   Admin:        username: admin      password: admin123');
@@ -139,6 +324,9 @@ const destroyData = async () => {
     await Role.deleteMany();
     await Store.deleteMany();
     await User.deleteMany();
+    await Category.deleteMany();
+    await Ingredient.deleteMany();
+    await Product.deleteMany();
 
     console.log('✅ Data destroyed successfully!');
     process.exit(0);
