@@ -1,0 +1,23 @@
+{
+  "watch": [
+    "app.js",
+    "config/**/*.js",
+    "controllers/**/*.js",
+    "middleware/**/*.js",
+    "models/**/*.js",
+    "routes/**/*.js",
+    "swagger.yaml"
+  ],
+  "ext": "js,json,yaml",
+  "ignore": [
+    "node_modules/**/*",
+    "tests/**/*",
+    "coverage/**/*",
+    "*.test.js"
+  ],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "verbose": true,
+  "delay": 1000
+}
