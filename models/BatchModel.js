@@ -21,6 +21,7 @@ const batchSchema = new mongoose.Schema(
     mfgDate: {
       type: Date,
       required: [true, 'Manufacturing date is required'],
+      default: Date.now,
     },
     expDate: {
       type: Date,
@@ -32,11 +33,15 @@ const batchSchema = new mongoose.Schema(
         message: 'Expiration date must be after manufacturing date',
       },
     },
+    initialQuantity: {
+      type: Number,
+      required: [true, 'Initial quantity is required'],
+      min: [0, 'Initial quantity cannot be negative'],
+    },
     currentQuantity: {
       type: Number,
       required: [true, 'Current quantity is required'],
       min: [0, 'Quantity cannot be negative'],
-      default: 0,
     },
   },
   {
@@ -44,8 +49,7 @@ const batchSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
-batchSchema.index({ batchCode: 1 });
+// Index for faster queries (batchCode already has unique index)
 batchSchema.index({ productId: 1 });
 batchSchema.index({ expDate: 1 });
 

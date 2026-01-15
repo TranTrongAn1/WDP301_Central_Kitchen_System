@@ -7,6 +7,7 @@ const User = require('./models/User');
 const Category = require('./models/Category');
 const Ingredient = require('./models/Ingredient');
 const Product = require('./models/Product');
+const ProductionPlan = require('./models/ProductionPlan');
 
 // Sample data
 const roles = [
@@ -297,6 +298,37 @@ const importData = async () => {
     });
     console.log(`✅ Product created: ${comboSet.name} (Bundle)`);
 
+    // Create sample production plan
+    console.log('\n📦 Creating sample production plan...');
+
+    const productionPlan = await ProductionPlan.create({
+      planCode: 'PLAN-20260115-001',
+      planDate: new Date('2026-01-15'),
+      status: 'Planned',
+      note: 'Production plan for Mid-Autumn Festival preparation',
+      details: [
+        {
+          productId: greenBeanMooncake._id,
+          plannedQuantity: 100,
+          actualQuantity: 0,
+          status: 'Pending',
+        },
+        {
+          productId: lotusMooncake._id,
+          plannedQuantity: 150,
+          actualQuantity: 0,
+          status: 'Pending',
+        },
+        {
+          productId: mixedMooncake._id,
+          plannedQuantity: 80,
+          actualQuantity: 0,
+          status: 'Pending',
+        },
+      ],
+    });
+    console.log(`✅ Production plan created: ${productionPlan.planCode}`);
+
     console.log('\n🎉 Data imported successfully!');
     console.log('\n📝 Sample Login Credentials:');
     console.log('   Admin:        username: admin      password: admin123');
@@ -327,6 +359,7 @@ const destroyData = async () => {
     await Category.deleteMany();
     await Ingredient.deleteMany();
     await Product.deleteMany();
+    await ProductionPlan.deleteMany();
 
     console.log('✅ Data destroyed successfully!');
     process.exit(0);

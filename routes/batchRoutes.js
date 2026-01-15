@@ -6,18 +6,21 @@ const {
   updateBatch,
   deleteBatch,
 } = require('../controllers/batchController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Route: /api/batches
-router.route('/')
-  .get(getBatches)      // GET all batches
-  .post(createBatch);   // POST create new batch
+// All routes require authentication
+router.use(protect);
 
-// Route: /api/batches/:id
-router.route('/:id')
-  .get(getBatchById)    // GET single batch by ID
-  .put(updateBatch)     // PUT update batch
-  .delete(deleteBatch); // DELETE batch
+// Read routes - accessible by all authenticated users
+// StoreStaff can check batches and expiry dates
+router.get('/', getBatches);
+router.get('/:id', getBatchById);
+
+// Write routes - restricted to Admin, Manager, KitchenStaff
+router.post('/', authorize('Admin', 'Manager', 'KitchenStaff'), createBatch);
+router.put('/:id', authorize('Admin', 'Manager'), updateBatch);
+router.delete('/:id', authorize('Admin', 'Manager'), deleteBatch);
 
 module.exports = router;

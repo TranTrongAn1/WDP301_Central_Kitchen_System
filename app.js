@@ -7,8 +7,10 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB (skip in test mode - test setup handles this)
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 // Body parser middleware
 app.use(express.json());
@@ -34,6 +36,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/ingredients', require('./routes/ingredientRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/production', require('./routes/productionRoutes'));
 app.use('/api/batches', require('./routes/batchRoutes'));
 
 // 404 handler

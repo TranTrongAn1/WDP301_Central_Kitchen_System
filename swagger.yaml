@@ -24,8 +24,10 @@ tags:
     description: Ingredient and raw material management endpoints
   - name: Products
     description: Product management with recipe and bundle capabilities
+  - name: Production
+    description: Production plan management and batch creation
   - name: Batches
-    description: Batch management endpoints
+    description: Batch tracking and expiry management
 
 paths:
   /api/auth/register:
@@ -893,6 +895,349 @@ paths:
                     format: date-time
                     example: '2026-01-14T12:00:00.000Z'
 
+  /api/production:
+    get:
+      tags:
+        - Production
+      summary: Get all production plans
+      description: Retrieve list of all production plans with optional status filter
+      operationId: getProductionPlans
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Planned, In_Progress, Completed, Cancelled]
+          description: Filter by production plan status
+      responses:
+        '200':
+          description: Successfully retrieved production plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionPlan'
+
+    post:
+      tags:
+        - Production
+      summary: Create production plan
+      description: Create a new production plan with multiple products (Admin/Manager/KitchenStaff only)
+      operationId: createProductionPlan
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - planCode
+                - details
+              properties:
+                planCode:
+                  type: string
+                  example: 'PLAN-20260115-001'
+                planDate:
+                  type: string
+                  format: date
+                  example: '2026-01-15'
+                note:
+                  type: string
+                  example: 'Production plan for Mid-Autumn Festival'
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - plannedQuantity
+                    properties:
+                      productId:
+                        type: string
+                        format: objectId
+                        example: '507f1f77bcf86cd799439011'
+                      plannedQuantity:
+                        type: number
+                        minimum: 1
+                        example: 100
+      responses:
+        '201':
+          description: Production plan created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Production plan created successfully'
+                  data:
+                    $ref: '#/components/schemas/ProductionPlan'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/production/{id}:
+    get:
+      tags:
+        - Production
+      summary: Get production plan by ID
+      description: Retrieve a single production plan by its ID
+      operationId: getProductionPlanById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      responses:
+        '200':
+          description: Successfully retrieved production plan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductionPlan'
+        '404':
+          description: Production plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Production
+      summary: Update production plan
+      description: Update an existing production plan (Admin/Manager/KitchenStaff only)
+      operationId: updateProductionPlan
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planCode:
+                  type: string
+                planDate:
+                  type: string
+                  format: date
+                note:
+                  type: string
+                details:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId:
+                        type: string
+                      plannedQuantity:
+                        type: number
+      responses:
+        '200':
+          description: Production plan updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ProductionPlan'
+
+    delete:
+      tags:
+        - Production
+      summary: Delete production plan
+      description: Delete a production plan (Admin/Manager only)
+      operationId: deleteProductionPlan
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      responses:
+        '200':
+          description: Production plan deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    type: object
+
+  /api/production/{planId}/complete-item:
+    post:
+      tags:
+        - Production
+      summary: Complete production item and auto-create batch
+      description: Complete a production item and automatically create a batch with calculated expiry date (Admin/Manager/KitchenStaff only)
+      operationId: completeProductionItem
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - actualQuantity
+              properties:
+                productId:
+                  type: string
+                  format: objectId
+                  description: Product ID from the production plan
+                  example: '507f1f77bcf86cd799439011'
+                actualQuantity:
+                  type: number
+                  minimum: 1
+                  description: Actual quantity produced
+                  example: 95
+      responses:
+        '201':
+          description: Production item completed and batch created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Production item completed and batch created successfully'
+                  data:
+                    type: object
+                    properties:
+                      plan:
+                        $ref: '#/components/schemas/ProductionPlan'
+                      batch:
+                        $ref: '#/components/schemas/Batch'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Production plan or product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/production/{id}/status:
+    patch:
+      tags:
+        - Production
+      summary: Update production plan status
+      description: Update the status of a production plan (Admin/Manager/KitchenStaff only)
+      operationId: updateProductionPlanStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Planned, In_Progress, Completed, Cancelled]
+                  example: 'In_Progress'
+      responses:
+        '200':
+          description: Production plan status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ProductionPlan'
+
   /api/batches:
     get:
       tags:
@@ -1503,6 +1848,133 @@ components:
                 type: number
                 description: Quantity of child product in bundle
                 example: 2
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductionPlan:
+      type: object
+      required:
+        - planCode
+        - details
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        planCode:
+          type: string
+          description: Unique production plan code
+          example: 'PLAN-20260115-001'
+        planDate:
+          type: string
+          format: date
+          description: Production plan date
+          example: '2026-01-15'
+        status:
+          type: string
+          enum: [Planned, In_Progress, Completed, Cancelled]
+          description: Production plan status
+          example: 'Planned'
+        note:
+          type: string
+          description: Additional notes
+          example: 'Production for Mid-Autumn Festival'
+        details:
+          type: array
+          description: Products to be produced
+          items:
+            type: object
+            properties:
+              productId:
+                type: object
+                description: Product details (populated)
+                properties:
+                  _id:
+                    type: string
+                  name:
+                    type: string
+                  sku:
+                    type: string
+                  price:
+                    type: number
+                  shelfLifeDays:
+                    type: number
+              plannedQuantity:
+                type: number
+                description: Planned quantity to produce
+                example: 100
+              actualQuantity:
+                type: number
+                description: Actual quantity produced
+                example: 95
+              status:
+                type: string
+                enum: [Pending, In_Progress, Completed, Cancelled]
+                description: Individual item status
+                example: 'Pending'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Batch:
+      type: object
+      required:
+        - batchCode
+        - productId
+        - mfgDate
+        - expDate
+        - initialQuantity
+        - currentQuantity
+      properties:
+        _id:
+          type: string
+          format: objectId
+          description: Auto-generated MongoDB ObjectId
+        batchCode:
+          type: string
+          description: Unique batch code (auto-generated)
+          example: 'BATCH-20260115-MOON-GB-001'
+        productId:
+          type: object
+          description: Product details (populated)
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            sku:
+              type: string
+            price:
+              type: number
+            shelfLifeDays:
+              type: number
+        mfgDate:
+          type: string
+          format: date
+          description: Manufacturing date
+          example: '2026-01-15'
+        expDate:
+          type: string
+          format: date
+          description: Expiration date (auto-calculated from mfgDate + shelfLifeDays)
+          example: '2026-02-14'
+        initialQuantity:
+          type: number
+          description: Initial quantity produced
+          minimum: 0
+          example: 100
+        currentQuantity:
+          type: number
+          description: Current quantity in stock
+          minimum: 0
+          example: 95
         createdAt:
           type: string
           format: date-time

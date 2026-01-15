@@ -36,8 +36,7 @@ const ingredientSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
-ingredientSchema.index({ name: 1 });
+// No need for manual index on name - unique: true already creates it
 
 const Ingredient = mongoose.model('Ingredient', ingredientSchema);
 

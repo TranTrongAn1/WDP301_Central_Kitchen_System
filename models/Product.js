@@ -89,8 +89,7 @@ productSchema.pre('save', function () {
   }
 });
 
-// Index for faster queries
-productSchema.index({ sku: 1 });
+// Index for faster queries (sku already has unique index)
 productSchema.index({ categoryId: 1 });
 productSchema.index({ name: 1 });
 
