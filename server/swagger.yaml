@@ -1,0 +1,417 @@
+openapi: 3.0.0
+info:
+  title: Kendo Mooncake Central Kitchen System API
+  description: API documentation for the Kendo Mooncake Central Kitchen System
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@kendomooncake.com
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+tags:
+  - name: Health
+    description: System health check endpoints
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Categories
+    description: Product category management endpoints
+  - name: Ingredients
+    description: Ingredient and raw material management endpoints
+  - name: Products
+    description: Product management with recipe and bundle capabilities
+  - name: Production
+    description: Production plan management and batch creation
+  - name: Batches
+    description: Batch tracking and expiry management
+  - name: Transfers
+    description: Transfer management from kitchen to stores
+  - name: Inventory
+    description: Store inventory tracking and management
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health Check
+      description: Check if the API server is running
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  timestamp:
+                    type: string
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - fullName
+                - email
+                - roleId
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                fullName:
+                  type: string
+                email:
+                  type: string
+                roleId:
+                  type: string
+                storeId:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: 'admin'
+                password:
+                  type: string
+                  example: 'admin123'
+      responses:
+        '200':
+          description: Login successful
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved user
+
+  /api/categories:
+    get:
+      tags:
+        - Categories
+      summary: Get all categories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved categories
+    post:
+      tags:
+        - Categories
+      summary: Create category
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Category created
+
+  /api/ingredients:
+    get:
+      tags:
+        - Ingredients
+      summary: Get all ingredients
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved ingredients
+    post:
+      tags:
+        - Ingredients
+      summary: Create ingredient
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                unit:
+                  type: string
+                  enum: [kg, g, l, ml, pcs]
+                costPrice:
+                  type: number
+                warningThreshold:
+                  type: number
+      responses:
+        '201':
+          description: Ingredient created
+
+  /api/products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved products
+    post:
+      tags:
+        - Products
+      summary: Create product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                sku:
+                  type: string
+                categoryId:
+                  type: string
+                price:
+                  type: number
+                shelfLifeDays:
+                  type: number
+                recipe:
+                  type: array
+                bundleItems:
+                  type: array
+      responses:
+        '201':
+          description: Product created
+
+  /api/production:
+    get:
+      tags:
+        - Production
+      summary: Get all production plans
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved plans
+    post:
+      tags:
+        - Production
+      summary: Create production plan
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planCode:
+                  type: string
+                planDate:
+                  type: string
+                note:
+                  type: string
+                details:
+                  type: array
+      responses:
+        '201':
+          description: Plan created
+
+  /api/production/{planId}/complete-item:
+    post:
+      tags:
+        - Production
+      summary: Complete production item and auto-create batch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId:
+                  type: string
+                actualQuantity:
+                  type: number
+      responses:
+        '201':
+          description: Item completed and batch created
+
+  /api/batches:
+    get:
+      tags:
+        - Batches
+      summary: Get all batches
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: expiring
+          schema:
+            type: string
+        - in: query
+          name: productId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved batches
+    post:
+      tags:
+        - Batches
+      summary: Create batch
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Batch created
+
+  /api/transfers:
+    get:
+      tags:
+        - Transfers
+      summary: Get all transfers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved transfers
+    post:
+      tags:
+        - Transfers
+      summary: Create transfer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                toStoreId:
+                  type: string
+                items:
+                  type: array
+      responses:
+        '201':
+          description: Transfer created
+
+  /api/transfers/{id}/status:
+    put:
+      tags:
+        - Transfers
+      summary: Update transfer status
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Shipped, Received, Cancelled]
+      responses:
+        '200':
+          description: Status updated
+
+  /api/inventory/store/{storeId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get store inventory
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: storeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved inventory
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT token
