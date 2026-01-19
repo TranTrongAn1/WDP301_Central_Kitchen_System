@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 /**
  * Ingredient Schema for Kendo Mooncake Central Kitchen System
- * Represents raw materials and ingredients used in production
+ * Represents raw materials used in production (e.g., "Bột mì", "Trứng muối")
  */
 const ingredientSchema = new mongoose.Schema(
   {
-    name: {
+    ingredientName: {
       type: String,
       required: [true, 'Ingredient name is required'],
       trim: true,
@@ -15,10 +15,8 @@ const ingredientSchema = new mongoose.Schema(
     unit: {
       type: String,
       required: [true, 'Unit is required'],
-      enum: {
-        values: ['kg', 'g', 'l', 'ml', 'pcs'],
-        message: '{VALUE} is not a valid unit',
-      },
+      lowercase: true,
+      trim: true,
     },
     costPrice: {
       type: Number,
@@ -27,6 +25,7 @@ const ingredientSchema = new mongoose.Schema(
     },
     warningThreshold: {
       type: Number,
+      required: [true, 'Warning threshold is required'],
       default: 10,
       min: [0, 'Warning threshold cannot be negative'],
     },
@@ -36,7 +35,16 @@ const ingredientSchema = new mongoose.Schema(
   }
 );
 
-// No need for manual index on name - unique: true already creates it
+// Index for efficient queries
+ingredientSchema.index({ ingredientName: 1 });
+
+// Pre-save hook: Ensure unit is stored in lowercase
+ingredientSchema.pre('save', function (next) {
+  if (this.unit) {
+    this.unit = this.unit.toLowerCase().trim();
+  }
+  next();
+});
 
 const Ingredient = mongoose.model('Ingredient', ingredientSchema);
 

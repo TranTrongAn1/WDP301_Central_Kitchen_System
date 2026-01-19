@@ -2,12 +2,12 @@
   "name": "kendo-mooncake-central-kitchen-system",
   "version": "1.0.0",
   "description": "Backend API for Kendo Mooncake Central Kitchen Management System",
-  "main": "app.js",
+  "main": "server/app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "seed": "node seeder.js",
-    "seed:destroy": "node seeder.js -d"
+    "start": "node server/app.js",
+    "dev": "nodemon server/app.js",
+    "seed": "node server/seeder.js",
+    "seed:destroy": "node server/seeder.js -d"
   },
   "keywords": ["mooncake", "central-kitchen", "inventory", "management"],
   "author": "WDP301 Team",

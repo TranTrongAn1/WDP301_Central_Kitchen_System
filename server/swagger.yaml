@@ -30,6 +30,10 @@ tags:
     description: Transfer management from kitchen to stores
   - name: Inventory
     description: Store inventory tracking and management
+  - name: Stores
+    description: Store management and retail location operations
+  - name: Users
+    description: User and staff administration endpoints
 
 paths:
   /health:
@@ -128,15 +132,39 @@ paths:
       tags:
         - Categories
       summary: Get all categories
+      description: Retrieve list of all product categories
       security:
         - BearerAuth: []
       responses:
         '200':
           description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        categoryName:
+                          type: string
+                        createdAt:
+                          type: string
+                        updatedAt:
+                          type: string
     post:
       tags:
         - Categories
       summary: Create category
+      description: Create a new product category (Admin, Kitchen_Manager only)
       security:
         - BearerAuth: []
       requestBody:
@@ -145,29 +173,134 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - categoryName
               properties:
-                name:
+                categoryName:
                   type: string
-                description:
-                  type: string
+                  example: 'Bánh Nướng'
       responses:
         '201':
-          description: Category created
+          description: Category created successfully
+        '400':
+          description: Invalid input or duplicate category name
+
+  /api/categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Successfully retrieved category
+        '404':
+          description: Category not found
+    put:
+      tags:
+        - Categories
+      summary: Update category
+      description: Update an existing category (Admin, Kitchen_Manager only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryName:
+                  type: string
+                  example: 'Bánh Dẻo'
+      responses:
+        '200':
+          description: Category updated successfully
+        '400':
+          description: Invalid input or duplicate category name
+        '404':
+          description: Category not found
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      description: Delete a category (Admin, Kitchen_Manager only). Cannot delete if category is used by products.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category deleted successfully
+        '400':
+          description: Cannot delete - category is in use
+        '404':
+          description: Category not found
 
   /api/ingredients:
     get:
       tags:
         - Ingredients
       summary: Get all ingredients
+      description: Retrieve list of all raw materials and ingredients
       security:
         - BearerAuth: []
       responses:
         '200':
           description: Successfully retrieved ingredients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        ingredientName:
+                          type: string
+                        unit:
+                          type: string
+                        costPrice:
+                          type: number
+                        warningThreshold:
+                          type: number
+                        createdAt:
+                          type: string
+                        updatedAt:
+                          type: string
     post:
       tags:
         - Ingredients
       summary: Create ingredient
+      description: Create a new ingredient (Admin, Kitchen_Manager only)
       security:
         - BearerAuth: []
       requestBody:
@@ -176,19 +309,113 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - ingredientName
+                - unit
+                - costPrice
+                - warningThreshold
               properties:
-                name:
+                ingredientName:
                   type: string
+                  example: 'Bột mì'
                 unit:
                   type: string
-                  enum: [kg, g, l, ml, pcs]
+                  example: 'kg'
+                  description: 'Unit of measurement (stored in lowercase)'
                 costPrice:
                   type: number
+                  example: 20000
+                  description: 'Cost per unit in VND'
                 warningThreshold:
                   type: number
+                  example: 10
+                  description: 'Low stock alert threshold'
       responses:
         '201':
-          description: Ingredient created
+          description: Ingredient created successfully
+        '400':
+          description: Invalid input or duplicate ingredient name
+
+  /api/ingredients/{id}:
+    get:
+      tags:
+        - Ingredients
+      summary: Get ingredient by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Successfully retrieved ingredient
+        '404':
+          description: Ingredient not found
+    put:
+      tags:
+        - Ingredients
+      summary: Update ingredient
+      description: Update an existing ingredient (Admin, Kitchen_Manager only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ingredientName:
+                  type: string
+                  example: 'Trứng muối'
+                unit:
+                  type: string
+                  example: 'quả'
+                costPrice:
+                  type: number
+                  example: 5000
+                warningThreshold:
+                  type: number
+                  example: 20
+      responses:
+        '200':
+          description: Ingredient updated successfully
+        '400':
+          description: Invalid input or duplicate ingredient name
+        '404':
+          description: Ingredient not found
+    delete:
+      tags:
+        - Ingredients
+      summary: Delete ingredient
+      description: Delete an ingredient (Admin, Kitchen_Manager only). Cannot delete if ingredient is used in product recipes.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Ingredient deleted successfully
+        '400':
+          description: Cannot delete - ingredient is used in recipes
+        '404':
+          description: Ingredient not found
 
   /api/products:
     get:
@@ -407,6 +634,302 @@ paths:
       responses:
         '200':
           description: Successfully retrieved inventory
+
+  /api/stores:
+    get:
+      tags:
+        - Stores
+      summary: Get all stores
+      description: Retrieve a list of all retail stores in the system
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved stores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        address:
+                          type: string
+                        phone_number:
+                          type: string
+                        store_code:
+                          type: string
+                        status:
+                          type: string
+                          enum: [Active, Inactive]
+    post:
+      tags:
+        - Stores
+      summary: Create new store
+      description: Register a new retail store location
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - address
+                - phone_number
+                - store_code
+              properties:
+                name:
+                  type: string
+                  example: 'Kendo Mooncake - District 1'
+                address:
+                  type: string
+                  example: '123 Nguyen Hue Street, District 1, HCMC'
+                phone_number:
+                  type: string
+                  example: '0901234567'
+                store_code:
+                  type: string
+                  example: 'KD-D1-001'
+                status:
+                  type: string
+                  enum: [Active, Inactive]
+                  default: Active
+      responses:
+        '201':
+          description: Store created successfully
+        '400':
+          description: Invalid input data
+        '401':
+          description: Unauthorized
+
+  /api/stores/{id}:
+    get:
+      tags:
+        - Stores
+      summary: Get store by ID
+      description: Retrieve detailed information about a specific store
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Store ID
+      responses:
+        '200':
+          description: Successfully retrieved store details
+        '404':
+          description: Store not found
+    put:
+      tags:
+        - Stores
+      summary: Update store information
+      description: Update details of an existing store
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Store ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                address:
+                  type: string
+                phone_number:
+                  type: string
+                store_code:
+                  type: string
+                status:
+                  type: string
+                  enum: [Active, Inactive]
+      responses:
+        '200':
+          description: Store updated successfully
+        '404':
+          description: Store not found
+        '400':
+          description: Invalid input data
+    delete:
+      tags:
+        - Stores
+      summary: Delete or deactivate store
+      description: Soft delete or deactivate a store (sets status to Inactive)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Store ID
+      responses:
+        '200':
+          description: Store deactivated successfully
+        '404':
+          description: Store not found
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Retrieve a list of all registered users and staff (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: roleId
+          schema:
+            type: string
+          description: Filter by role ID
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Active, Inactive]
+          description: Filter by account status
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: Filter by assigned store
+      responses:
+        '200':
+          description: Successfully retrieved users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        username:
+                          type: string
+                        fullName:
+                          type: string
+                        email:
+                          type: string
+                        roleId:
+                          type: string
+                        storeId:
+                          type: string
+                        status:
+                          type: string
+                        createdAt:
+                          type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+
+  /api/users/{id}/role:
+    put:
+      tags:
+        - Users
+      summary: Update user role
+      description: Change a user's role (e.g., KITCHEN_STAFF, STORE_MANAGER, ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roleId
+              properties:
+                roleId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a1'
+                  description: The new role ID to assign
+      responses:
+        '200':
+          description: User role updated successfully
+        '400':
+          description: Invalid role ID
+        '404':
+          description: User not found
+        '403':
+          description: Forbidden - Admin access required
+
+  /api/users/{id}/status:
+    put:
+      tags:
+        - Users
+      summary: Update user account status
+      description: Activate or deactivate a user account
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Active, Inactive]
+                  example: 'Active'
+                  description: New account status
+      responses:
+        '200':
+          description: User status updated successfully
+        '400':
+          description: Invalid status value
+        '404':
+          description: User not found
+        '403':
+          description: Forbidden - Admin access required
 
 components:
   securitySchemes:
