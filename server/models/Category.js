@@ -2,19 +2,15 @@ const mongoose = require('mongoose');
 
 /**
  * Category Schema for Kendo Mooncake Central Kitchen System
- * Represents product categories
+ * Used to classify Products (e.g., "Bánh Nướng", "Bánh Dẻo")
  */
 const categorySchema = new mongoose.Schema(
   {
-    name: {
+    categoryName: {
       type: String,
       required: [true, 'Category name is required'],
       trim: true,
       unique: true,
-    },
-    description: {
-      type: String,
-      trim: true,
     },
   },
   {
@@ -22,7 +18,8 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-// No need for manual index on name - unique: true already creates it
+// Index for efficient queries
+categorySchema.index({ categoryName: 1 });
 
 const Category = mongoose.model('Category', categorySchema);
 
