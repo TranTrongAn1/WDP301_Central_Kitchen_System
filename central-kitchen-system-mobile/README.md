@@ -16,6 +16,16 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+## Environment
+
+Set API base URL before running or building:
+
+```bash
+EXPO_PUBLIC_API_URL=http://10.0.2.2:5000 npx expo start
+```
+
+For APK builds, set `EXPO_PUBLIC_API_URL` in your build environment (or EAS secrets).
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
