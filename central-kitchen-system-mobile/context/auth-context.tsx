@@ -1,9 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-import { authApi } from '@/lib/api';
-import type { User } from '@/lib/auth';
-import { isAllowedRole } from '@/lib/auth';
+import { authApi } from "@/lib/api";
+import type { User } from "@/lib/auth";
+import { isAllowedRole } from "@/lib/auth";
 
 type AuthState = {
   token: string | null;
@@ -16,10 +22,12 @@ type AuthContextValue = AuthState & {
   logout: () => Promise<void>;
 };
 
-const AUTH_TOKEN_KEY = 'auth_token';
-const AUTH_USER_KEY = 'auth_user';
+const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_USER_KEY = "auth_user";
 
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(
+  undefined,
+);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -48,31 +56,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, []);
 
-  const persistSession = useCallback(async (nextToken: string, nextUser: User) => {
-    await Promise.all([
-      AsyncStorage.setItem(AUTH_TOKEN_KEY, nextToken),
-      AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser)),
-    ]);
+  const persistSession = useCallback(
+    async (nextToken: string, nextUser: User) => {
+      await Promise.all([
+        AsyncStorage.setItem(AUTH_TOKEN_KEY, nextToken),
+        AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser)),
+      ]);
 
-    setToken(nextToken);
-    setUser(nextUser);
-  }, []);
+      setToken(nextToken);
+      setUser(nextUser);
+    },
+    [],
+  );
 
   const login = useCallback(
     async (username: string, password: string) => {
       const response = await authApi.login({ username, password });
 
       if (!response.success) {
-        throw new Error(response.message || 'Login failed');
+        throw new Error(response.message || "Login failed");
       }
 
       if (!isAllowedRole(response.user.role)) {
-        throw new Error('Role không được phép đăng nhập ở mobile.');
+        throw new Error("Role không được phép đăng nhập ở mobile.");
       }
 
       await persistSession(response.token, response.user);
     },
-    [persistSession]
+    [persistSession],
   );
 
   const logout = useCallback(async () => {
@@ -92,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
     }),
-    [token, user, isLoading, login, logout]
+    [token, user, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
