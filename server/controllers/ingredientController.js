@@ -1,4 +1,5 @@
 const Ingredient = require('../models/Ingredient');
+const IngredientBatch = require('../models/IngredientBatch');
 
 /**
  * @desc    Get all ingredients
@@ -20,7 +21,7 @@ const getIngredients = async (req, res, next) => {
 };
 
 /**
- * @desc    Get single ingredient by ID
+ * @desc    Get single ingredient by ID with active batches (FEFO sorted)
  * @route   GET /api/ingredients/:id
  * @access  Private (All authenticated users can view)
  */
@@ -33,9 +34,27 @@ const getIngredientById = async (req, res, next) => {
       return next(new Error('Ingredient not found'));
     }
     
+    // Get all active batches sorted by expiry date (FEFO - First Expired First Out)
+    const batches = await IngredientBatch.find({
+      ingredientId: req.params.id,
+      isActive: true,
+      currentQuantity: { $gt: 0 },
+    }).sort({ expiryDate: 1 }); // Ascending order - oldest expiry first
+    
+    // Calculate total quantity from batches
+    const totalQuantity = batches.reduce((sum, batch) => sum + batch.currentQuantity, 0);
+    
+    // Check if below threshold
+    const isBelowThreshold = totalQuantity < ingredient.warningThreshold;
+    
     res.status(200).json({
       success: true,
-      data: ingredient,
+      data: {
+        ...ingredient.toObject(),
+        totalQuantity,
+        isBelowThreshold,
+        batches,
+      },
     });
   } catch (error) {
     next(error);
