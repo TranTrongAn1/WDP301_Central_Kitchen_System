@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 export default function LoginScreen() {
   const { login, isLoading } = useAuth();
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,6 +33,7 @@ export default function LoginScreen() {
 
     try {
       await login(username.trim(), password);
+      router.replace('/(tabs)');
     } catch (error) {
       Alert.alert('Đăng nhập thất bại', error instanceof Error ? error.message : 'Có lỗi xảy ra.');
     } finally {
