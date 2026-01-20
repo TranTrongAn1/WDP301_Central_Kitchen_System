@@ -1,4 +1,5 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../app');
 const Role = require('../models/Role');
 const Store = require('../models/Store');
@@ -7,13 +8,17 @@ const User = require('../models/User');
 /**
  * Integration Tests for Authentication (Feature 1)
  * Tests: Register, Login, Get Me
+ * 
+ * NOTE: Register endpoint is now PROTECTED and requires Admin role
  */
 describe('Feature 1: Authentication Tests', () => {
   let adminRole;
   let storeStaffRole;
   let testStore;
+  let superAdmin;
+  let adminToken;
 
-  // GLOBAL SETUP: Clear data and create base Roles/Store
+  // GLOBAL SETUP: Clear data and create base Roles/Store/Super Admin
   beforeAll(async () => {
     await Role.deleteMany({});
     await Store.deleteMany({});
@@ -27,6 +32,21 @@ describe('Feature 1: Authentication Tests', () => {
       address: '123 Test Street',
       phone: '+84-123-456-789',
       status: true,
+    });
+
+    // Create Super Admin user for testing protected endpoints
+    superAdmin = await User.create({
+      username: 'super_admin',
+      passwordHash: 'superadmin123',
+      fullName: 'Super Admin',
+      email: 'superadmin@test.com',
+      roleId: adminRole._id,
+      isActive: true,
+    });
+
+    // Generate JWT token for Super Admin
+    adminToken = jwt.sign({ id: superAdmin._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE || '30d',
     });
   });
 
@@ -47,9 +67,10 @@ describe('Feature 1: Authentication Tests', () => {
     });
 
     describe('Register Admin User', () => {
-      it('should create Admin user with storeId = null', async () => {
+      it('should create Admin user with storeId = null (Admin authenticated)', async () => {
         const response = await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'admin_test',
             password: 'admin123',
@@ -60,15 +81,18 @@ describe('Feature 1: Authentication Tests', () => {
           .expect(201);
 
         expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe('User created successfully');
         expect(response.body.user.storeId).toBeNull();
+        expect(response.body.token).toBeUndefined(); // No token returned
         console.log('✅ Admin created with storeId = null');
       });
     });
 
     describe('Register StoreStaff User', () => {
-      it('should create StoreStaff user linked to a valid Store', async () => {
+      it('should create StoreStaff user linked to a valid Store (Admin authenticated)', async () => {
         const response = await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'storestaff_test',
             password: 'store123',
@@ -80,13 +104,16 @@ describe('Feature 1: Authentication Tests', () => {
           .expect(201);
 
         expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe('User created successfully');
         expect(response.body.user.storeId).toBe(testStore._id.toString());
+        expect(response.body.token).toBeUndefined(); // No token returned
         console.log('✅ StoreStaff created with storeId linked');
       });
 
-      it('should fail to create StoreStaff without storeId', async () => {
+      it('should fail to create StoreStaff without storeId (Admin authenticated)', async () => {
         const response = await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'storestaff_invalid',
             password: 'store123',
@@ -102,10 +129,11 @@ describe('Feature 1: Authentication Tests', () => {
     });
 
     describe('Duplicate Validation', () => {
-      it('should fail with duplicate username', async () => {
+      it('should fail with duplicate username (Admin authenticated)', async () => {
         // Create 1st user
         await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'duplicate_user',
             password: 'test123',
@@ -117,6 +145,7 @@ describe('Feature 1: Authentication Tests', () => {
         // Create 2nd user (Same Username)
         const response = await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'duplicate_user', 
             password: 'test456',
@@ -133,10 +162,11 @@ describe('Feature 1: Authentication Tests', () => {
         await User.deleteMany({ username: 'duplicate_user' });
       });
 
-      it('should fail with duplicate email', async () => {
+      it('should fail with duplicate email (Admin authenticated)', async () => {
         // Create 1st user
         await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'user1',
             password: 'test123',
@@ -148,6 +178,7 @@ describe('Feature 1: Authentication Tests', () => {
         // Create 2nd user (Same Email)
         const response = await request(app)
           .post('/api/auth/register')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             username: 'user2',
             password: 'test123',
@@ -159,6 +190,83 @@ describe('Feature 1: Authentication Tests', () => {
 
         expect(response.body.success).toBe(false);
         expect(response.body.message).toContain('Email already exists');
+      });
+    });
+
+    describe('Authorization & Authentication Tests', () => {
+      let storeStaffUser;
+      let storeStaffToken;
+
+      beforeAll(async () => {
+        // Create a StoreStaff user to test non-admin access
+        storeStaffUser = await User.create({
+          username: 'store_staff_auth',
+          passwordHash: 'staff123',
+          fullName: 'Store Staff Auth Test',
+          email: 'staffauth@test.com',
+          roleId: storeStaffRole._id,
+          storeId: testStore._id,
+          isActive: true,
+        });
+
+        // Generate token for StoreStaff
+        storeStaffToken = jwt.sign({ id: storeStaffUser._id }, process.env.JWT_SECRET, {
+          expiresIn: process.env.JWT_EXPIRE || '30d',
+        });
+      });
+
+      afterAll(async () => {
+        await User.deleteMany({ username: 'store_staff_auth' });
+      });
+
+      it('should fail to register without authentication token', async () => {
+        const response = await request(app)
+          .post('/api/auth/register')
+          .send({
+            username: 'no_auth_user',
+            password: 'test123',
+            fullName: 'No Auth User',
+            email: 'noauth@test.com',
+            roleId: adminRole._id.toString(),
+          })
+          .expect(401);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toContain('Not authorized');
+      });
+
+      it('should fail to register with invalid token', async () => {
+        const response = await request(app)
+          .post('/api/auth/register')
+          .set('Authorization', 'Bearer invalid_token_12345')
+          .send({
+            username: 'invalid_token_user',
+            password: 'test123',
+            fullName: 'Invalid Token User',
+            email: 'invalidtoken@test.com',
+            roleId: adminRole._id.toString(),
+          })
+          .expect(401);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toContain('Not authorized');
+      });
+
+      it('should fail to register with non-admin role (StoreStaff)', async () => {
+        const response = await request(app)
+          .post('/api/auth/register')
+          .set('Authorization', `Bearer ${storeStaffToken}`)
+          .send({
+            username: 'unauthorized_user',
+            password: 'test123',
+            fullName: 'Unauthorized User',
+            email: 'unauthorized@test.com',
+            roleId: adminRole._id.toString(),
+          })
+          .expect(403);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toContain('not authorized to access this route');
       });
     });
   });
@@ -258,21 +366,14 @@ describe('Feature 1: Authentication Tests', () => {
     let validToken;
 
     beforeAll(async () => {
-        // Register a fresh user to get a fresh token
-        const registerResponse = await request(app)
-        .post('/api/auth/register')
+      // Login with Super Admin to get a valid token
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
         .send({
-            username: 'me_test',
-            password: 'test123',
-            fullName: 'Me Test User',
-            email: 'me@test.com',
-            roleId: adminRole._id.toString(),
+          username: 'super_admin',
+          password: 'superadmin123',
         });
-        validToken = registerResponse.body.token;
-    });
-    
-    afterAll(async () => {
-        await User.deleteMany({ username: 'me_test' });
+      validToken = loginResponse.body.token;
     });
 
     it('should return user profile with valid token', async () => {
@@ -282,7 +383,7 @@ describe('Feature 1: Authentication Tests', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.username).toBe('me_test');
+      expect(response.body.data.username).toBe('super_admin');
     });
 
     it('should fail without token', async () => {
@@ -298,9 +399,6 @@ describe('Feature 1: Authentication Tests', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      // FIXED: Adjusted expectation to match actual server error
-      // Old: 'invalid token' -> New: 'Not authorized' or 'token failed'
-      // To make it robust, we check if it contains either 'failed' or 'not authorized'
       expect(response.body.message.toLowerCase()).toEqual(expect.stringMatching(/token failed|not authorized|invalid/));
     });
   });
