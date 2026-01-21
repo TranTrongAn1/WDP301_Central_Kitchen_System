@@ -10,7 +10,7 @@ const instance = axios.create({
   timeout: 10000,
 });
 
-// Request interceptor
+
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem("token");
@@ -24,7 +24,7 @@ instance.interceptors.request.use(
   }
 );
 
-// Response interceptor
+
 instance.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;

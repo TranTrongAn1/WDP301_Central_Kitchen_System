@@ -23,10 +23,7 @@ module.exports = {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
+        primary: "#e77e23",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -54,6 +51,17 @@ module.exports = {
           "5": "hsl(var(--chart-5))",
         },
       },
+      animation: {
+        'float-slow': 'float 8s ease-in-out infinite',
+        'float-medium': 'float 6s ease-in-out infinite reverse',
+        'float-fast': 'float 4s ease-in-out infinite 1s',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-20px)' },
+        }
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],
