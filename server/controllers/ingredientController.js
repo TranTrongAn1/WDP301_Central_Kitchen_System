@@ -64,11 +64,11 @@ const getIngredientById = async (req, res, next) => {
 /**
  * @desc    Create new ingredient
  * @route   POST /api/ingredients
- * @access  Private (Admin, Kitchen_Manager only)
+ * @access  Private (Admin, Manager only)
  */
 const createIngredient = async (req, res, next) => {
   try {
-    const { ingredientName, unit, costPrice, warningThreshold } = req.body;
+    const { ingredientName, unit, warningThreshold } = req.body;
     
     // Validation: Check required fields
     if (!ingredientName || ingredientName.trim() === '') {
@@ -79,16 +79,6 @@ const createIngredient = async (req, res, next) => {
     if (!unit || unit.trim() === '') {
       res.status(400);
       return next(new Error('Unit is required'));
-    }
-    
-    if (costPrice === undefined || costPrice === null) {
-      res.status(400);
-      return next(new Error('Cost price is required'));
-    }
-    
-    if (costPrice < 0) {
-      res.status(400);
-      return next(new Error('Cost price cannot be negative'));
     }
     
     // Validation: Check for duplicate name (case-insensitive)
@@ -102,10 +92,10 @@ const createIngredient = async (req, res, next) => {
     }
     
     // Create ingredient (unit will be auto-converted to lowercase by pre-save hook)
+    // NOTE: costPrice removed - now tracked per batch
     const ingredient = await Ingredient.create({
       ingredientName: ingredientName.trim(),
       unit: unit.trim(),
-      costPrice,
       warningThreshold: warningThreshold || 10,
     });
     
