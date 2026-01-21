@@ -62,7 +62,6 @@ const ingredientBatchSchema = new mongoose.Schema(
 
 // Compound index for efficient FEFO queries (by ingredient and expiry date)
 ingredientBatchSchema.index({ ingredientId: 1, expiryDate: 1 });
-ingredientBatchSchema.index({ batchCode: 1 });
 ingredientBatchSchema.index({ isActive: 1, currentQuantity: 1 });
 
 // Pre-save hook: Set currentQuantity to initialQuantity on creation

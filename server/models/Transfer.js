@@ -79,7 +79,6 @@ transferSchema.pre('save', function () {
 transferSchema.index({ toStoreId: 1 });
 transferSchema.index({ createdBy: 1 });
 transferSchema.index({ status: 1 });
-transferSchema.index({ transferCode: 1 });
 
 const Transfer = mongoose.model('Transfer', transferSchema);
 

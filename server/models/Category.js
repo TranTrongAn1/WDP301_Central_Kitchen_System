@@ -18,9 +18,6 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-// Index for efficient queries
-categorySchema.index({ categoryName: 1 });
-
 const Category = mongoose.model('Category', categorySchema);
 
 module.exports = Category;

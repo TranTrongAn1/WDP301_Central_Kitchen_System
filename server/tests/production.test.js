@@ -38,8 +38,7 @@ describe('Production & Batch Management Integration Tests', () => {
     });
 
     testCategory = await Category.create({
-      name: 'Test Category',
-      description: 'Category for testing',
+      categoryName: 'Test Category',
     });
 
     testProduct = await Product.create({
