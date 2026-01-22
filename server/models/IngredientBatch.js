@@ -12,6 +12,12 @@ const ingredientBatchSchema = new mongoose.Schema(
       required: [true, 'Ingredient ID is required'],
       index: true,
     },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Supplier',
+      required: [true, 'Supplier ID is required'],
+      index: true,
+    },
     batchCode: {
       type: String,
       required: [true, 'Batch code is required'],
@@ -63,6 +69,8 @@ const ingredientBatchSchema = new mongoose.Schema(
 // Compound index for efficient FEFO queries (by ingredient and expiry date)
 ingredientBatchSchema.index({ ingredientId: 1, expiryDate: 1 });
 ingredientBatchSchema.index({ isActive: 1, currentQuantity: 1 });
+// Compound index for supplier import history
+ingredientBatchSchema.index({ supplierId: 1, receivedDate: -1 });
 
 // Pre-save hook: Set currentQuantity to initialQuantity on creation
 ingredientBatchSchema.pre('save', function (next) {

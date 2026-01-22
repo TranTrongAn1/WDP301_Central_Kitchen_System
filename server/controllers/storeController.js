@@ -49,7 +49,7 @@ const getStoreById = async (req, res, next) => {
  */
 const createStore = async (req, res, next) => {
   try {
-    const { storeName, address, phone, status } = req.body;
+    const { storeName, storeCode, address, phone, standardDeliveryMinutes, status } = req.body;
 
     // Check if store name already exists
     const existingStore = await Store.findOne({ storeName });
@@ -58,10 +58,19 @@ const createStore = async (req, res, next) => {
       return next(new Error('Store with this name already exists'));
     }
 
+    // Check if store code already exists
+    const existingStoreCode = await Store.findOne({ storeCode });
+    if (existingStoreCode) {
+      res.status(400);
+      return next(new Error('Store with this code already exists'));
+    }
+
     const store = await Store.create({
       storeName,
+      storeCode,
       address,
       phone,
+      standardDeliveryMinutes,
       status,
     });
 
@@ -95,6 +104,15 @@ const updateStore = async (req, res, next) => {
       if (existingStore) {
         res.status(400);
         return next(new Error('Store with this name already exists'));
+      }
+    }
+
+    // Check if new store code already exists (if code is being changed)
+    if (req.body.storeCode && req.body.storeCode !== store.storeCode) {
+      const existingStoreCode = await Store.findOne({ storeCode: req.body.storeCode });
+      if (existingStoreCode) {
+        res.status(400);
+        return next(new Error('Store with this code already exists'));
       }
     }
 

@@ -107,13 +107,33 @@ const createIngredient = asyncHandler(async (req, res) => {
  * 2. Update parent Ingredient.totalQuantity by adding the new batch quantity
  */
 const addBatch = asyncHandler(async (req, res) => {
-  const { batchCode, expiryDate, initialQuantity, price } = req.body;
+  const { batchCode, expiryDate, initialQuantity, price, supplierId } = req.body;
   
   // Validation: Check if ingredient exists
   const ingredient = await Ingredient.findById(req.params.id);
   if (!ingredient) {
     res.status(404);
     throw new Error('Ingredient not found');
+  }
+  
+  // Validation: Check if supplierId is provided
+  if (!supplierId || supplierId.trim() === '') {
+    res.status(400);
+    throw new Error('Supplier ID is required');
+  }
+  
+  // Validation: Verify supplier exists
+  const Supplier = require('../models/Supplier');
+  const supplier = await Supplier.findById(supplierId);
+  if (!supplier) {
+    res.status(404);
+    throw new Error('Supplier not found');
+  }
+  
+  // Validation: Check if supplier is active
+  if (supplier.status !== 'Active') {
+    res.status(400);
+    throw new Error('Cannot create batch with inactive supplier');
   }
   
   // Validation: Required fields
@@ -154,9 +174,10 @@ const addBatch = asyncHandler(async (req, res) => {
     throw new Error('Batch code already exists');
   }
   
-  // Create new batch
+  // Create new batch with supplier traceability
   const batch = await IngredientBatch.create({
     ingredientId: req.params.id,
+    supplierId,
     batchCode: batchCode.trim(),
     expiryDate: expiryDateObj,
     initialQuantity,
@@ -169,6 +190,9 @@ const addBatch = asyncHandler(async (req, res) => {
   // This maintains data consistency between parent and child
   ingredient.totalQuantity += initialQuantity;
   await ingredient.save();
+  
+  // Populate supplier info for response
+  await batch.populate('supplierId', 'name email phone');
   
   res.status(201).json({
     success: true,
@@ -212,7 +236,8 @@ const getBatchesByIngredient = asyncHandler(async (req, res) => {
     currentQuantity: { $gt: 0 },
   })
     .sort({ expiryDate: 1 }) // FEFO: Oldest expiry date first
-    .populate('ingredientId', 'ingredientName unit');
+    .populate('ingredientId', 'ingredientName unit')
+    .populate('supplierId', 'name email phone status');
   
   res.status(200).json({
     success: true,

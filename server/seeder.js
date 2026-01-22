@@ -23,18 +23,27 @@ const roles = [
 const stores = [
   {
     storeName: 'Kendo Central Store',
+    storeCode: 'KD-Q1',
     address: '123 Main Street, District 1, Ho Chi Minh City',
-    status: true,
+    phone: '+84-28-12345678',
+    standardDeliveryMinutes: 30,
+    status: 'Active',
   },
   {
     storeName: 'Kendo North Branch',
+    storeCode: 'KD-Q3',
     address: '456 Le Loi Street, District 3, Ho Chi Minh City',
-    status: true,
+    phone: '+84-28-23456789',
+    standardDeliveryMinutes: 45,
+    status: 'Active',
   },
   {
     storeName: 'Kendo West Branch',
+    storeCode: 'KD-Q5',
     address: '789 Nguyen Hue Street, District 5, Ho Chi Minh City',
-    status: true,
+    phone: '+84-28-34567890',
+    standardDeliveryMinutes: 40,
+    status: 'Active',
   },
 ];
 
