@@ -42,6 +42,7 @@ app.use('/api/production', require('./routes/productionRoutes'));
 app.use('/api/batches', require('./routes/batchRoutes'));
 app.use('/api/transfers', require('./routes/transferRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/docs', require('./routes/docsRoutes'));
 
 // 404 handler
 app.use((req, res, next) => {
