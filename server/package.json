@@ -26,6 +26,7 @@
   "homepage": "https://github.com/TranTrongAn1/WDP301_Central_Kitchen_System#readme",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",

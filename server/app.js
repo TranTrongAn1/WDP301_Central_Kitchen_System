@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const connectDB = require('./config/db');
@@ -15,6 +16,14 @@ if (process.env.NODE_ENV !== 'test') {
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
 // Load Swagger documentation
 const swaggerDocument = YAML.load('./swagger.yaml');
