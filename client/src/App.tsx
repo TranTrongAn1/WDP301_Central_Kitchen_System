@@ -1,18 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ProtectedRoute } from './routes/protectedRoute';
-import { useAuthStore } from './shared/store/authStore';
+import { useAuthStore } from './shared/zustand/authStore';
 
-// Pages
 import HomePage from '@/features/home/pages/HomePage';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import SignupPage from '@/features/auth/pages/SignupPage';
 
-// Layouts
 import { HomeLayout } from '@/features/home/components/HomeLayout';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 
-// Dashboard pages (placeholder for now)
 import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
@@ -22,16 +19,15 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 
 import './App.css';
 
-// Component to handle redirects after login
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && user) {
     const roleRoutes: Record<string, string> = {
-      'Admin': '/admin/dashboard',
-      'Manager': '/manager/dashboard',
-      'KitchenStaff': '/kitchen/dashboard',
-      'StoreStaff': '/store/dashboard',
-      'Coordinator': '/coordinator/dashboard',
+      Admin: '/admin/dashboard',
+      Manager: '/manager/dashboard',
+      KitchenStaff: '/kitchen/dashboard',
+      StoreStaff: '/store/dashboard',
+      Coordinator: '/coordinator/dashboard',
     };
     const redirectPath = roleRoutes[user.role] || '/dashboard';
     return <Navigate to={redirectPath} replace />;
@@ -44,22 +40,18 @@ function App() {
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <BrowserRouter>
         <Routes>
-          {/* Public routes with HomeLayout */}
           <Route element={<HomeLayout />}>
             <Route path="/" element={<HomePage />} />
           </Route>
 
-          {/* Auth routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           
-          {/* Auth redirect route */}
           <Route 
             path="/auth/callback" 
             element={<AuthHandler />} 
           />
 
-          {/* Admin routes */}
           <Route
             element={
               <ProtectedRoute allowedRoles={['Admin']} />
@@ -70,7 +62,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* Manager routes */}
           <Route
             element={
               <ProtectedRoute allowedRoles={['Manager']} />
@@ -81,7 +72,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* Kitchen Staff routes */}
           <Route
             element={
               <ProtectedRoute allowedRoles={['KitchenStaff']} />
@@ -92,7 +82,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* Store Staff routes */}
           <Route
             element={
               <ProtectedRoute allowedRoles={['StoreStaff']} />
@@ -103,7 +92,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* Coordinator routes */}
           <Route
             element={
               <ProtectedRoute allowedRoles={['Coordinator']} />
@@ -114,7 +102,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* Legacy dashboard route - redirect based on role */}
           <Route
             element={
               <ProtectedRoute />
@@ -125,7 +112,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* 404 - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

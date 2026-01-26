@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useThemeStore } from '@/shared/store/themeStore';
+import { useThemeStore } from '@/shared/zustand/themeStore';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/shared/store/authStore';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const StoreDashboard = () => {
   const { user } = useAuthStore();

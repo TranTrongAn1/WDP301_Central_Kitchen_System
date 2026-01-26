@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { useAuthStore } from '@/shared/store/authStore';
+import { useAuthStore } from '@/shared/zustand/authStore';
 import type { RegisterRequest, RegisterResponse, Role, Store, UserRole } from '@/shared/types/auth';
 
 const registerSchema = z.object({
@@ -15,11 +15,6 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   roleId: z.string().min(1, 'Please select a role'),
   storeId: z.string().optional().nullable(),
-}).superRefine((data, ctx) => {
-  // If role is StoreStaff, storeId is required
-  if (data.roleId && data.roleId !== '') {
-    // We'll check this after fetching roles to get the role name
-  }
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -51,9 +46,6 @@ const RegisterForm = () => {
     },
   });
 
-  const watchedRoleId = watch('roleId');
-
-  // Fetch roles on mount
   useEffect(() => {
     const fetchRoles = async () => {
       setIsLoading(true);
@@ -75,16 +67,15 @@ const RegisterForm = () => {
     fetchRoles();
   }, []);
 
-  // Fetch stores when StoreStaff role is selected
   useEffect(() => {
-    const fetchStores = async () => {
-      if (ROLES_WITHOUT_STORE.includes(selectedRole as UserRole)) {
-        setStores([]);
-        setValue('storeId', null);
-        return;
-      }
+    if (ROLES_WITHOUT_STORE.includes(selectedRole as UserRole)) {
+      setStores([]);
+      setValue('storeId', null);
+      return;
+    }
 
-      setIsGettingStores(true);
+    setIsGettingStores(true);
+    const fetchStores = async () => {
       try {
         const response = await axios.get('/stores', {
           baseURL: import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
@@ -108,7 +99,6 @@ const RegisterForm = () => {
     setSelectedRole(roleId);
     setValue('roleId', roleId);
     
-    // Clear store selection when role changes
     const role = roles.find(r => r._id === roleId);
     if (role && ROLES_WITHOUT_STORE.includes(role.roleName)) {
       setValue('storeId', null);
@@ -118,7 +108,6 @@ const RegisterForm = () => {
   };
 
   const onSubmit = async (data: RegisterFormData) => {
-    // Validate store selection for StoreStaff
     const selectedRoleObj = roles.find(r => r._id === data.roleId);
     if (selectedRoleObj?.roleName === 'StoreStaff' && !data.storeId) {
       toast.error('StoreStaff must be assigned to a store');
@@ -200,7 +189,6 @@ const RegisterForm = () => {
         </div>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          {/* Username */}
           <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="username">
               Username
@@ -220,7 +208,6 @@ const RegisterForm = () => {
             )}
           </div>
 
-          {/* Full Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="fullName">
               Full Name
@@ -240,7 +227,6 @@ const RegisterForm = () => {
             )}
           </div>
 
-          {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="email">
               Email Address
@@ -260,7 +246,6 @@ const RegisterForm = () => {
             )}
           </div>
 
-          {/* Role Selection */}
           <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="roleId">
               Role
@@ -289,7 +274,6 @@ const RegisterForm = () => {
             )}
           </div>
 
-          {/* Store Selection - Only for StoreStaff */}
           {showStoreField && (
             <div className="flex flex-col gap-1.5 animate-fade-in">
               <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="storeId">
@@ -319,7 +303,6 @@ const RegisterForm = () => {
             </div>
           )}
 
-          {/* Password */}
           <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="password">
               Password
@@ -352,7 +335,6 @@ const RegisterForm = () => {
             )}
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading || isSubmitting}
@@ -408,4 +390,3 @@ const RegisterForm = () => {
 };
 
 export default RegisterForm;
-

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { User, UserRole, ROLE_ROUTES } from '@/shared/types/auth';
+import type { User, UserRole } from '@/shared/types/auth';
 
 interface AuthState {
   user: User | null;
@@ -34,11 +34,11 @@ export const useAuthStore = create<AuthState>()(
         if (!user) return '/login';
 
         const roleRoutes: Record<UserRole, string> = {
-          'Admin': '/admin/dashboard',
-          'Manager': '/manager/dashboard',
-          'KitchenStaff': '/kitchen/dashboard',
-          'StoreStaff': '/store/dashboard',
-          'Coordinator': '/coordinator/dashboard',
+          Admin: '/admin/dashboard',
+          Manager: '/manager/dashboard',
+          KitchenStaff: '/kitchen/dashboard',
+          StoreStaff: '/store/dashboard',
+          Coordinator: '/coordinator/dashboard',
         };
 
         return roleRoutes[user.role] || '/dashboard';
@@ -56,3 +56,4 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+

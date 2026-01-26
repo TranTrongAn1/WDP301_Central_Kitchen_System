@@ -5,8 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { useAuthStore } from '@/shared/store/authStore';
-import { useThemeStore } from '@/shared/store/themeStore';
+import { useAuthStore } from '@/shared/zustand/authStore';
+import { useThemeStore } from '@/shared/zustand/themeStore';
 import type { LoginRequest, LoginResponse } from '@/shared/types/auth';
 
 const loginSchema = z.object({
@@ -54,7 +54,6 @@ const LoginForm = () => {
         
         toast.success(response.data.message || 'Login successful!', { id: toastId });
         
-        // Redirect based on user role
         const redirectRoute = getRedirectRoute();
         navigate(redirectRoute, { replace: true });
       } else {
