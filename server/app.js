@@ -13,6 +13,14 @@ if (process.env.NODE_ENV !== 'test') {
   connectDB();
 }
 
+// CORS middleware
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://localhost:5000', '*'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -30,6 +38,20 @@ const swaggerDocument = YAML.load('./swagger.yaml');
 
 // Swagger UI setup
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// Serve raw Swagger/OpenAPI JSON spec (for downloading)
+app.get('/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="swagger.json"');
+  res.json(swaggerDocument);
+});
+
+// Legacy endpoint for compatibility
+app.get('/api-docs/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="swagger.json"');
+  res.json(swaggerDocument);
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
