@@ -1,0 +1,27 @@
+{
+  "name": "kendo-mooncake-central-kitchen-system",
+  "version": "1.0.0",
+  "description": "Backend API for Kendo Mooncake Central Kitchen Management System",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "nodemon server/app.js",
+    "seed": "node server/seeder.js",
+    "seed:destroy": "node server/seeder.js -d"
+  },
+  "keywords": ["mooncake", "central-kitchen", "inventory", "management"],
+  "author": "WDP301 Team",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.0",
+    "swagger-ui-express": "^4.6.0",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.0"
+  }
+}

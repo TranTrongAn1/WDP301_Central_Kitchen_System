@@ -78,13 +78,9 @@ const register = async (req, res, next) => {
       await user.populate('storeId', 'storeName address');
     }
 
-    // Generate token
-    const token = generateToken(user._id);
-
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      token,
+      message: 'User created successfully',
       user: {
         id: user._id,
         username: user.username,

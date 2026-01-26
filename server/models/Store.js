@@ -16,6 +16,10 @@ const storeSchema = new mongoose.Schema(
       required: [true, 'Store address is required'],
       trim: true,
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: Boolean,
       default: true,

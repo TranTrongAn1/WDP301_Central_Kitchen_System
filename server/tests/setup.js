@@ -60,13 +60,16 @@ const closeDB = async () => {
 
 beforeAll(async () => {
   await connectDB();
+  await clearDB(); // Clear once at the start
 });
 
-afterEach(async () => {
-  await clearDB();
-});
+// Don't clear after each test - let test files manage their own data
+// afterEach(async () => {
+//   await clearDB();
+// });
 
 afterAll(async () => {
+  await clearDB(); // Clear once at the end
   await closeDB();
 });
 
