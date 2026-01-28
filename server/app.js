@@ -13,25 +13,23 @@ if (process.env.NODE_ENV !== 'test') {
   connectDB();
 }
 
-// CORS middleware
-app.use(cors({
-  origin: ['http://localhost:8081', 'http://localhost:5000', '*'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
 
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration
-const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
+// CORS middleware - CẤU HÌNH CHUẨN
+app.use(cors({
+  // Liệt kê tất cả các domain frontend được phép gọi API
+  origin: [
+    'http://localhost:5173', // Vite (Frontend chính của bạn)
+    'http://localhost:3000', // React thường (nếu có)
+    'http://localhost:8081'  // Mobile hoặc App khác (nếu có)
+  ],
+  credentials: true, // Cho phép gửi cookie/token
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+}));
 
 // Load Swagger documentation
 const swaggerDocument = YAML.load('./swagger.yaml');
