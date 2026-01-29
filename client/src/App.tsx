@@ -18,6 +18,7 @@ import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashbo
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 
 import './App.css';
+import { AccountManagement } from './features/admin/pages/AccountManagment';
 
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
@@ -59,6 +60,7 @@ function App() {
           >
             <Route element={<AdminLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/account" element={<AccountManagement />} />
             </Route>
           </Route>
 
