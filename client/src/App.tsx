@@ -9,7 +9,7 @@ import SignupPage from '@/features/auth/pages/SignupPage';
 
 import { HomeLayout } from '@/features/home/components/HomeLayout';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
-
+import { AdminLayout } from '@/features/admin/AdminLayout';
 import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
@@ -57,7 +57,7 @@ function App() {
               <ProtectedRoute allowedRoles={['Admin']} />
             }
           >
-            <Route element={<DashboardLayout />}>
+            <Route element={<AdminLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
             </Route>
           </Route>
