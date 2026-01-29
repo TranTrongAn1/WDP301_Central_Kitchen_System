@@ -73,19 +73,17 @@ ingredientBatchSchema.index({ isActive: 1, currentQuantity: 1 });
 ingredientBatchSchema.index({ supplierId: 1, receivedDate: -1 });
 
 // Pre-save hook: Set currentQuantity to initialQuantity on creation
-ingredientBatchSchema.pre('save', function (next) {
-  if (this.isNew) {
+ingredientBatchSchema.pre('save', async function () {
+  if (this.isNew && !this.currentQuantity) {
     this.currentQuantity = this.initialQuantity;
   }
-  next();
 });
 
 // Pre-save hook: Uppercase batch code
-ingredientBatchSchema.pre('save', function (next) {
+ingredientBatchSchema.pre('save', async function () {
   if (this.batchCode) {
     this.batchCode = this.batchCode.toUpperCase().trim();
   }
-  next();
 });
 
 // Virtual: Check if batch is expired

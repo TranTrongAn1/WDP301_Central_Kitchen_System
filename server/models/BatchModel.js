@@ -67,7 +67,7 @@ const batchSchema = new mongoose.Schema(
 );
 
 // Indexes for optimal query performance
-batchSchema.index({ productionPlanId: 1 }); // Traceability: find batches by plan
+// Note: productionPlanId already has index:true which creates the index automatically
 batchSchema.index({ productId: 1, expDate: 1 }); // FEFO logic: First Expired First Out
 batchSchema.index({ expDate: 1 }); // Expiration monitoring
 batchSchema.index({ status: 1 }); // Filter by status
