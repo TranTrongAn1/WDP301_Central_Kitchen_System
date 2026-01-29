@@ -107,8 +107,10 @@ const importData = async () => {
     console.log(`✅ ${createdStores.length} stores created`);
 
     const adminRole = createdRoles.find((r) => r.roleName === 'Admin');
+    const managerRole = createdRoles.find((r) => r.roleName === 'Manager');
     const kitchenStaffRole = createdRoles.find((r) => r.roleName === 'KitchenStaff');
     const storeStaffRole = createdRoles.find((r) => r.roleName === 'StoreStaff');
+    const coordinatorRole = createdRoles.find((r) => r.roleName === 'Coordinator');
 
     console.log('Creating Users...');
 
@@ -123,27 +125,49 @@ const importData = async () => {
     });
     console.log(`✅ Admin created: ${adminUser.username}`);
 
-    const chefUser = await User.create({
-      username: 'chef',
-      passwordHash: 'chef123',
-      fullName: 'Head Chef',
-      email: 'chef@kendomooncake.com',
+    const managerUser = await User.create({
+      username: 'manager',
+      passwordHash: 'manager123',
+      fullName: 'Operations Manager',
+      email: 'manager@kendomooncake.com',
+      roleId: managerRole._id,
+      storeId: null,
+      isActive: true,
+    });
+    console.log(`✅ Manager created: ${managerUser.username}`);
+
+    const kitchenUser = await User.create({
+      username: 'kitchen',
+      passwordHash: 'kitchen123',
+      fullName: 'Kitchen Staff',
+      email: 'kitchen@kendomooncake.com',
       roleId: kitchenStaffRole._id,
       storeId: null,
       isActive: true,
     });
-    console.log(`✅ Chef created: ${chefUser.username}`);
+    console.log(`✅ Kitchen Staff created: ${kitchenUser.username}`);
 
-    const storeStaff = await User.create({
-      username: 'store1',
-      passwordHash: 'store1123',
+    const storeUser = await User.create({
+      username: 'store',
+      passwordHash: 'store123',
       fullName: 'Q1 Store Staff',
-      email: 'store1@kendomooncake.com',
+      email: 'store@kendomooncake.com',
       roleId: storeStaffRole._id,
       storeId: createdStores[0]._id,
       isActive: true,
     });
-    console.log(`✅ Store Staff created: ${storeStaff.username} (${createdStores[0].storeName})\n`);
+    console.log(`✅ Store Staff created: ${storeUser.username} (${createdStores[0].storeName})`);
+
+    const coordinatorUser = await User.create({
+      username: 'coordinator',
+      passwordHash: 'coordinator123',
+      fullName: 'Logistics Coordinator',
+      email: 'coordinator@kendomooncake.com',
+      roleId: coordinatorRole._id,
+      storeId: null,
+      isActive: true,
+    });
+    console.log(`✅ Coordinator created: ${coordinatorUser.username}\n`);
 
     // ========================================
     // STEP 2: INVENTORY INPUT (FEATURE 2)
@@ -343,7 +367,7 @@ const importData = async () => {
     console.log('\n📊 SUMMARY:');
     console.log(`   Roles: ${createdRoles.length}`);
     console.log(`   Stores: ${createdStores.length}`);
-    console.log(`   Users: 3 (Admin, Chef, Store Staff)`);
+    console.log(`   Users: 5 (Admin, Manager, Kitchen Staff, Store Staff, Coordinator)`);
     console.log(`   Suppliers: ${createdSuppliers.length}`);
     console.log(`   Ingredients: 4`);
     console.log(`   Ingredient Batches: 3`);
@@ -354,9 +378,11 @@ const importData = async () => {
     console.log(`   Store Inventories: 1`);
 
     console.log('\n📝 LOGIN CREDENTIALS:');
-    console.log('   Admin:        username: admin      password: admin123');
-    console.log('   Chef:         username: chef       password: chef123');
-    console.log('   Store Staff:  username: store1     password: store1123');
+    console.log('   Admin:        username: admin        password: admin123');
+    console.log('   Manager:      username: manager      password: manager123');
+    console.log('   Kitchen:      username: kitchen      password: kitchen123');
+    console.log('   Store:        username: store        password: store123');
+    console.log('   Coordinator:  username: coordinator  password: coordinator123');
 
     console.log('\n✅ Traceability Chain Established:');
     console.log('   Supplier → Ingredient Batch → Ingredient → Product Recipe');

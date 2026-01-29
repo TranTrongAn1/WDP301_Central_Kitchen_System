@@ -58,6 +58,19 @@ const batchSchema = new mongoose.Schema(
       },
       default: 'Active',
     },
+    // Traceability: Track which ingredient batches were used in production
+    ingredientBatchesUsed: [
+      {
+        ingredientBatchId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'IngredientBatch',
+        },
+        quantityUsed: {
+          type: Number,
+          min: [0, 'Quantity used cannot be negative'],
+        },
+      },
+    ],
   },
   {
     timestamps: true,
