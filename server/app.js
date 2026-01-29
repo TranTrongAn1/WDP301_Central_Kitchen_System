@@ -18,7 +18,7 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware - CẤU HÌNH CHUẨN
+// CORS middleware
 app.use(cors({
   // Liệt kê tất cả các domain frontend được phép gọi API
   origin: [
@@ -73,7 +73,7 @@ app.use('/api/batches', require('./routes/batchRoutes'));
 app.use('/api/transfers', require('./routes/transferRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/docs', require('./routes/docsRoutes'));
-
+app.use('/api/roles', require('./routes/roleRoutes'));
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({

@@ -3,11 +3,10 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 
 const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: 'shopping_bag', label: 'Orders', path: '/admin/orders' },
-  { icon: 'sell', label: 'Products', path: '/admin/products' },
+  { icon: 'menu', label: 'Recipe Managment', path: '/admin/recipe' },
+  { icon: 'sell', label: 'Accounts', path: '/admin/account' },
   { icon: 'inventory_2', label: 'Inventory', path: '/admin/inventory' },
   { icon: 'group', label: 'Users', path: '/admin/users' },
-  { icon: 'settings', label: 'Settings', path: '/admin/settings' },
 ];
 
 export const AdminSidebar = () => {
