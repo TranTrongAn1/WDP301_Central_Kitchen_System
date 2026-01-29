@@ -5,149 +5,114 @@ const Role = require('./models/Role');
 const Store = require('./models/Store');
 const User = require('./models/User');
 const Category = require('./models/Category');
+const Supplier = require('./models/Supplier');
 const Ingredient = require('./models/Ingredient');
+const IngredientBatch = require('./models/IngredientBatch');
 const Product = require('./models/Product');
 const ProductionPlan = require('./models/ProductionPlan');
 const Batch = require('./models/BatchModel');
 const StoreInventory = require('./models/StoreInventory');
 
-// Sample data
+// ============================================================
+// SAMPLE DATA DEFINITIONS
+// ============================================================
+
 const roles = [
   { roleName: 'Admin' },
   { roleName: 'Manager' },
-  { roleName: 'StoreStaff' },
   { roleName: 'KitchenStaff' },
+  { roleName: 'StoreStaff' },
   { roleName: 'Coordinator' },
 ];
 
 const stores = [
   {
-    storeName: 'Kendo Central Store',
+    storeName: 'Kendo Q1 Branch',
     storeCode: 'KD-Q1',
-    address: '123 Main Street, District 1, Ho Chi Minh City',
+    address: '123 Nguyen Hue Street, District 1, Ho Chi Minh City',
     phone: '+84-28-12345678',
     standardDeliveryMinutes: 30,
     status: 'Active',
   },
   {
-    storeName: 'Kendo North Branch',
-    storeCode: 'KD-Q3',
-    address: '456 Le Loi Street, District 3, Ho Chi Minh City',
-    phone: '+84-28-23456789',
+    storeName: 'Kendo Q7 Branch',
+    storeCode: 'KD-Q7',
+    address: '456 Phu My Hung, District 7, Ho Chi Minh City',
+    phone: '+84-28-87654321',
     standardDeliveryMinutes: 45,
     status: 'Active',
   },
+];
+
+const suppliers = [
   {
-    storeName: 'Kendo West Branch',
-    storeCode: 'KD-Q5',
-    address: '789 Nguyen Hue Street, District 5, Ho Chi Minh City',
-    phone: '+84-28-34567890',
-    standardDeliveryMinutes: 40,
-    status: 'Active',
+    name: 'Golden Harvest Supplier',
+    contactPerson: 'Nguyen Van A',
+    phone: '+84-28-11111111',
+    email: 'contact@goldenharvest.vn',
+    address: 'Industrial Zone, Binh Duong Province',
+  },
+  {
+    name: 'Fresh Ingredients Co.',
+    contactPerson: 'Tran Thi B',
+    phone: '+84-28-22222222',
+    email: 'sales@freshingredients.vn',
+    address: 'Agricultural Area, Long An Province',
   },
 ];
 
 const categories = [
   {
-    name: 'Mooncake',
-    description: 'Traditional mooncake products for Mid-Autumn Festival',
+    categoryName: 'Mooncake',
+    description: 'Traditional and modern mooncake products',
   },
   {
-    name: 'Gift Box',
-    description: 'Premium gift boxes and packaging',
-  },
-  {
-    name: 'Raw Material',
-    description: 'Raw materials and semi-finished products',
-  },
-  {
-    name: 'Combo Set',
-    description: 'Bundle products with multiple items',
+    categoryName: 'Gift Set',
+    description: 'Premium gift sets for special occasions',
   },
 ];
 
-const ingredients = [
-  {
-    name: 'Flour',
-    unit: 'kg',
-    costPrice: 25000,
-    warningThreshold: 50,
-  },
-  {
-    name: 'Sugar',
-    unit: 'kg',
-    costPrice: 30000,
-    warningThreshold: 30,
-  },
-  {
-    name: 'Salted Egg Yolk',
-    unit: 'pcs',
-    costPrice: 5000,
-    warningThreshold: 100,
-  },
-  {
-    name: 'Green Bean Paste',
-    unit: 'kg',
-    costPrice: 80000,
-    warningThreshold: 20,
-  },
-  {
-    name: 'Lotus Seed Paste',
-    unit: 'kg',
-    costPrice: 120000,
-    warningThreshold: 15,
-  },
-  {
-    name: 'Cooking Oil',
-    unit: 'l',
-    costPrice: 45000,
-    warningThreshold: 10,
-  },
-  {
-    name: 'Egg',
-    unit: 'pcs',
-    costPrice: 3000,
-    warningThreshold: 200,
-  },
-];
+// ============================================================
+// MAIN IMPORT FUNCTION
+// ============================================================
 
 const importData = async () => {
   try {
     await connectDB();
 
-    console.log('🗑️  Clearing existing data...');
-    await Role.deleteMany({});
-    await Store.deleteMany({});
-    await User.deleteMany({});
-    await Category.deleteMany({});
-    await Ingredient.deleteMany({});
-    await Product.deleteMany({});
-    await ProductionPlan.deleteMany({});
-    await Batch.deleteMany({});
-    await StoreInventory.deleteMany({});
+    console.log('\n🗑️  CLEARING EXISTING DATABASE...');
+    console.log('==========================================');
+    
+    // Drop collections entirely to remove old indexes
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    for (const collection of collections) {
+      await mongoose.connection.db.dropCollection(collection.name);
+      console.log(`  Dropped collection: ${collection.name}`);
+    }
+    
+    console.log('✅ All collections dropped successfully\n');
 
-    console.log('📦 Inserting Roles...');
+    // ========================================
+    // STEP 1: SYSTEM SETUP
+    // ========================================
+    console.log('📋 STEP 1: SYSTEM SETUP');
+    console.log('==========================================');
+
+    console.log('Creating Roles...');
     const createdRoles = await Role.insertMany(roles);
-    console.log(`✅ ${createdRoles.length} roles inserted`);
+    console.log(`✅ ${createdRoles.length} roles created`);
 
-    console.log('📦 Inserting Stores...');
+    console.log('Creating Stores...');
     const createdStores = await Store.insertMany(stores);
-    console.log(`✅ ${createdStores.length} stores inserted`);
-
-    console.log('📦 Inserting Categories...');
-    const createdCategories = await Category.insertMany(categories);
-    console.log(`✅ ${createdCategories.length} categories inserted`);
-
-    console.log('📦 Inserting Ingredients...');
-    const createdIngredients = await Ingredient.insertMany(ingredients);
-    console.log(`✅ ${createdIngredients.length} ingredients inserted`);
+    console.log(`✅ ${createdStores.length} stores created`);
 
     const adminRole = createdRoles.find((r) => r.roleName === 'Admin');
     const managerRole = createdRoles.find((r) => r.roleName === 'Manager');
-    const storeStaffRole = createdRoles.find((r) => r.roleName === 'StoreStaff');
     const kitchenStaffRole = createdRoles.find((r) => r.roleName === 'KitchenStaff');
+    const storeStaffRole = createdRoles.find((r) => r.roleName === 'StoreStaff');
+    const coordinatorRole = createdRoles.find((r) => r.roleName === 'Coordinator');
 
-    console.log('📦 Creating sample users...');
+    console.log('Creating Users...');
 
     const adminUser = await User.create({
       username: 'admin',
@@ -163,7 +128,7 @@ const importData = async () => {
     const managerUser = await User.create({
       username: 'manager',
       passwordHash: 'manager123',
-      fullName: 'Central Manager',
+      fullName: 'Operations Manager',
       email: 'manager@kendomooncake.com',
       roleId: managerRole._id,
       storeId: null,
@@ -174,7 +139,7 @@ const importData = async () => {
     const kitchenUser = await User.create({
       username: 'kitchen',
       passwordHash: 'kitchen123',
-      fullName: 'Head Chef',
+      fullName: 'Kitchen Staff',
       email: 'kitchen@kendomooncake.com',
       roleId: kitchenStaffRole._id,
       storeId: null,
@@ -182,34 +147,139 @@ const importData = async () => {
     });
     console.log(`✅ Kitchen Staff created: ${kitchenUser.username}`);
 
-    for (let i = 0; i < createdStores.length; i++) {
-      const store = createdStores[i];
-      const storeUser = await User.create({
-        username: `store${i + 1}`,
-        passwordHash: `store${i + 1}123`,
-        fullName: `${store.storeName} Staff`,
-        email: `store${i + 1}@kendomooncake.com`,
-        roleId: storeStaffRole._id,
-        storeId: store._id,
-        isActive: true,
-      });
-      console.log(`✅ Store Staff created: ${storeUser.username} (${store.storeName})`);
-    }
+    const storeUser = await User.create({
+      username: 'store',
+      passwordHash: 'store123',
+      fullName: 'Q1 Store Staff',
+      email: 'store@kendomooncake.com',
+      roleId: storeStaffRole._id,
+      storeId: createdStores[0]._id,
+      isActive: true,
+    });
+    console.log(`✅ Store Staff created: ${storeUser.username} (${createdStores[0].storeName})`);
 
-    console.log('\n📦 Creating sample products...');
+    const coordinatorUser = await User.create({
+      username: 'coordinator',
+      passwordHash: 'coordinator123',
+      fullName: 'Logistics Coordinator',
+      email: 'coordinator@kendomooncake.com',
+      roleId: coordinatorRole._id,
+      storeId: null,
+      isActive: true,
+    });
+    console.log(`✅ Coordinator created: ${coordinatorUser.username}\n`);
 
-    const mooncakeCategory = createdCategories.find((c) => c.name === 'Mooncake');
-    const giftBoxCategory = createdCategories.find((c) => c.name === 'Gift Box');
-    const comboCategory = createdCategories.find((c) => c.name === 'Combo Set');
+    // ========================================
+    // STEP 2: INVENTORY INPUT (FEATURE 2)
+    // ========================================
+    console.log('📦 STEP 2: INVENTORY INPUT (Feature 2 - Traceability)');
+    console.log('==========================================');
 
-    const flour = createdIngredients.find((i) => i.name === 'Flour');
-    const sugar = createdIngredients.find((i) => i.name === 'Sugar');
-    const saltedEgg = createdIngredients.find((i) => i.name === 'Salted Egg Yolk');
-    const greenBeanPaste = createdIngredients.find((i) => i.name === 'Green Bean Paste');
-    const lotusPaste = createdIngredients.find((i) => i.name === 'Lotus Seed Paste');
-    const oil = createdIngredients.find((i) => i.name === 'Cooking Oil');
-    const egg = createdIngredients.find((i) => i.name === 'Egg');
+    console.log('Creating Suppliers...');
+    const createdSuppliers = await Supplier.insertMany(suppliers);
+    console.log(`✅ ${createdSuppliers.length} suppliers created`);
 
+    console.log('Creating Ingredients (Initial totalQuantity = 0)...');
+    const flour = await Ingredient.create({
+      ingredientName: 'Flour',
+      unit: 'kg',
+      costPrice: 25000,
+      totalQuantity: 0,
+      warningThreshold: 100,
+    });
+    console.log(`✅ Ingredient created: ${flour.ingredientName}`);
+
+    const sugar = await Ingredient.create({
+      ingredientName: 'Sugar',
+      unit: 'kg',
+      costPrice: 30000,
+      totalQuantity: 0,
+      warningThreshold: 50,
+    });
+    console.log(`✅ Ingredient created: ${sugar.ingredientName}`);
+
+    const saltedEgg = await Ingredient.create({
+      ingredientName: 'Salted Egg Yolk',
+      unit: 'pcs',
+      costPrice: 5000,
+      totalQuantity: 0,
+      warningThreshold: 200,
+    });
+    console.log(`✅ Ingredient created: ${saltedEgg.ingredientName}`);
+
+    const greenBeanPaste = await Ingredient.create({
+      ingredientName: 'Green Bean Paste',
+      unit: 'kg',
+      costPrice: 80000,
+      totalQuantity: 0,
+      warningThreshold: 30,
+    });
+    console.log(`✅ Ingredient created: ${greenBeanPaste.ingredientName}`);
+
+    console.log('\nCreating Ingredient Batches (with supplier and expiry tracking)...');
+
+    const flourBatch = await IngredientBatch.create({
+      ingredientId: flour._id,
+      supplierId: createdSuppliers[0]._id,
+      batchCode: 'IB-FLOUR-20260129-001',
+      initialQuantity: 500,
+      currentQuantity: 500,
+      expiryDate: new Date('2026-12-31'),
+      receivedDate: new Date('2026-01-29'),
+      price: 25000,
+    });
+    console.log(`✅ Ingredient Batch created: ${flourBatch.batchCode} - ${flourBatch.currentQuantity} kg`);
+
+    const saltedEggBatch = await IngredientBatch.create({
+      ingredientId: saltedEgg._id,
+      supplierId: createdSuppliers[1]._id,
+      batchCode: 'IB-EGG-20260129-001',
+      initialQuantity: 1000,
+      currentQuantity: 1000,
+      expiryDate: new Date('2026-03-15'),
+      receivedDate: new Date('2026-01-29'),
+      price: 5000,
+    });
+    console.log(`✅ Ingredient Batch created: ${saltedEggBatch.batchCode} - ${saltedEggBatch.currentQuantity} pcs`);
+
+    const greenBeanBatch = await IngredientBatch.create({
+      ingredientId: greenBeanPaste._id,
+      supplierId: createdSuppliers[0]._id,
+      batchCode: 'IB-GREENBEAN-20260129-001',
+      initialQuantity: 200,
+      currentQuantity: 200,
+      expiryDate: new Date('2026-06-30'),
+      receivedDate: new Date('2026-01-29'),
+      price: 80000,
+    });
+    console.log(`✅ Ingredient Batch created: ${greenBeanBatch.batchCode} - ${greenBeanBatch.currentQuantity} kg`);
+
+    console.log('\nUpdating Ingredient totalQuantity based on batches...');
+    flour.totalQuantity = flourBatch.currentQuantity;
+    await flour.save();
+    console.log(`✅ ${flour.ingredientName}: totalQuantity updated to ${flour.totalQuantity} kg`);
+
+    saltedEgg.totalQuantity = saltedEggBatch.currentQuantity;
+    await saltedEgg.save();
+    console.log(`✅ ${saltedEgg.ingredientName}: totalQuantity updated to ${saltedEgg.totalQuantity} pcs`);
+
+    greenBeanPaste.totalQuantity = greenBeanBatch.currentQuantity;
+    await greenBeanPaste.save();
+    console.log(`✅ ${greenBeanPaste.ingredientName}: totalQuantity updated to ${greenBeanPaste.totalQuantity} kg\n`);
+
+    // ========================================
+    // STEP 3: PRODUCTION SETUP (FEATURE 3)
+    // ========================================
+    console.log('🏭 STEP 3: PRODUCTION SETUP (Feature 3)');
+    console.log('==========================================');
+
+    console.log('Creating Product Categories...');
+    const createdCategories = await Category.insertMany(categories);
+    console.log(`✅ ${createdCategories.length} categories created`);
+
+    const mooncakeCategory = createdCategories.find((c) => c.categoryName === 'Mooncake');
+
+    console.log('Creating Products with Recipes...');
     const greenBeanMooncake = await Product.create({
       name: 'Green Bean Mooncake',
       sku: 'MOON-GB-001',
@@ -222,174 +292,106 @@ const importData = async () => {
         { ingredientId: sugar._id, quantity: 0.02 },
         { ingredientId: greenBeanPaste._id, quantity: 0.08 },
         { ingredientId: saltedEgg._id, quantity: 1 },
-        { ingredientId: oil._id, quantity: 0.01 },
-        { ingredientId: egg._id, quantity: 1 },
       ],
       bundleItems: [],
     });
-    console.log(`✅ Product created: ${greenBeanMooncake.name}`);
+    console.log(`✅ Product created: ${greenBeanMooncake.name} (SKU: ${greenBeanMooncake.sku})`);
 
-    const lotusMooncake = await Product.create({
-      name: 'Lotus Seed Mooncake',
-      sku: 'MOON-LS-002',
-      categoryId: mooncakeCategory._id,
-      price: 180000,
-      shelfLifeDays: 30,
-      image: 'https://example.com/lotus-mooncake.jpg',
-      recipe: [
-        { ingredientId: flour._id, quantity: 0.05 },
-        { ingredientId: sugar._id, quantity: 0.02 },
-        { ingredientId: lotusPaste._id, quantity: 0.1 },
-        { ingredientId: saltedEgg._id, quantity: 2 },
-        { ingredientId: oil._id, quantity: 0.01 },
-        { ingredientId: egg._id, quantity: 1 },
-      ],
-      bundleItems: [],
-    });
-    console.log(`✅ Product created: ${lotusMooncake.name}`);
-
-    const mixedMooncake = await Product.create({
-      name: 'Mixed Flavor Mooncake',
-      sku: 'MOON-MIX-003',
-      categoryId: mooncakeCategory._id,
-      price: 160000,
-      shelfLifeDays: 30,
-      image: 'https://example.com/mixed-mooncake.jpg',
-      recipe: [
-        { ingredientId: flour._id, quantity: 0.05 },
-        { ingredientId: sugar._id, quantity: 0.02 },
-        { ingredientId: greenBeanPaste._id, quantity: 0.04 },
-        { ingredientId: lotusPaste._id, quantity: 0.04 },
-        { ingredientId: saltedEgg._id, quantity: 1 },
-        { ingredientId: oil._id, quantity: 0.01 },
-        { ingredientId: egg._id, quantity: 1 },
-      ],
-      bundleItems: [],
-    });
-    console.log(`✅ Product created: ${mixedMooncake.name}`);
-
-    const giftBox = await Product.create({
-      name: 'Premium Gift Box',
-      sku: 'BOX-PREM-001',
-      categoryId: giftBoxCategory._id,
-      price: 50000,
-      shelfLifeDays: 365,
-      image: 'https://example.com/gift-box.jpg',
-      recipe: [],
-      bundleItems: [],
-    });
-    console.log(`✅ Product created: ${giftBox.name}`);
-
-    const comboSet = await Product.create({
-      name: 'Mid-Autumn Festival Combo Set',
-      sku: 'COMBO-MAF-001',
-      categoryId: comboCategory._id,
-      price: 450000,
-      shelfLifeDays: 30,
-      image: 'https://example.com/combo-set.jpg',
-      recipe: [],
-      bundleItems: [
-        { childProductId: greenBeanMooncake._id, quantity: 2 },
-        { childProductId: lotusMooncake._id, quantity: 2 },
-        { childProductId: giftBox._id, quantity: 1 },
-      ],
-    });
-    console.log(`✅ Product created: ${comboSet.name} (Bundle)`);
-
-    console.log('\n📦 Creating sample production plan...');
-
+    console.log('\nCreating Production Plan...');
     const productionPlan = await ProductionPlan.create({
-      planCode: 'PLAN-20260115-001',
-      planDate: new Date('2026-01-15'),
-      status: 'Planned',
-      note: 'Production plan for Mid-Autumn Festival preparation',
+      planCode: 'PLAN-20260129-001',
+      planDate: new Date('2026-01-29'),
+      status: 'Completed',
+      note: 'Initial production batch for Q1 store',
       details: [
         {
           productId: greenBeanMooncake._id,
           plannedQuantity: 100,
-          actualQuantity: 0,
-          status: 'Pending',
-        },
-        {
-          productId: lotusMooncake._id,
-          plannedQuantity: 150,
-          actualQuantity: 0,
-          status: 'Pending',
-        },
-        {
-          productId: mixedMooncake._id,
-          plannedQuantity: 80,
-          actualQuantity: 0,
-          status: 'Pending',
+          actualQuantity: 100,
+          status: 'Completed',
         },
       ],
     });
-    console.log(`✅ Production plan created: ${productionPlan.planCode}`);
+    console.log(`✅ Production Plan created: ${productionPlan.planCode}`);
+    console.log(`   Status: ${productionPlan.status}`);
+    console.log(`   Product: ${greenBeanMooncake.name} - Planned: 100, Actual: 100`);
 
-    console.log('\n📦 Creating sample batches...');
-
-    const batch1 = await Batch.create({
-      batchCode: 'BATCH-20260110-MOON-GB-001',
+    console.log('\nCreating Finished Product Batch (CRITICAL: Linked to Production Plan)...');
+    const finishedBatch = await Batch.create({
+      batchCode: 'BATCH-20260129-MOON-GB-001',
+      productionPlanId: productionPlan._id, // CRITICAL TRACEABILITY LINK
       productId: greenBeanMooncake._id,
-      mfgDate: new Date('2026-01-10'),
-      expDate: new Date('2026-02-09'),
-      initialQuantity: 200,
-      currentQuantity: 200,
-    });
-    console.log(`✅ Batch created: ${batch1.batchCode}`);
-
-    const batch2 = await Batch.create({
-      batchCode: 'BATCH-20260112-MOON-LS-002',
-      productId: lotusMooncake._id,
-      mfgDate: new Date('2026-01-12'),
-      expDate: new Date('2026-02-11'),
-      initialQuantity: 150,
-      currentQuantity: 150,
-    });
-    console.log(`✅ Batch created: ${batch2.batchCode}`);
-
-    const batch3 = await Batch.create({
-      batchCode: 'BATCH-20260113-MOON-MIX-003',
-      productId: mixedMooncake._id,
-      mfgDate: new Date('2026-01-13'),
-      expDate: new Date('2026-02-12'),
+      mfgDate: new Date('2026-01-29'),
+      expDate: new Date('2026-02-28'), // 30 days shelf life
       initialQuantity: 100,
       currentQuantity: 100,
+      status: 'Active',
     });
-    console.log(`✅ Batch created: ${batch3.batchCode}`);
+    console.log(`✅ Finished Batch created: ${finishedBatch.batchCode}`);
+    console.log(`   Production Plan: ${productionPlan.planCode}`);
+    console.log(`   Product: ${greenBeanMooncake.name}`);
+    console.log(`   MFG Date: ${finishedBatch.mfgDate.toISOString().split('T')[0]}`);
+    console.log(`   EXP Date: ${finishedBatch.expDate.toISOString().split('T')[0]}`);
+    console.log(`   Quantity: ${finishedBatch.initialQuantity}`);
+    console.log(`   Status: ${finishedBatch.status}\n`);
 
-    console.log('\n📦 Creating sample inventory for Store 1...');
+    // ========================================
+    // STEP 4: DISTRIBUTION (FEATURE 5)
+    // ========================================
+    console.log('🚚 STEP 4: DISTRIBUTION TO STORES');
+    console.log('==========================================');
 
-    const store1 = createdStores[0];
-
-    const inventory1 = await StoreInventory.create({
-      storeId: store1._id,
+    console.log('Creating Store Inventory (Transfer from Central Kitchen)...');
+    const storeInventory = await StoreInventory.create({
+      storeId: createdStores[0]._id,
       productId: greenBeanMooncake._id,
-      batchId: batch1._id,
-      quantity: 50,
+      batchId: finishedBatch._id,
+      quantity: 20,
     });
-    console.log(`✅ Inventory created: ${store1.storeName} - ${greenBeanMooncake.name} - 50 units`);
+    console.log(`✅ Store Inventory created:`);
+    console.log(`   Store: ${createdStores[0].storeName}`);
+    console.log(`   Product: ${greenBeanMooncake.name}`);
+    console.log(`   Batch: ${finishedBatch.batchCode}`);
+    console.log(`   Quantity: ${storeInventory.quantity} units`);
 
-    const inventory2 = await StoreInventory.create({
-      storeId: store1._id,
-      productId: lotusMooncake._id,
-      batchId: batch2._id,
-      quantity: 30,
-    });
-    console.log(`✅ Inventory created: ${store1.storeName} - ${lotusMooncake.name} - 30 units`);
+    // Update finished batch quantity
+    finishedBatch.currentQuantity -= storeInventory.quantity;
+    await finishedBatch.save();
+    console.log(`✅ Central batch updated: ${finishedBatch.currentQuantity} remaining in central kitchen\n`);
 
-    console.log('\n🎉 Data imported successfully!');
-    console.log('\n📝 Sample Login Credentials:');
-    console.log('   Admin:        username: admin      password: admin123');
-    console.log('   Manager:      username: manager    password: manager123');
-    console.log('   Kitchen:      username: kitchen    password: kitchen123');
-    console.log('   Store 1:      username: store1     password: store1123');
-    console.log('   Store 2:      username: store2     password: store2123');
-    console.log('   Store 3:      username: store3     password: store3123');
+    // ========================================
+    // SUMMARY
+    // ========================================
+    console.log('🎉 DATABASE SEEDING COMPLETED SUCCESSFULLY!');
+    console.log('==========================================');
+    console.log('\n📊 SUMMARY:');
+    console.log(`   Roles: ${createdRoles.length}`);
+    console.log(`   Stores: ${createdStores.length}`);
+    console.log(`   Users: 5 (Admin, Manager, Kitchen Staff, Store Staff, Coordinator)`);
+    console.log(`   Suppliers: ${createdSuppliers.length}`);
+    console.log(`   Ingredients: 4`);
+    console.log(`   Ingredient Batches: 3`);
+    console.log(`   Categories: ${createdCategories.length}`);
+    console.log(`   Products: 1`);
+    console.log(`   Production Plans: 1`);
+    console.log(`   Finished Batches: 1`);
+    console.log(`   Store Inventories: 1`);
+
+    console.log('\n📝 LOGIN CREDENTIALS:');
+    console.log('   Admin:        username: admin        password: admin123');
+    console.log('   Manager:      username: manager      password: manager123');
+    console.log('   Kitchen:      username: kitchen      password: kitchen123');
+    console.log('   Store:        username: store        password: store123');
+    console.log('   Coordinator:  username: coordinator  password: coordinator123');
+
+    console.log('\n✅ Traceability Chain Established:');
+    console.log('   Supplier → Ingredient Batch → Ingredient → Product Recipe');
+    console.log('   Production Plan → Finished Batch → Store Inventory\n');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error importing data:', error);
+    console.error('\n❌ ERROR IMPORTING DATA:', error.message);
+    console.error(error);
     process.exit(1);
   }
 };
@@ -398,18 +400,21 @@ const destroyData = async () => {
   try {
     await connectDB();
 
-    console.log('🗑️  Deleting all data...');
+    console.log('\n🗑️  DELETING ALL DATA...');
+    console.log('==========================================');
     await Role.deleteMany({});
     await Store.deleteMany({});
     await User.deleteMany({});
     await Category.deleteMany({});
+    await Supplier.deleteMany({});
     await Ingredient.deleteMany({});
+    await IngredientBatch.deleteMany({});
     await Product.deleteMany({});
     await ProductionPlan.deleteMany({});
     await Batch.deleteMany({});
     await StoreInventory.deleteMany({});
 
-    console.log('✅ Data destroyed successfully!');
+    console.log('✅ All data destroyed successfully!\n');
     process.exit(0);
   } catch (error) {
     console.error('❌ Error destroying data:', error);

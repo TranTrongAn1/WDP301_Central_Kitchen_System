@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 /**
  * Batch Schema for Kendo Mooncake Central Kitchen System
  * Represents a production batch with manufacturing and expiration tracking
+ * Includes full traceability linking to Production Plan
  */
 const batchSchema = new mongoose.Schema(
   {
@@ -12,6 +13,12 @@ const batchSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       uppercase: true,
+    },
+    productionPlanId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductionPlan',
+      required: [true, 'Production Plan ID is required'],
+      index: true,
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,15 +50,45 @@ const batchSchema = new mongoose.Schema(
       required: [true, 'Current quantity is required'],
       min: [0, 'Quantity cannot be negative'],
     },
+    status: {
+      type: String,
+      enum: {
+        values: ['Active', 'SoldOut', 'Expired', 'Recalled'],
+        message: '{VALUE} is not a valid status',
+      },
+      default: 'Active',
+    },
+    // Traceability: Track which ingredient batches were used in production
+    ingredientBatchesUsed: [
+      {
+        ingredientBatchId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'IngredientBatch',
+        },
+        quantityUsed: {
+          type: Number,
+          min: [0, 'Quantity used cannot be negative'],
+        },
+      },
+    ],
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Index for faster queries (batchCode already has unique index)
-batchSchema.index({ productId: 1 });
-batchSchema.index({ expDate: 1 });
+// Indexes for optimal query performance
+// Note: productionPlanId already has index:true which creates the index automatically
+batchSchema.index({ productId: 1, expDate: 1 }); // FEFO logic: First Expired First Out
+batchSchema.index({ expDate: 1 }); // Expiration monitoring
+batchSchema.index({ status: 1 }); // Filter by status
+
+// Virtual property: Check if batch is expired
+batchSchema.virtual('isExpired').get(function () {
+  return this.expDate < Date.now();
+});
 
 const Batch = mongoose.model('Batch', batchSchema);
 

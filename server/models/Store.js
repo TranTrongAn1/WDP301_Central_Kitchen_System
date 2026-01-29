@@ -51,8 +51,7 @@ const storeSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries
-storeSchema.index({ storeName: 1 });
-storeSchema.index({ storeCode: 1 }, { unique: true });
+// Note: storeName and storeCode already have unique:true which creates indexes automatically
 storeSchema.index({ status: 1 });
 
 const Store = mongoose.model('Store', storeSchema);

@@ -1,8 +1,18 @@
 openapi: 3.0.0
 info:
   title: Kendo Mooncake Central Kitchen System API
-  description: API documentation for the Kendo Mooncake Central Kitchen System
-  version: 1.0.0
+  description: |
+    API documentation for the Kendo Mooncake Central Kitchen System with full traceability support.
+    
+    **Key Features:**
+    - Feature 1: Admin & System Management
+    - Feature 2: Inventory & Sourcing (Input Traceability)
+    - Feature 3: Production Management (Output Traceability)
+    - Feature 5: Store & Distribution Management
+    
+    **Traceability Chain:**
+    Supplier → Ingredient Batch → Ingredient → Product Recipe → Production Plan → Finished Batch → Store Inventory
+  version: 2.0.0
   contact:
     name: API Support
     email: support@kendomooncake.com
@@ -10,6 +20,8 @@ info:
 servers:
   - url: http://localhost:5000
     description: Development server
+  - url: https://api.kendomooncake.com
+    description: Production server
 
 tags:
   - name: Health
@@ -18,18 +30,22 @@ tags:
     description: User authentication and authorization endpoints
   - name: Categories
     description: Product category management endpoints
+  - name: Suppliers
+    description: Supplier management for raw material sourcing (Feature 2)
   - name: Ingredients
     description: Ingredient and raw material management endpoints
+  - name: Ingredient Batches
+    description: Ingredient batch import and FEFO tracking (Feature 2)
   - name: Products
     description: Product management with recipe and bundle capabilities
-  - name: Production
-    description: Production plan management and batch creation
-  - name: Batches
-    description: Batch tracking and expiry management
+  - name: Production Plans
+    description: Production plan management and scheduling (Feature 3)
+  - name: Finished Batches
+    description: Finished goods batch tracking with production plan linkage (Feature 3)
   - name: Transfers
     description: Transfer management from kitchen to stores
   - name: Inventory
-    description: Store inventory tracking and management
+    description: Store inventory tracking and management (Feature 5)
   - name: Stores
     description: Store management and retail location operations
   - name: Users
@@ -257,7 +273,620 @@ paths:
         '404':
           description: Category not found
 
+  # ============================================================
+  # FEATURE 2: SUPPLIERS (Sourcing & Traceability)
+  # ============================================================
+  /api/suppliers:
+    get:
+      tags:
+        - Suppliers
+      summary: Get all suppliers
+      description: Retrieve list of all suppliers for raw material sourcing
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved suppliers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Supplier'
+    post:
+      tags:
+        - Suppliers
+      summary: Create supplier
+      description: Register a new supplier (Admin, Manager only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - contactPerson
+                - phone
+                - email
+                - address
+              properties:
+                name:
+                  type: string
+                  example: 'Golden Harvest Supplier'
+                contactPerson:
+                  type: string
+                  example: 'Nguyen Van A'
+                phone:
+                  type: string
+                  example: '+84-28-12345678'
+                email:
+                  type: string
+                  example: 'contact@goldenharvest.vn'
+                address:
+                  type: string
+                  example: 'Industrial Zone, Binh Duong Province'
+      responses:
+        '201':
+          description: Supplier created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Supplier'
+        '400':
+          description: Invalid input or duplicate supplier name
+
+  /api/suppliers/{id}:
+    get:
+      tags:
+        - Suppliers
+      summary: Get supplier by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      responses:
+        '200':
+          description: Successfully retrieved supplier
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Supplier'
+        '404':
+          description: Supplier not found
+    put:
+      tags:
+        - Suppliers
+      summary: Update supplier
+      description: Update an existing supplier (Admin, Manager only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                contactPerson:
+                  type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+                address:
+                  type: string
+      responses:
+        '200':
+          description: Supplier updated successfully
+        '400':
+          description: Invalid input
+        '404':
+          description: Supplier not found
+    delete:
+      tags:
+        - Suppliers
+      summary: Delete supplier
+      description: Delete a supplier (Admin only). Cannot delete if supplier has active batches.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      responses:
+        '200':
+          description: Supplier deleted successfully
+        '400':
+          description: Cannot delete - supplier has active batches
+        '404':
+          description: Supplier not found
+
+  # ============================================================
+  # FEATURE 2: INGREDIENTS (Updated with ingredientName)
+  # ============================================================
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Successfully retrieved category
+        '404':
+          description: Category not found
+    put:
+      tags:
+        - Categories
+      summary: Update category
+      description: Update an existing category (Admin, Kitchen_Manager only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryName:
+                  type: string
+                  example: 'Bánh Dẻo'
+      responses:
+        '200':
+          description: Category updated successfully
+        '400':
+          description: Invalid input or duplicate category name
+        '404':
+          description: Category not found
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      description: Delete a category (Admin, Kitchen_Manager only). Cannot delete if category is used by products.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category deleted successfully
+        '400':
+          description: Cannot delete - category is in use
+        '404':
+          description: Category not found
+
   /api/ingredients:
+    get:
+      tags:
+        - Ingredients
+      summary: Get all ingredients
+      description: Retrieve list of all raw materials and ingredients with total quantities
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: lowStock
+          schema:
+            type: boolean
+          description: Filter ingredients below warning threshold
+      responses:
+        '200':
+          description: Successfully retrieved ingredients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ingredient'
+    post:
+      tags:
+        - Ingredients
+      summary: Create ingredient
+      description: Create a new ingredient (Admin, Kitchen_Manager only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ingredientName
+                - unit
+                - costPrice
+                - warningThreshold
+              properties:
+                ingredientName:
+                  type: string
+                  example: 'Flour'
+                  description: 'Name of the ingredient (must be unique)'
+                unit:
+                  type: string
+                  example: 'kg'
+                  description: 'Unit of measurement (stored in lowercase)'
+                costPrice:
+                  type: number
+                  example: 25000
+                  description: 'Cost per unit in VND'
+                warningThreshold:
+                  type: number
+                  example: 100
+                  description: 'Low stock alert threshold'
+                totalQuantity:
+                  type: number
+                  example: 0
+                  description: 'Initial total quantity (default: 0, updated via batches)'
+      responses:
+        '201':
+          description: Ingredient created successfully
+        '400':
+          description: Invalid input or duplicate ingredient name
+
+  /api/ingredients/{id}:
+    get:
+      tags:
+        - Ingredients
+      summary: Get ingredient by ID
+      description: Get detailed ingredient information including total quantity across all batches
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Successfully retrieved ingredient
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Ingredient'
+        '404':
+          description: Ingredient not found
+    put:
+      tags:
+        - Ingredients
+      summary: Update ingredient
+      description: Update an existing ingredient (Admin, Kitchen_Manager only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ingredientName:
+                  type: string
+                  example: 'Salted Egg Yolk'
+                unit:
+                  type: string
+                  example: 'pcs'
+                costPrice:
+                  type: number
+                  example: 5000
+                warningThreshold:
+                  type: number
+                  example: 200
+      responses:
+        '200':
+          description: Ingredient updated successfully
+        '400':
+          description: Invalid input or duplicate ingredient name
+        '404':
+          description: Ingredient not found
+    delete:
+      tags:
+        - Ingredients
+      summary: Delete ingredient
+      description: Delete an ingredient (Admin, Kitchen_Manager only). Cannot delete if ingredient is used in product recipes or has active batches.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      responses:
+        '200':
+          description: Ingredient deleted successfully
+        '400':
+          description: Cannot delete - ingredient is used in recipes or has active batches
+        '404':
+          description: Ingredient not found
+
+  # ============================================================
+  # FEATURE 2: INGREDIENT BATCHES (Import & FEFO Tracking)
+  # ============================================================
+  /api/ingredients/{id}/batches:
+    post:
+      tags:
+        - Ingredient Batches
+      summary: Import ingredient batch (CRITICAL for Traceability)
+      description: |
+        Import a new batch of ingredients from a supplier. This creates full traceability from supplier to ingredient.
+        The system automatically updates the parent ingredient's totalQuantity.
+        
+        **Traceability:** Supplier → Ingredient Batch → Ingredient
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - supplierId
+                - batchCode
+                - initialQuantity
+                - price
+                - expiryDate
+              properties:
+                supplierId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a1'
+                  description: 'REQUIRED: ID of the supplier providing this batch'
+                batchCode:
+                  type: string
+                  example: 'IB-FLOUR-20260129-001'
+                  description: 'Unique batch code (auto-uppercase)'
+                initialQuantity:
+                  type: number
+                  example: 500
+                  description: 'Quantity being imported'
+                price:
+                  type: number
+                  example: 25000
+                  description: 'Price per unit for this batch'
+                expiryDate:
+                  type: string
+                  format: date
+                  example: '2026-12-31'
+                  description: 'Expiry date (must be in the future)'
+                receivedDate:
+                  type: string
+                  format: date
+                  example: '2026-01-29'
+                  description: 'Date received (default: today)'
+      responses:
+        '201':
+          description: Ingredient batch imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/IngredientBatch'
+        '400':
+          description: Invalid input (e.g., expiry date in past, duplicate batch code)
+        '404':
+          description: Ingredient or Supplier not found
+    get:
+      tags:
+        - Ingredient Batches
+      summary: Get all batches for an ingredient
+      description: Retrieve all batches for a specific ingredient, sorted by expiry date (FEFO)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ingredient ID
+        - in: query
+          name: activeOnly
+          schema:
+            type: boolean
+            default: true
+          description: Show only active batches
+      responses:
+        '200':
+          description: Successfully retrieved batches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientBatch'
+
+  /api/ingredient-batches:
+    get:
+      tags:
+        - Ingredient Batches
+      summary: Get all ingredient batches
+      description: Retrieve all ingredient batches with filtering options
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: supplierId
+          schema:
+            type: string
+          description: Filter by supplier
+        - in: query
+          name: expiring
+          schema:
+            type: integer
+          description: Filter batches expiring within X days
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+          description: Filter by active status
+      responses:
+        '200':
+          description: Successfully retrieved batches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientBatch'
+
+  /api/ingredient-batches/{id}:
+    get:
+      tags:
+        - Ingredient Batches
+      summary: Get ingredient batch by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved batch
+        '404':
+          description: Batch not found
+    put:
+      tags:
+        - Ingredient Batches
+      summary: Update ingredient batch
+      description: Update batch details (e.g., adjust quantity for corrections)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentQuantity:
+                  type: number
+                price:
+                  type: number
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Batch updated successfully
+        '404':
+          description: Batch not found
+
+  # ============================================================
+  # FEATURE 3: PRODUCTS (with Recipe & Bundles)
+  # ============================================================
     get:
       tags:
         - Ingredients
@@ -422,6 +1051,595 @@ paths:
       tags:
         - Products
       summary: Get all products
+      description: Retrieve list of all products with recipes and bundle information
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+          description: Filter by category
+      responses:
+        '200':
+          description: Successfully retrieved products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+    post:
+      tags:
+        - Products
+      summary: Create product
+      description: |
+        Create a new product with recipe (ingredients) or bundle items (other products).
+        
+        **Recipe Products:** Use `recipe` array with ingredientId and quantity per unit
+        **Bundle Products:** Use `bundleItems` array with childProductId and quantity
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - sku
+                - categoryId
+                - price
+                - shelfLifeDays
+              properties:
+                name:
+                  type: string
+                  example: 'Green Bean Mooncake'
+                sku:
+                  type: string
+                  example: 'MOON-GB-001'
+                  description: 'Unique product code'
+                categoryId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a1'
+                price:
+                  type: number
+                  example: 150000
+                  description: 'Selling price in VND'
+                shelfLifeDays:
+                  type: number
+                  example: 30
+                  description: 'Shelf life in days (used to calculate expiry date)'
+                image:
+                  type: string
+                  example: 'https://example.com/green-bean-mooncake.jpg'
+                recipe:
+                  type: array
+                  description: 'Array of ingredients (for manufactured products)'
+                  items:
+                    type: object
+                    properties:
+                      ingredientId:
+                        type: string
+                      quantity:
+                        type: number
+                        description: 'Quantity per 1 unit of product'
+                  example:
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a2'
+                      quantity: 0.05
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a3'
+                      quantity: 1
+                bundleItems:
+                  type: array
+                  description: 'Array of child products (for bundle/combo products)'
+                  items:
+                    type: object
+                    properties:
+                      childProductId:
+                        type: string
+                      quantity:
+                        type: number
+                  example:
+                    - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
+                      quantity: 2
+      responses:
+        '201':
+          description: Product created successfully
+        '400':
+          description: Invalid input or duplicate SKU
+
+  /api/products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Get detailed product information with populated recipe and bundle items
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved product
+        '404':
+          description: Product not found
+    put:
+      tags:
+        - Products
+      summary: Update product
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                sku:
+                  type: string
+                categoryId:
+                  type: string
+                price:
+                  type: number
+                shelfLifeDays:
+                  type: number
+                image:
+                  type: string
+                recipe:
+                  type: array
+                bundleItems:
+                  type: array
+      responses:
+        '200':
+          description: Product updated successfully
+        '404':
+          description: Product not found
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Cannot delete if product is used in production plans or bundles
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product deleted successfully
+        '400':
+          description: Cannot delete - product is in use
+        '404':
+          description: Product not found
+
+  # ============================================================
+  # FEATURE 3: PRODUCTION PLANS (Manufacturing Schedule)
+  # ============================================================
+  /api/production-plans:
+    get:
+      tags:
+        - Production Plans
+      summary: Get all production plans
+      description: Retrieve production plans with optional status filtering
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Planned, InProgress, Completed, Cancelled]
+          description: Filter by plan status
+        - in: query
+          name: planDate
+          schema:
+            type: string
+            format: date
+          description: Filter by specific date
+      responses:
+        '200':
+          description: Successfully retrieved plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionPlan'
+    post:
+      tags:
+        - Production Plans
+      summary: Create production plan
+      description: |
+        Create a new production plan for manufacturing products.
+        
+        **Important:** Each plan creates a unique planCode and tracks planned vs actual quantities.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - planCode
+                - planDate
+                - details
+              properties:
+                planCode:
+                  type: string
+                  example: 'PLAN-20260129-001'
+                  description: 'Unique plan code'
+                planDate:
+                  type: string
+                  format: date
+                  example: '2026-01-29'
+                  description: 'Planned production date'
+                note:
+                  type: string
+                  example: 'Production for Mid-Autumn Festival'
+                status:
+                  type: string
+                  enum: [Planned, InProgress, Completed, Cancelled]
+                  default: Planned
+                details:
+                  type: array
+                  description: 'List of products to be manufactured'
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - plannedQuantity
+                    properties:
+                      productId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1a5'
+                      plannedQuantity:
+                        type: number
+                        example: 100
+                        description: 'Target quantity to produce'
+                      actualQuantity:
+                        type: number
+                        default: 0
+                        description: 'Actual quantity produced (updated during production)'
+                      status:
+                        type: string
+                        enum: [Pending, InProgress, Completed, Cancelled]
+                        default: Pending
+      responses:
+        '201':
+          description: Production plan created successfully
+        '400':
+          description: Invalid input or duplicate plan code
+
+  /api/production-plans/{id}:
+    get:
+      tags:
+        - Production Plans
+      summary: Get production plan by ID
+      description: Get detailed plan with all product details populated
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved plan
+        '404':
+          description: Plan not found
+    put:
+      tags:
+        - Production Plans
+      summary: Update production plan
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planDate:
+                  type: string
+                  format: date
+                note:
+                  type: string
+                status:
+                  type: string
+                  enum: [Planned, InProgress, Completed, Cancelled]
+                details:
+                  type: array
+      responses:
+        '200':
+          description: Plan updated successfully
+        '404':
+          description: Plan not found
+
+  /api/production-plans/{planId}/complete-item:
+    post:
+      tags:
+        - Production Plans
+      summary: Complete production item and auto-create finished batch
+      description: |
+        Mark a production item as complete and automatically create a finished goods batch.
+        
+        **CRITICAL:** This creates the traceability link: Production Plan → Finished Batch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+          description: Production Plan ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - actualQuantity
+              properties:
+                productId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a5'
+                actualQuantity:
+                  type: number
+                  example: 100
+                  description: 'Actual quantity produced'
+      responses:
+        '201':
+          description: Item completed and batch created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      productionPlan:
+                        $ref: '#/components/schemas/ProductionPlan'
+                      batch:
+                        $ref: '#/components/schemas/FinishedBatch'
+        '400':
+          description: Invalid input or item already completed
+        '404':
+          description: Plan or product not found
+
+  # ============================================================
+  # FEATURE 3: FINISHED BATCHES (Output Traceability)
+  # ============================================================
+  /api/batches:
+    get:
+      tags:
+        - Finished Batches
+      summary: Get all finished goods batches
+      description: Retrieve batches of finished products with optional filtering
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by product
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Active, SoldOut, Expired, Recalled]
+          description: Filter by batch status
+        - in: query
+          name: expiring
+          schema:
+            type: integer
+          description: Filter batches expiring within X days
+      responses:
+        '200':
+          description: Successfully retrieved batches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FinishedBatch'
+    post:
+      tags:
+        - Finished Batches
+      summary: Create finished goods batch (CRITICAL for Traceability)
+      description: |
+        Create a new batch of finished products.
+        
+        **CRITICAL REQUIREMENT:** Must link to productionPlanId for full traceability.
+        
+        **Traceability Chain:** Production Plan → Finished Batch → Store Inventory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - batchCode
+                - productionPlanId
+                - productId
+                - mfgDate
+                - expDate
+                - initialQuantity
+              properties:
+                batchCode:
+                  type: string
+                  example: 'BATCH-20260129-MOON-GB-001'
+                  description: 'Unique batch code (auto-uppercase)'
+                productionPlanId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a6'
+                  description: 'REQUIRED: Links batch back to production plan'
+                productId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a5'
+                  description: 'Product being batched'
+                mfgDate:
+                  type: string
+                  format: date
+                  example: '2026-01-29'
+                  description: 'Manufacturing date (default: today)'
+                expDate:
+                  type: string
+                  format: date
+                  example: '2026-02-28'
+                  description: 'Expiration date (must be after mfgDate)'
+                initialQuantity:
+                  type: number
+                  example: 100
+                  description: 'Initial quantity produced'
+                currentQuantity:
+                  type: number
+                  example: 100
+                  description: 'Current available quantity'
+                status:
+                  type: string
+                  enum: [Active, SoldOut, Expired, Recalled]
+                  default: Active
+      responses:
+        '201':
+          description: Batch created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/FinishedBatch'
+        '400':
+          description: Invalid input (e.g., expDate before mfgDate, duplicate batchCode)
+        '404':
+          description: Production plan or product not found
+
+  /api/batches/{id}:
+    get:
+      tags:
+        - Finished Batches
+      summary: Get finished batch by ID
+      description: Get detailed batch information with production plan linkage
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved batch
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/FinishedBatch'
+        '404':
+          description: Batch not found
+    put:
+      tags:
+        - Finished Batches
+      summary: Update finished batch
+      description: Update batch status or adjust quantities
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentQuantity:
+                  type: number
+                status:
+                  type: string
+                  enum: [Active, SoldOut, Expired, Recalled]
+      responses:
+        '200':
+          description: Batch updated successfully
+        '404':
+          description: Batch not found
+
+  # ============================================================
+  # FEATURE 5: TRANSFERS & DISTRIBUTION
+  # ============================================================
+    get:
+      tags:
+        - Products
+      summary: Get all products
       security:
         - BearerAuth: []
       parameters:
@@ -561,6 +1779,235 @@ paths:
           description: Batch created
 
   /api/transfers:
+    get:
+      tags:
+        - Transfers
+      summary: Get all transfers
+      description: Retrieve transfer records from central kitchen to stores
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Shipped, Received, Cancelled]
+        - in: query
+          name: toStoreId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved transfers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      type: object
+    post:
+      tags:
+        - Transfers
+      summary: Create transfer to store
+      description: |
+        Create a new transfer from central kitchen to a retail store.
+        Links finished batches to store inventory for distribution tracking.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - toStoreId
+                - items
+              properties:
+                toStoreId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a7'
+                  description: 'Destination store ID'
+                items:
+                  type: array
+                  description: 'List of products and batches to transfer'
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - batchId
+                      - quantity
+                    properties:
+                      productId:
+                        type: string
+                      batchId:
+                        type: string
+                        description: 'Specific finished batch to transfer'
+                      quantity:
+                        type: number
+                  example:
+                    - productId: '60d5ec49f1b2c8b1f8e4e1a5'
+                      batchId: '60d5ec49f1b2c8b1f8e4e1a8'
+                      quantity: 20
+                note:
+                  type: string
+                  example: 'Weekly stock replenishment'
+      responses:
+        '201':
+          description: Transfer created successfully
+        '400':
+          description: Invalid input or insufficient batch quantity
+
+  /api/transfers/{id}:
+    get:
+      tags:
+        - Transfers
+      summary: Get transfer by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved transfer
+        '404':
+          description: Transfer not found
+
+  /api/transfers/{id}/status:
+    put:
+      tags:
+        - Transfers
+      summary: Update transfer status
+      description: Update transfer status (e.g., mark as shipped or received)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Shipped, Received, Cancelled]
+                  example: 'Received'
+      responses:
+        '200':
+          description: Status updated successfully
+        '400':
+          description: Invalid status transition
+        '404':
+          description: Transfer not found
+
+  # ============================================================
+  # FEATURE 5: STORE INVENTORY (Read-Only for Stores)
+  # ============================================================
+  /api/inventory/store/{storeId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get store inventory
+      description: |
+        View current inventory for a specific store with batch-level traceability.
+        
+        **Traceability:** Shows which finished batch each store's stock came from.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: storeId
+          required: true
+          schema:
+            type: string
+          description: Store ID
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by product
+        - in: query
+          name: lowStock
+          schema:
+            type: boolean
+          description: Show only low stock items
+      responses:
+        '200':
+          description: Successfully retrieved inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  storeName:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        storeId:
+                          type: string
+                        productId:
+                          type: object
+                          description: 'Populated product details'
+                        batchId:
+                          type: object
+                          description: 'Populated batch details with expiry'
+                        quantity:
+                          type: number
+                        createdAt:
+                          type: string
+                        updatedAt:
+                          type: string
+        '404':
+          description: Store not found
+
+  /api/inventory/expiring:
+    get:
+      tags:
+        - Inventory
+      summary: Get expiring inventory across all stores
+      description: Find products nearing expiration for proactive management
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 7
+          description: Number of days to look ahead
+      responses:
+        '200':
+          description: Successfully retrieved expiring items
+
+  # ============================================================
+  # FEATURE 1: STORES MANAGEMENT
+  # ============================================================
     get:
       tags:
         - Transfers
@@ -937,4 +2384,368 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Enter your JWT token
+      description: Enter your JWT token (obtained from /api/auth/login)
+
+  schemas:
+    # ============================================================
+    # FEATURE 2: SUPPLIER SCHEMA
+    # ============================================================
+    Supplier:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a1'
+        name:
+          type: string
+          example: 'Golden Harvest Supplier'
+        contactPerson:
+          type: string
+          example: 'Nguyen Van A'
+        phone:
+          type: string
+          example: '+84-28-12345678'
+        email:
+          type: string
+          example: 'contact@goldenharvest.vn'
+        address:
+          type: string
+          example: 'Industrial Zone, Binh Duong Province'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # FEATURE 2: INGREDIENT SCHEMA (Updated)
+    # ============================================================
+    Ingredient:
+      type: object
+      properties:
+        _id:
+          type: string
+        ingredientName:
+          type: string
+          example: 'Flour'
+          description: 'Unique ingredient name'
+        unit:
+          type: string
+          example: 'kg'
+          description: 'Unit of measurement (stored in lowercase)'
+        costPrice:
+          type: number
+          example: 25000
+          description: 'Cost per unit in VND'
+        warningThreshold:
+          type: number
+          example: 100
+          description: 'Low stock alert threshold'
+        totalQuantity:
+          type: number
+          example: 500
+          description: 'Total quantity across all active batches'
+        isBelowThreshold:
+          type: boolean
+          description: 'Virtual field: true if totalQuantity < warningThreshold'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # FEATURE 2: INGREDIENT BATCH SCHEMA (New)
+    # ============================================================
+    IngredientBatch:
+      type: object
+      properties:
+        _id:
+          type: string
+        ingredientId:
+          type: string
+          description: 'Reference to Ingredient'
+        supplierId:
+          type: string
+          description: 'Reference to Supplier (CRITICAL for traceability)'
+        batchCode:
+          type: string
+          example: 'IB-FLOUR-20260129-001'
+          description: 'Unique batch code (auto-uppercase)'
+        expiryDate:
+          type: string
+          format: date
+          example: '2026-12-31'
+          description: 'Expiry date (must be future date)'
+        receivedDate:
+          type: string
+          format: date
+          example: '2026-01-29'
+          description: 'Date received from supplier'
+        initialQuantity:
+          type: number
+          example: 500
+          description: 'Original quantity when imported'
+        currentQuantity:
+          type: number
+          example: 500
+          description: 'Current remaining quantity'
+        price:
+          type: number
+          example: 25000
+          description: 'Price per unit for this batch'
+        isActive:
+          type: boolean
+          default: true
+          description: 'Batch is still usable'
+        isExpired:
+          type: boolean
+          description: 'Virtual field: true if expiryDate < today'
+        isEmpty:
+          type: boolean
+          description: 'Virtual field: true if currentQuantity <= 0'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # FEATURE 3: PRODUCT SCHEMA (with Recipe & Bundles)
+    # ============================================================
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          example: 'Green Bean Mooncake'
+        sku:
+          type: string
+          example: 'MOON-GB-001'
+          description: 'Unique product code'
+        categoryId:
+          type: string
+          description: 'Reference to Category'
+        price:
+          type: number
+          example: 150000
+          description: 'Selling price in VND'
+        shelfLifeDays:
+          type: number
+          example: 30
+          description: 'Shelf life in days'
+        image:
+          type: string
+          example: 'https://example.com/mooncake.jpg'
+        recipe:
+          type: array
+          description: 'Ingredients needed to make 1 unit'
+          items:
+            type: object
+            properties:
+              ingredientId:
+                type: string
+              quantity:
+                type: number
+                description: 'Quantity per 1 unit of product'
+          example:
+            - ingredientId: '60d5ec49f1b2c8b1f8e4e1a2'
+              quantity: 0.05
+            - ingredientId: '60d5ec49f1b2c8b1f8e4e1a3'
+              quantity: 1
+        bundleItems:
+          type: array
+          description: 'Child products for combo/bundle products'
+          items:
+            type: object
+            properties:
+              childProductId:
+                type: string
+              quantity:
+                type: number
+          example:
+            - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
+              quantity: 2
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # FEATURE 3: PRODUCTION PLAN SCHEMA
+    # ============================================================
+    ProductionPlan:
+      type: object
+      properties:
+        _id:
+          type: string
+        planCode:
+          type: string
+          example: 'PLAN-20260129-001'
+          description: 'Unique plan code (auto-uppercase)'
+        planDate:
+          type: string
+          format: date
+          example: '2026-01-29'
+          description: 'Planned production date'
+        status:
+          type: string
+          enum: [Planned, InProgress, Completed, Cancelled]
+          example: 'Completed'
+        note:
+          type: string
+          example: 'Production for Mid-Autumn Festival'
+        details:
+          type: array
+          description: 'Products to be manufactured'
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              plannedQuantity:
+                type: number
+                example: 100
+              actualQuantity:
+                type: number
+                example: 100
+              status:
+                type: string
+                enum: [Pending, InProgress, Completed, Cancelled]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # FEATURE 3: FINISHED BATCH SCHEMA (CRITICAL for Traceability)
+    # ============================================================
+    FinishedBatch:
+      type: object
+      required:
+        - batchCode
+        - productionPlanId
+        - productId
+        - mfgDate
+        - expDate
+        - initialQuantity
+      properties:
+        _id:
+          type: string
+        batchCode:
+          type: string
+          example: 'BATCH-20260129-MOON-GB-001'
+          description: 'Unique batch code (auto-uppercase)'
+        productionPlanId:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a6'
+          description: 'CRITICAL: Links batch back to production plan for traceability'
+        productId:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a5'
+          description: 'Product being batched'
+        mfgDate:
+          type: string
+          format: date
+          example: '2026-01-29'
+          description: 'Manufacturing date'
+        expDate:
+          type: string
+          format: date
+          example: '2026-02-28'
+          description: 'Expiration date (must be after mfgDate)'
+        initialQuantity:
+          type: number
+          example: 100
+          description: 'Initial quantity produced'
+        currentQuantity:
+          type: number
+          example: 80
+          description: 'Current available quantity (after transfers)'
+        status:
+          type: string
+          enum: [Active, SoldOut, Expired, Recalled]
+          default: Active
+          description: 'Batch status for inventory management'
+        isExpired:
+          type: boolean
+          description: 'Virtual field: true if expDate < today'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # ADDITIONAL SCHEMAS
+    # ============================================================
+    Category:
+      type: object
+      properties:
+        _id:
+          type: string
+        categoryName:
+          type: string
+          example: 'Mooncake'
+        description:
+          type: string
+          example: 'Traditional and modern mooncake products'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Store:
+      type: object
+      properties:
+        _id:
+          type: string
+        storeName:
+          type: string
+          example: 'Kendo Q1 Branch'
+        storeCode:
+          type: string
+          example: 'KD-Q1'
+        address:
+          type: string
+          example: '123 Nguyen Hue Street, District 1, HCMC'
+        phone:
+          type: string
+          example: '+84-28-12345678'
+        standardDeliveryMinutes:
+          type: number
+          example: 30
+        status:
+          type: string
+          enum: [Active, Inactive]
+          default: Active
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: 'Error message description'
+        error:
+          type: string
