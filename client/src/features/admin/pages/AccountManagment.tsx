@@ -96,15 +96,22 @@ export const AccountManagement = () => {
     };
 
     // --- UI HELPERS ---
-    const getRoleBadgeColor = (roleName: string) => {
-        // Map theo Role Enum mới
-        switch (roleName) {
-            case 'Admin': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-            case 'Manager': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-            case 'Coordinator': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-            case 'KitchenStaff': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-            case 'StoreStaff': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    const getRoleBadgeColor = (roleName: string | undefined) => {
+        const safeRole = roleName || '';
+
+        switch (safeRole) {
+            case 'Admin':
+                return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+            case 'Manager':
+                return 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300';
+            case 'Coordinator':
+                return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300';
+            case 'KitchenStaff':
+                return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
+            case 'StoreStaff':
+                return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300';
+            default:
+                return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
         }
     };
 
@@ -141,70 +148,63 @@ export const AccountManagement = () => {
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                            {users
-                                // (Tuỳ chọn) Bỏ comment dòng dưới nếu bạn muốn ẩn Admin đi
-                                // .filter(u => u.roleId?.roleName !== 'Admin') 
-                                .map((user) => (
-                                    <tr key={user._id} className={`group transition-colors ${darkMode ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'
-                                        }`}>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {/* Avatar đậm hơn chút */}
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${darkMode ? 'bg-amber-900/30 text-amber-500' : 'bg-amber-100 text-amber-700'
-                                                    }`}>
-                                                    {user.fullName?.charAt(0) || user.username.charAt(0)}
+                        <tbody className="text-sm">
+                            {users.map((user) => (
+                                <tr
+                                    key={user._id}
+                                    className={`group transition-colors border-b last:border-0 ${darkMode
+                                            ? 'border-gray-800 hover:bg-gray-800/30' // Dark Mode: Kẻ tối màu
+                                            : 'border-gray-100 hover:bg-gray-50'     // Light Mode: Kẻ cực nhạt (gray-100)
+                                        }`}
+                                >
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            {/* Avatar */}
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm ${darkMode ? 'bg-gray-800 text-amber-500' : 'bg-white text-amber-600 border border-gray-100'
+                                                }`}>
+                                                {user.fullName?.charAt(0) || user.username.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                                    {user.fullName}
                                                 </div>
-                                                <div>
-                                                    {/* Tên đậm đen (gray-900) thay vì xám */}
-                                                    <div className={`font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                                                        {user.fullName}
-                                                    </div>
-
-                                                    {/* Username màu xám đậm (gray-600) */}
-                                                    <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                                        @{user.username}
-                                                    </div>
-
-                                                    {/* Email màu xám đậm (gray-500) */}
-                                                    <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                                                        {user.email}
-                                                    </div>
+                                                <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                                    @{user.username} | {user.email}
                                                 </div>
                                             </div>
-                                        </td>
+                                        </div>
+                                    </td>
 
-                                        {/* Cột Role: Chỉnh màu Badge đậm đà hơn */}
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadgeColor(user.roleId?.roleName)}`}>
-                                                {user.roleId?.roleName || 'No Role'}
-                                            </span>
-                                        </td>
+                                    <td className="px-6 py-4">
+                                        {/* Badge Role mới */}
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getRoleBadgeColor(user.roleId?.roleName)}`}>
+                                            {user.roleId?.roleName || 'No Role'}
+                                        </span>
+                                    </td>
 
-                                        {/* Cột Store: Chỉnh màu chữ đậm hơn */}
-                                        <td className={`px-6 py-4 text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-700'}`}>
-                                            {user.storeId?.storeName || '-'}
-                                        </td>
+                                    <td className={`px-6 py-4 font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {user.storeId?.storeName || '-'}
+                                    </td>
 
-                                        {/* Cột Status giữ nguyên */}
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => handleToggleStatus(user)}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${user.isActive ? 'bg-green-600' : 'bg-gray-400' // Green đậm hơn, Gray đậm hơn
-                                                    }`}
-                                            >
-                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${user.isActive ? 'translate-x-6' : 'translate-x-1'
-                                                    }`} />
-                                            </button>
-                                        </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={() => handleToggleStatus(user)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${user.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
+                                                }`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${user.isActive ? 'translate-x-6' : 'translate-x-1'
+                                                }`} />
+                                        </button>
+                                    </td>
 
-                                        <td className="px-6 py-4 text-right">
-                                            <button className="text-gray-500 hover:text-amber-600 p-2 transition-colors">
-                                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                    <td className="px-6 py-4 text-right">
+                                        <button className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-gray-400 hover:text-amber-500 hover:bg-gray-800' : 'text-gray-400 hover:text-amber-600 hover:bg-gray-100'
+                                            }`}>
+                                            <span className="material-symbols-outlined text-[20px]">edit</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
