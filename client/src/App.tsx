@@ -12,6 +12,8 @@ import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout
 import { AdminLayout } from '@/features/admin/AdminLayout';
 import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
+import CategoryPage from '@/features/manager/pages/CategoryPage';
+import IngredientPage from '@/features/manager/pages/IngredientPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
@@ -71,6 +73,8 @@ function App() {
           >
             <Route element={<DashboardLayout />}>
               <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+              <Route path="/manager/categories" element={<CategoryPage />} />
+              <Route path="/manager/ingredients" element={<IngredientPage />} />
             </Route>
           </Route>
 
