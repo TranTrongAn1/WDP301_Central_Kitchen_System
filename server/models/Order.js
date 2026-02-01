@@ -117,11 +117,11 @@ orderSchema.index({ status: 1 });
 orderSchema.index({ requestedDeliveryDate: 1 });
 
 // Pre-save hook to calculate total amount from order items
-orderSchema.pre('save', function (next) {
-  if (this.orderItems && this.orderItems.length > 0) {
+orderSchema.pre('save', function () {
+  // Calculate total for new orders or when orderItems change
+  if ((this.isNew || this.isModified('orderItems')) && this.orderItems && this.orderItems.length > 0) {
     this.totalAmount = this.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
   }
-  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);

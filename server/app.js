@@ -74,6 +74,8 @@ app.use('/api/transfers', require('./routes/transferRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/docs', require('./routes/docsRoutes'));
 app.use('/api/roles', require('./routes/roleRoutes'));
+app.use('/api/system-settings', require('./routes/systemSettingRoutes'));
+app.use('/api/logistics', require('./routes/logisticsRoutes'));
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({

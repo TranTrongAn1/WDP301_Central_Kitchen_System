@@ -58,7 +58,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      required: [true, 'Total amount is required'],
+      default: 0,
       min: [0, 'Total amount cannot be negative'],
     },
     paymentStatus: {
@@ -103,8 +103,9 @@ invoiceSchema.index({ paymentStatus: 1 });
 invoiceSchema.index({ dueDate: 1 });
 
 // Pre-save hook to calculate tax and total amounts
-invoiceSchema.pre('save', function (next) {
-  if (this.isModified('subtotal') || this.isModified('taxRate')) {
+invoiceSchema.pre('save', function () {
+  // Calculate tax and total for new documents or when subtotal/taxRate changes
+  if (this.isNew || this.isModified('subtotal') || this.isModified('taxRate')) {
     this.taxAmount = (this.subtotal * this.taxRate) / 100;
     this.totalAmount = this.subtotal + this.taxAmount;
   }
@@ -130,8 +131,6 @@ invoiceSchema.pre('save', function (next) {
       this.paymentStatus = 'Overdue';
     }
   }
-  
-  next();
 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

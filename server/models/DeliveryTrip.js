@@ -120,11 +120,10 @@ deliveryTripSchema.index({ status: 1 });
 deliveryTripSchema.index({ driverId: 1 });
 
 // Pre-save hook to set actualArrival when status is Completed
-deliveryTripSchema.pre('save', function (next) {
+deliveryTripSchema.pre('save', function () {
   if (this.isModified('status') && this.status === 'Completed' && !this.actualArrival) {
     this.actualArrival = new Date();
   }
-  next();
 });
 
 module.exports = mongoose.model('DeliveryTrip', deliveryTripSchema);
