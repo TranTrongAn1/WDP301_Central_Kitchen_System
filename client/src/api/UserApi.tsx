@@ -1,6 +1,7 @@
 import apiClient from './Client';
 
-// --- CÁC INTERFACE (Giữ nguyên) ---
+// --- INTERFACES ---
+
 export interface User {
   _id: string;
   username: string;
@@ -16,11 +17,7 @@ export interface Role {
   roleName: string;
 }
 
-export interface Store {
-  _id: string;
-  name: string;
-}
-
+// Payload khi tạo mới (Create)
 export interface CreateUserPayload {
   username: string;
   password: string;
@@ -30,45 +27,63 @@ export interface CreateUserPayload {
   storeId?: string;
 }
 
+// Payload khi cập nhật (Update) - Dựa theo Swagger
+export interface UpdateUserPayload {
+  fullName?: string;
+  email?: string;
+  password?: string; // Gửi lên nếu muốn đổi pass, không thì thôi
+  roleId?: string;
+  storeId?: string | null; // Có thể null nếu chuyển về Kitchen/Admin
+  isActive?: boolean; // Để support việc active/inactive user
+}
+
+// --- API METHODS ---
+
 export const userApi = {
-  // 1. GET USERS
+  // 1. GET ALL USERS
   getAllUsers: async () => {
-    // TypeScript nghĩ đây là AxiosResponse, nhưng thực tế Runtime là { success, data }
-    const res = await apiClient.get<{ success: boolean, data: User[] }>('/users');
-    
-    // Runtime: res.data chính là mảng User[]
-    // TypeScript: res.data là object Body -> Ép kiểu về User[]
-    return res.data as unknown as User[];
+    // API trả về { success: true, data: User[] }
+    const res = await apiClient.get<any>('/users');
+    // Trả về mảng data bên trong
+    return res.data || [];
   },
 
-  // 2. CREATE USER
+  // 2. GET ALL ROLES
+getAllRoles: async () => {
+    const res = await apiClient.get<any>('/roles');
+    
+    // LOGIC AN TOÀN:
+    // Kiểm tra xem res.data có phải là mảng không? Nếu đúng -> return luôn
+    if (Array.isArray(res.data)) return res.data;
+    
+    // Nếu res.data là object và có thuộc tính .data là mảng -> return res.data.data
+    if (res.data && Array.isArray(res.data.data)) return res.data.data;
+    
+    // Nếu apiClient trả về trực tiếp response object (không qua interceptor)
+    if (Array.isArray(res)) return res;
+
+    // Không tìm thấy mảng -> trả về rỗng để tránh lỗi
+    return []; 
+  },
+
+  // 3. CREATE USER
   createUser: async (payload: CreateUserPayload) => {
     const res = await apiClient.post('/users', payload);
-    return res;
+    return res.data;
   },
 
-  // 3. GET ROLES (Sửa lỗi length ở đây)
-  getAllRoles: async () => {
-    const res = await apiClient.get<Role[]>('/roles');
-    // Ép kiểu: "res" thực tế là mảng Role[]
-    return res as unknown as Role[];
+  // 4. UPDATE USER (Thay thế cho updateUserRole và updateUserStatus cũ)
+  // Gọi vào PUT /api/users/{id}
+  updateUser: async (id: string, payload: UpdateUserPayload) => {
+    const res = await apiClient.put(`/users/${id}`, payload);
+    return res.data;
   },
 
-  // 4. GET STORES (Sửa lỗi tương tự)
-  getAllStores: async () => {
-    const res = await apiClient.get<Store[]>('/stores');
-    // Ép kiểu: "res" thực tế là mảng Store[]
-    return res as unknown as Store[];
-  },
-
-  // ... Các hàm update khác
-  updateUserRole: async (userId: string, roleId: string) => {
-    const res = await apiClient.put(`/users/${userId}/role`, { roleId });
-    return res;
-  },
-
-  updateUserStatus: async (userId: string, isActive: boolean) => {
-    const res = await apiClient.put(`/users/${userId}/status`, { isActive });
-    return res;
+  // 5. UPDATE STATUS (Dùng hàm update chung luôn hoặc làm riêng nếu thích)
+  // Trong UI bạn có nút toggle status, ta tái sử dụng hàm updateUser ở trên
+  updateUserStatus: async (id: string, isActive: boolean) => {
+    // Gọi PUT /users/{id} chỉ với field isActive
+    const res = await apiClient.put(`/users/${id}`, { isActive });
+    return res.data;
   }
 };
