@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UtensilsCrossed,
+  FolderTree,
+  Package,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/zustand/authStore";
@@ -81,6 +83,20 @@ export const DashboardSideBar = ({
       subLabel: "Sản phẩm & Công thức",
       path: "/manager/products",
       end: false,
+    },
+    {
+      icon: FolderTree,
+      label: "Categories",
+      subLabel: "Danh mục",
+      path: "/manager/categories",
+      end: true,
+    },
+    {
+      icon: Package,
+      label: "Ingredients",
+      subLabel: "Nguyên liệu",
+      path: "/manager/ingredients",
+      end: true,
     },
     {
       icon: Store,
