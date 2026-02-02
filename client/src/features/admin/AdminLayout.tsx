@@ -16,10 +16,10 @@ export const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Lấy user từ Store
+    // Get user from Store
     const { user, logout } = useAuthStore(); 
     
-    // FIX 1: Dùng ?. để tránh lỗi null
+    // Use optional chaining to prevent null errors
     const roleName = user?.role || 'Admin';
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -111,11 +111,11 @@ export const AdminLayout = () => {
                                 darkMode ? 'hover:bg-gray-800' : 'hover:bg-orange-100'
                             }`}>
                                 <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-sm font-bold text-white bg-amber-600`}>
-                                    {/* FIX 2: Thêm ?. để check null */}
+                                    {/* Use optional chaining */}
                                     {user?.username?.charAt(0).toUpperCase() || 'A'}
                                 </div>
                                 <div className="hidden sm:block text-left">
-                                    {/* FIX 3: Thêm ?. */}
+                                    {/* Use optional chaining */}
                                     <p className="text-sm font-medium leading-none">{user?.username || 'Admin'}</p>
                                     <p className="text-[11px] text-gray-500 mt-0.5 font-medium">{roleName}</p>
                                 </div>
@@ -127,7 +127,7 @@ export const AdminLayout = () => {
                                     darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-orange-100'
                                 }`}>
                                     <div className={`px-4 py-3 mb-1 border-b ${darkMode ? 'border-gray-700/50' : 'border-orange-100'}`}>
-                                        {/* FIX 4: Thêm ?. */}
+                                        {/* Use optional chaining */}
                                         <p className="font-semibold text-sm">{user?.username}</p>
                                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                     </div>

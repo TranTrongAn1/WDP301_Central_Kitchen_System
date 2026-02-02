@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 
-// 1. Import API Service
+// Import API Service
 import { authApi } from '../../../api/AuthApi';
 
 import { useAuthStore } from '@/shared/zustand/authStore';
@@ -21,7 +21,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const LoginForm = () => {
   const navigate = useNavigate();
   const { setAuth, getRedirectRoute } = useAuthStore();
-  const { darkMode } = useThemeStore(); // Biến này chưa dùng, có thể giữ hoặc bỏ
+  const { darkMode } = useThemeStore();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,6 @@ const LoginForm = () => {
     try {
 
       const response = await authApi.login(data);
-      // cần check token trong if để chắc chắn có token mới cho đăng nhập
       if (response.success && response.token) {
         const { user, token } = response;
         setAuth(user, token);
@@ -66,11 +65,9 @@ const LoginForm = () => {
   };
 
   return (
-    // ... Phần giao diện (JSX) giữ nguyên không đổi ...
     <div className="relative z-10 w-full p-4 flex justify-center">
-      <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6">
-        {/* ... Giữ nguyên nội dung bên trong ... */}
-        {/* Mình lược bớt phần JSX để tiết kiệm chỗ vì nó không thay đổi */}
+        <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6">
+        {/* Content kept as is */}
         <Link
           to="/"
           className="absolute top-4 left-4 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
@@ -91,7 +88,7 @@ const LoginForm = () => {
         </div>
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit(onSubmit)}>
-           {/* ... Các input giữ nguyên ... */}
+           {/* Form inputs */}
            <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="username">Username</label>
             <input

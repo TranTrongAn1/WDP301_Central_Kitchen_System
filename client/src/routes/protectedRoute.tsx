@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import type { UserRole } from '@/shared/types/auth';
@@ -25,7 +24,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
 
   if (allowedRoles && allowedRoles.length > 0 && user) {
     const hasPermission = allowedRoles.includes(user.role as UserRole);
-    
+
     if (!hasPermission) {
       const redirectPath = getRedirectRoute();
       return <Navigate to={redirectPath} replace />;
@@ -35,12 +34,12 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   return <Outlet />;
 };
 
-export const RoleGuard = ({ 
-  allowedRoles, 
+export const RoleGuard = ({
+  allowedRoles,
   children,
-  fallbackPath = '/login' 
-}: { 
-  allowedRoles: UserRole[], 
+  fallbackPath = '/login'
+}: {
+  allowedRoles: UserRole[],
   children: React.ReactNode,
   fallbackPath?: string
 }) => {
