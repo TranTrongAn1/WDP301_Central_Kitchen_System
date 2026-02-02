@@ -2301,21 +2301,16 @@ paths:
         '403':
           description: Forbidden - Admin access required
 
-  /api/users/{id}/role:
-    put:
+  paths:
+  # Route cho Create User
+  /api/users:
+    post:
       tags:
         - Users
-      summary: Update user role
-      description: Change a user's role (e.g., KITCHEN_STAFF, STORE_MANAGER, ADMIN)
+      summary: Create new user
+      description: Create a new user (Admin/Manager only). Validates role and store assignment.
       security:
         - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: User ID
       requestBody:
         required: true
         content:
@@ -2323,60 +2318,118 @@ paths:
             schema:
               type: object
               required:
+                - username
+                - password
+                - fullName
+                - email
                 - roleId
               properties:
+                username:
+                  type: string
+                  example: "staff01"
+                password:
+                  type: string
+                  format: password
+                  example: "Pass123456"
+                fullName:
+                  type: string
+                  example: "Nguyen Van A"
+                email:
+                  type: string
+                  format: email
+                  example: "staff01@example.com"
                 roleId:
                   type: string
-                  example: '60d5ec49f1b2c8b1f8e4e1a1'
-                  description: The new role ID to assign
+                  description: ObjectId of the Role
+                  example: "60d5ec49f1b2c8b1f8e4e1a1"
+                storeId:
+                  type: string
+                  description: Required if role is StoreStaff, otherwise null
+                  example: "60d5ec49f1b2c8b1f8e4e1b2"
+      responses:
+        '201':
+          description: User created successfully
+        '400':
+          description: Validation Error (Duplicate user, Invalid Role/Store, or Missing StoreId for Staff)
+        '403':
+          description: Forbidden (Admin/Manager only)
+
+  # Route cho GetById, Update, Delete
+  /api/users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: User ID
+    
+    # Get Single User (getUserById)
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve detailed information of a specific user
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: User role updated successfully
-        '400':
-          description: Invalid role ID
+          description: User details retrieved
         '404':
           description: User not found
-        '403':
-          description: Forbidden - Admin access required
 
-  /api/users/{id}/status:
+    # Update User (updateUser - Gộp cả update info, role, store, password)
     put:
       tags:
         - Users
-      summary: Update user account status
-      description: Activate or deactivate a user account
+      summary: Update user details
+      description: Update user info. Can update Role, Store, Password, or Profile info. Handles logic for StoreStaff validation.
       security:
         - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: User ID
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - status
               properties:
-                status:
+                fullName:
                   type: string
-                  enum: [Active, Inactive]
-                  example: 'Active'
-                  description: New account status
+                  example: "Nguyen Van B"
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  description: Send this only if you want to change the password
+                roleId:
+                  type: string
+                  description: ObjectId of the new Role
+                storeId:
+                  type: string
+                  description: Required if changing role to StoreStaff
       responses:
         '200':
-          description: User status updated successfully
+          description: User updated successfully
         '400':
-          description: Invalid status value
+          description: Validation Error (Invalid Role/Store logic)
         '404':
           description: User not found
-        '403':
-          description: Forbidden - Admin access required
+
+    # Soft Delete User (deleteUser)
+    delete:
+      tags:
+        - Users
+      summary: Deactivate user (Soft Delete)
+      description: Sets the user's isActive status to false.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User deactivated successfully
+        '404':
+          description: User not found
 
 components:
   securitySchemes:
