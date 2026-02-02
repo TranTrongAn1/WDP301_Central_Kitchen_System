@@ -3,9 +3,9 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 
 const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: 'menu', label: 'Recipe Managment', path: '/admin/recipe' },
-  { icon: 'sell', label: 'Accounts', path: '/admin/account' },
-  { icon: 'inventory_2', label: 'Inventory', path: '/admin/inventory' },
+  { icon: 'storefront', label: 'Stores', path: '/admin/store' },
+  { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
+  { icon: 'settings', label: 'Setting System', path: '/admin/setting' },
   { icon: 'group', label: 'Users', path: '/admin/users' },
 ];
 
@@ -66,26 +66,6 @@ export const AdminSidebar = () => {
         })}
       </nav>
 
-      {/* --- USER PROFILE (BOTTOM) --- */}
-      <div className={`p-4 border-t ${
-          darkMode ? 'border-gray-800' : 'border-gray-100'
-      }`}>
-        <div className="flex items-center gap-3">
-            <img 
-                src="https://ui-avatars.com/api/?name=Jane+Cooper&background=random" 
-                alt="User" 
-                className="w-10 h-10 rounded-full"
-            />
-            <div>
-                <p className={`text-sm font-medium ${
-                    darkMode ? 'text-white' : 'text-gray-900' // Đổi màu tên user
-                }`}>
-                    Jane Cooper
-                </p>
-                <p className="text-xs text-gray-500">jane@kendobakery.com</p>
-            </div>
-        </div>
-      </div>
     </aside>
   );
 };

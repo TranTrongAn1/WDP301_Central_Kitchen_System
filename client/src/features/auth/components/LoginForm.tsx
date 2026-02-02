@@ -41,7 +41,6 @@ const LoginForm = () => {
     try {
 
       const response = await authApi.login(data);
-
       // cần check token trong if để chắc chắn có token mới cho đăng nhập
       if (response.success && response.token) {
         const { user, token } = response;
