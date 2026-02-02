@@ -44,8 +44,8 @@ export default function CategoryPage() {
       setIsLoading(true);
       const response = await categoryApi.getAll();
       if (response.data) {
-        const categoriesData = Array.isArray(response.data) 
-          ? response.data 
+        const categoriesData = Array.isArray(response.data)
+          ? response.data
           : [response.data];
         setCategories(categoriesData);
       }
@@ -114,16 +114,12 @@ export default function CategoryPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            Category Management
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage your product categories</p>
         </div>
         <Button onClick={handleCreate} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
           <Plus className="w-4 h-4 mr-2" />
@@ -202,7 +198,7 @@ export default function CategoryPage() {
               ) : (
                 filteredCategories.map((category, index) => {
                   const isExpanded = expandedCategory === category._id;
-                  
+
                   return (
                     <>
                       <motion.tr
@@ -222,7 +218,7 @@ export default function CategoryPage() {
                           </motion.div>
                         </TableCell>
                         <TableCell>
-                          <motion.div 
+                          <motion.div
                             className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center"
                             whileHover={{ scale: 1.1, rotate: 5 }}
                           >
@@ -259,7 +255,7 @@ export default function CategoryPage() {
                           </DropdownMenu>
                         </TableCell>
                       </motion.tr>
-                      
+
                       <AnimatePresence>
                         {isExpanded && (
                           <motion.tr
@@ -285,7 +281,7 @@ export default function CategoryPage() {
                                       <p className="text-sm text-muted-foreground">View category information</p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="grid grid-cols-2 gap-4">
                                     <motion.div
                                       whileHover={{ scale: 1.02 }}

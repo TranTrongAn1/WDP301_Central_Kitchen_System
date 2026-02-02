@@ -1,6 +1,5 @@
 import apiclient from './Client';
 
-// 1. Định nghĩa kiểu dữ liệu GỬI LÊN (Request)
 export interface LoginFormData {
   username: string;
   password: string;

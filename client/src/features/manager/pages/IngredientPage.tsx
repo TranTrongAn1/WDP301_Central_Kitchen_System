@@ -36,7 +36,8 @@ import {
   DialogDescription,
 } from '../components/ui/Dialog';
 import { Label } from '../components/ui/Label';
-import { ingredientApi, type Ingredient, type Supplier, type IngredientBatch } from '@/api/IngredientApi';
+import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
+import { supplierApi, type Supplier } from '@/api/SupplierApi';
 import toast from 'react-hot-toast';
 import { cn } from '../components/ui/cn';
 
@@ -44,17 +45,17 @@ export default function IngredientPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [batches, setBatches] = useState<IngredientBatch[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isBatchesLoading, setIsBatchesLoading] = useState(false);
-  
+
   const [isIngredientFormOpen, setIsIngredientFormOpen] = useState(false);
   const [isBatchFormOpen, setIsBatchFormOpen] = useState(false);
-  
+
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [expandedIngredient, setExpandedIngredient] = useState<string | null>(null);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('ingredients');
@@ -64,9 +65,9 @@ export default function IngredientPage() {
       setIsLoading(true);
       const response = await ingredientApi.getAll();
       if (response.data) {
-        const ingredientsData = Array.isArray(response.data) 
-          ? response.data 
-          : [response.data];
+        const ingredientsData = (Array.isArray(response.data)
+          ? response.data
+          : [response.data]) as Ingredient[];
         setIngredients(ingredientsData);
       }
     } catch (error: any) {
@@ -82,7 +83,7 @@ export default function IngredientPage() {
       setIsBatchesLoading(true);
       const response = await ingredientApi.getBatches(ingredientId);
       if (response.data) {
-        setBatches(response.data);
+        setBatches(response.data as IngredientBatch[]);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch batches';
@@ -93,10 +94,14 @@ export default function IngredientPage() {
   };
 
   const fetchSuppliers = async () => {
-    setSuppliers([
-      { _id: '1', name: 'Công ty TNHH Bột', email: 'bot@example.com', phone: '0123456789', status: 'Active' },
-      { _id: '2', name: 'Công ty Trứng', email: 'trung@example.com', phone: '0123456790', status: 'Active' },
-    ]);
+    try {
+      const response = await supplierApi.getAll();
+      const data = (response as any)?.data || response || [];
+      setSuppliers(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error('Error fetching suppliers:', error);
+      // Don't show error toast for suppliers as it's not critical
+    }
   };
 
   useEffect(() => {
@@ -132,7 +137,7 @@ export default function IngredientPage() {
 
   const handleBatchSubmit = async (data: { batchCode: string; expiryDate: string; initialQuantity: number; price: number; supplierId: string }) => {
     if (!selectedIngredient) return;
-    
+
     setIsSubmitting(true);
     try {
       await ingredientApi.addBatch(selectedIngredient._id, data);
@@ -198,7 +203,7 @@ export default function IngredientPage() {
 
   const getStatusConfig = (ingredient: Ingredient) => {
     const isBelowThreshold = ingredient.totalQuantity < ingredient.warningThreshold;
-    
+
     if (isBelowThreshold && ingredient.totalQuantity === 0) {
       return { variant: 'destructive' as const, label: 'Out of Stock', color: 'bg-red-500', bgClass: 'bg-red-500/10 text-red-500 border-red-500/30' };
     }
@@ -212,7 +217,7 @@ export default function IngredientPage() {
     const percentage = Math.min(Math.max((daysLeft / maxDays) * 100, 0), 100);
     const circumference = 2 * Math.PI * 18;
     const offset = circumference - (percentage / 100) * circumference;
-    
+
     const colorClass = daysLeft <= 1 ? 'text-red-500' : daysLeft <= 3 ? 'text-yellow-500' : 'text-green-500';
 
     return (
@@ -251,16 +256,12 @@ export default function IngredientPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            Ingredient Management
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage raw materials and batches</p>
         </div>
         <Button onClick={() => { setEditingIngredient(null); setIsIngredientFormOpen(true); }} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
           <Plus className="w-4 h-4 mr-2" />
@@ -298,7 +299,19 @@ export default function IngredientPage() {
         ))}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === 'batches' && !selectedIngredient && ingredients.length > 0) {
+            // Auto-select first ingredient when switching to batches tab
+            const firstIngredient = ingredients[0];
+            setSelectedIngredient(firstIngredient);
+            fetchBatches(firstIngredient._id);
+          }
+        }}
+        className="space-y-4"
+      >
         <TabsList className="bg-muted/50 p-1 rounded-xl">
           <TabsTrigger value="ingredients" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <Package className="w-4 h-4 mr-2" />
@@ -377,7 +390,7 @@ export default function IngredientPage() {
                               </motion.div>
                             </TableCell>
                             <TableCell>
-                              <motion.div 
+                              <motion.div
                                 className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center"
                                 whileHover={{ scale: 1.1, rotate: 5 }}
                               >
@@ -555,7 +568,7 @@ export default function IngredientPage() {
                   <Plus className="w-4 h-4 mr-2" /> Add Batch
                 </Button>
               </div>
-              
+
               <Card className="overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -588,16 +601,16 @@ export default function IngredientPage() {
                     ) : (
                       batches.map((batch) => {
                         const daysLeft = Math.ceil((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                        const statusConfig = daysLeft <= 1 
+                        const statusConfig = daysLeft <= 1
                           ? { variant: 'destructive' as const, label: 'Critical' }
-                          : daysLeft <= 3 
+                          : daysLeft <= 3
                             ? { variant: 'warning' as const, label: 'Expiring Soon' }
                             : { variant: 'success' as const, label: 'Fresh' };
 
                         return (
                           <TableRow key={batch._id} className={cn("group transition-colors hover:bg-muted/30", daysLeft <= 3 && "bg-red-50/50 dark:bg-red-500/5")}>
                             <TableCell className="py-4">
-                              <motion.div 
+                              <motion.div
                                 className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center"
                                 whileHover={{ scale: 1.1, rotate: 5 }}
                               >

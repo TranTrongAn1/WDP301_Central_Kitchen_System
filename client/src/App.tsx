@@ -14,6 +14,19 @@ import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
 import CategoryPage from '@/features/manager/pages/CategoryPage';
 import IngredientPage from '@/features/manager/pages/IngredientPage';
+import ProductionPlansPage from '@/features/manager/pages/ProductionPlansPage';
+import ProductionPlanDetailPage from '@/features/manager/pages/ProductionPlanDetailPage';
+import BatchesPage from '@/features/manager/pages/BatchesPage';
+import BatchDetailPage from '@/features/manager/pages/BatchDetailPage';
+import InventoryReportsPage from '@/features/manager/pages/InventoryReportsPage';
+import OrdersShipmentsPage from '@/features/manager/pages/OrdersShipmentsPage';
+import TransferDetailPage from '@/features/manager/pages/TransferDetailPage';
+import ProductsRecipesPage from '@/features/manager/pages/ProductsRecipesPage';
+import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
+import StoresPage from '@/features/manager/pages/StoresPage';
+import ReportsAnalyticsPage from '@/features/manager/pages/ReportsAnalyticsPage';
+import UsersRolesPage from '@/features/manager/pages/UsersRolesPage';
+import SettingsPage from '@/features/manager/pages/SettingsPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
@@ -49,10 +62,10 @@ function App() {
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          
-          <Route 
-            path="/auth/callback" 
-            element={<AuthHandler />} 
+
+          <Route
+            path="/auth/callback"
+            element={<AuthHandler />}
           />
 
           <Route
@@ -72,9 +85,37 @@ function App() {
             }
           >
             <Route element={<DashboardLayout />}>
+              {/* Dashboard */}
               <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+
+              {/* Products & Categories */}
+              <Route path="/manager/products" element={<ProductsRecipesPage />} />
+              <Route path="/manager/products/:id" element={<ProductDetailPage />} />
               <Route path="/manager/categories" element={<CategoryPage />} />
+
+              {/* Ingredients */}
               <Route path="/manager/ingredients" element={<IngredientPage />} />
+
+              {/* Production */}
+              <Route path="/manager/production" element={<ProductionPlansPage />} />
+              <Route path="/manager/production/:id" element={<ProductionPlanDetailPage />} />
+              <Route path="/manager/production/batches" element={<BatchesPage />} />
+              <Route path="/manager/production/batches/:id" element={<BatchDetailPage />} />
+
+              {/* Inventory */}
+              <Route path="/manager/inventory" element={<InventoryReportsPage />} />
+
+              {/* Stores */}
+              <Route path="/manager/stores" element={<StoresPage />} />
+
+              {/* Transfers/Orders */}
+              <Route path="/manager/orders" element={<OrdersShipmentsPage />} />
+              <Route path="/manager/orders/:id" element={<TransferDetailPage />} />
+
+              {/* Reports & Admin */}
+              <Route path="/manager/reports" element={<ReportsAnalyticsPage />} />
+              <Route path="/manager/users" element={<UsersRolesPage />} />
+              <Route path="/manager/settings" element={<SettingsPage />} />
             </Route>
           </Route>
 

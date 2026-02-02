@@ -20,12 +20,12 @@ export const AccountManagement = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-    // State quản lý Dropdown menu
+    // Dropdown menu state
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState<'up' | 'down'>('down');
     const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-    // Form State (Create)
+    // Form State
     const [newUser, setNewUser] = useState<CreateUserPayload>({
         username: '',
         password: '',
@@ -35,7 +35,7 @@ export const AccountManagement = () => {
         storeId: ''
     });
 
-    // --- FETCH DATA ---
+    // FETCH DATA
     const fetchData = async () => {
         try {
             setIsLoading(true);
@@ -45,13 +45,13 @@ export const AccountManagement = () => {
                 storeApi.getAllStores()
             ]);
 
-            // --- LỌC USER: Bỏ Admin ra khỏi bảng ---
+            // Filter out Admin users
             const filteredUsers = Array.isArray(usersData)
                 ? usersData.filter((user: any) => user.roleId?.roleName !== 'Admin')
                 : [];
             setUsers(filteredUsers);
 
-            // --- LỌC ROLE: Bỏ Admin ra khỏi Dropdown tạo mới ---
+            // Filter out Admin roles from dropdown
             const rawRoles = Array.isArray(rolesData) ? rolesData : [];
             const selectableRoles = rawRoles.filter(role => role.roleName !== 'Admin');
             setRoles(selectableRoles);
@@ -97,7 +97,7 @@ export const AccountManagement = () => {
             setShowAddModal(false);
             fetchData();
             
-            // Reset form (lấy role đầu tiên hợp lệ)
+            // Reset form
             setNewUser({
                 username: '',
                 password: '',
@@ -112,17 +112,14 @@ export const AccountManagement = () => {
         }
     };
 
-    // --- LOGIC DROPDOWN MỚI (FIX LỖI SCROLL TRẮNG) ---
-    // Thêm tham số index để biết dòng này nằm ở đâu
+    // Dropdown position logic
     const handleToggleMenu = (e: React.MouseEvent<HTMLButtonElement>, userId: string, index: number) => {
         e.stopPropagation();
 
         if (openMenuId === userId) {
             setOpenMenuId(null);
         } else {
-            // Logic đơn giản: Nếu là 2 dòng cuối cùng của bảng -> Mở lên trên ('up')
-            // Các dòng còn lại -> Mở xuống dưới ('down')
-            // Cách này fix triệt để lỗi khi bảng ngắn mà màn hình dài
+            // For last 2 rows, open dropdown upward
             if (index >= users.length - 2) {
                 setMenuPosition('up');
             } else {
@@ -143,20 +140,20 @@ export const AccountManagement = () => {
         }
     };
 
-  // 1. Mở Modal Update
+    // Open Update Modal
     const handleEditUser = (user: User) => {
-        setOpenMenuId(null); // Đóng menu dropdown
-        setSelectedUser(user); // Set user đang chọn
-        setShowUpdateModal(true); // Mở Modal
+        setOpenMenuId(null);
+        setSelectedUser(user);
+        setShowUpdateModal(true);
     };
 
-    // 2. Thực hiện Update (Được gọi từ bên trong Modal)
+    // Handle Update Submit
     const onUpdateUserSubmit = async (id: string, data: any) => {
         try {
-            await userApi.updateUser(id, data); // Gọi API PUT
+            await userApi.updateUser(id, data);
             alert('User updated successfully!');
-            setShowUpdateModal(false); // Đóng Modal
-            fetchData(); // Load lại bảng
+            setShowUpdateModal(false);
+            fetchData();
         } catch (error: any) {
             console.error(error);
             alert(error.response?.data?.message || 'Failed to update user');
@@ -212,7 +209,7 @@ export const AccountManagement = () => {
                             </tr>
                         </thead>
                         <tbody className="text-sm">
-                            {users.map((user, index) => ( // <--- Thêm index vào đây
+                            {users.map((user, index) => (
                                 <tr key={user._id} className={`group transition-colors border-b last:border-0 ${darkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'border-gray-100 hover:bg-gray-50'}`}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -243,10 +240,9 @@ export const AccountManagement = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right relative">
-                                        {/* FIX 1: THÊM DẤU { } ĐỂ HẾT LỖI GẠCH ĐỎ */}
                                         <button
                                             ref={(el) => { buttonRefs.current[user._id] = el; }}
-                                            onClick={(e) => handleToggleMenu(e, user._id, index)} // <--- Truyền index vào đây
+                                            onClick={(e) => handleToggleMenu(e, user._id, index)}
                                             className={`p-2 rounded-full transition-colors relative z-0 ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                                         >
                                             <span className="material-symbols-outlined text-[20px]">more_vert</span>
@@ -286,7 +282,7 @@ export const AccountManagement = () => {
                 </div>
             </div>
 
-            {/* --- MODAL ADD USER (Giữ nguyên) --- */}
+            {/* Add User Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className={`w-full max-w-lg rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 ${darkMode ? 'bg-[#1C1C21] border border-gray-800' : 'bg-white'}`}>
@@ -298,7 +294,7 @@ export const AccountManagement = () => {
                         </div>
 
                         <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-                            {/* ... (Phần Form giữ nguyên như code trước) ... */}
+                            {/* Form fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1.5">Full Name</label>
