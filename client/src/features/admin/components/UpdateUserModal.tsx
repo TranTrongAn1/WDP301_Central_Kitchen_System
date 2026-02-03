@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { User, Role, UpdateUserPayload } from '../../../api/UserApi'; // Import type UpdateUserPayload nếu chưa có thì định nghĩa (xem bên dưới)
+import type { User, Role, UpdateUserPayload } from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 
 interface UpdateUserModalProps {
@@ -13,17 +13,17 @@ interface UpdateUserModalProps {
 }
 
 const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkMode }: UpdateUserModalProps) => {
-    // State riêng cho form update
+    // Form state for update
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
         roleId: '',
         storeId: '',
-        password: '', // Password để trống nghĩa là không đổi
+        password: '',
         isActive: true
     });
 
-    // Mỗi khi "user" thay đổi (người dùng bấm nút Edit khác), cập nhật lại form
+    // Update form when user changes
     useEffect(() => {
         if (user) {
             setFormData({
@@ -31,7 +31,7 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
                 email: user.email || '',
                 roleId: user.roleId?._id || '',
                 storeId: user.storeId?._id || '',
-                password: '', // Reset password về rỗng
+                password: '',
                 isActive: user.isActive
             });
         }
@@ -39,7 +39,7 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
 
     if (!isOpen || !user) return null;
 
-    // Logic kiểm tra Role StoreStaff
+    // Check if StoreStaff role is selected
     const isStoreStaffSelected = () => {
         const role = roles.find(r => r._id === formData.roleId);
         return role?.roleName === 'StoreStaff';
@@ -53,13 +53,13 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
         setFormData(prev => ({
             ...prev,
             roleId: selectedRoleId,
-            storeId: isStaff ? prev.storeId : '' // Clear store nếu không phải staff
+            storeId: isStaff ? prev.storeId : ''
         }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Tạo payload, nếu password rỗng thì xóa đi để không gửi lên server
+        // Create payload, remove empty password
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password;
         

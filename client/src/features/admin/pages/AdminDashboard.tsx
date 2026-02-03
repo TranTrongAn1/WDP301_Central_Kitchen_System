@@ -1,13 +1,13 @@
 import { useAuthStore } from '@/shared/zustand/authStore';
-import { useThemeStore } from '@/shared/zustand/themeStore'; // Import thêm cái này
+import { useThemeStore } from '@/shared/zustand/themeStore';
 
 const AdminDashboard = () => {
   const { user } = useAuthStore();
-  const { darkMode } = useThemeStore(); // Lấy state darkmode
+  const { darkMode } = useThemeStore();
 
   const cardClass = darkMode 
-    ? "bg-card border-border shadow-sm" // Class cho dark mode (cần định nghĩa trong tailwind hoặc dùng màu cứng bg-gray-800)
-    : "bg-white border-gray-100 shadow-sm"; // Class cho light mode
+    ? "bg-card border-border shadow-sm"
+    : "bg-white border-gray-100 shadow-sm";
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
