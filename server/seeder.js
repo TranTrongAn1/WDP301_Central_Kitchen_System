@@ -12,6 +12,10 @@ const Product = require('./models/Product');
 const ProductionPlan = require('./models/ProductionPlan');
 const Batch = require('./models/BatchModel');
 const StoreInventory = require('./models/StoreInventory');
+const Order = require('./models/Order');
+const DeliveryTrip = require('./models/DeliveryTrip');
+const Invoice = require('./models/Invoice');
+const SystemSetting = require('./models/SystemSetting');
 
 // ============================================================
 // SAMPLE DATA DEFINITIONS
@@ -72,6 +76,27 @@ const categories = [
   },
 ];
 
+const systemSettings = [
+  {
+    key: 'SHIPPING_COST_BASE',
+    value: '50000',
+    description: 'Base shipping cost in VND',
+    isPublic: true,
+  },
+  {
+    key: 'TAX_RATE',
+    value: '0.08',
+    description: 'Tax rate (8%)',
+    isPublic: true,
+  },
+  {
+    key: 'MIN_ORDER_VALUE',
+    value: '500000',
+    description: 'Minimum order value in VND',
+    isPublic: true,
+  },
+];
+
 // ============================================================
 // MAIN IMPORT FUNCTION
 // ============================================================
@@ -105,6 +130,20 @@ const importData = async () => {
     console.log('Creating Stores...');
     const createdStores = await Store.insertMany(stores);
     console.log(`✅ ${createdStores.length} stores created`);
+
+    // ========================================
+    // STEP 1.5: SYSTEM SETTINGS
+    // ========================================
+    console.log('\n⚙️  STEP 1.5: SYSTEM SETTINGS');
+    console.log('==========================================')
+
+    console.log('Creating System Settings...');
+    const createdSettings = await SystemSetting.insertMany(systemSettings);
+    console.log(`✅ ${createdSettings.length} system settings created`);
+    createdSettings.forEach(setting => {
+      console.log(`   ${setting.key}: ${setting.value}`);
+    });
+    console.log('');
 
     const adminRole = createdRoles.find((r) => r.roleName === 'Admin');
     const managerRole = createdRoles.find((r) => r.roleName === 'Manager');
@@ -336,16 +375,95 @@ const importData = async () => {
     console.log(`   Status: ${finishedBatch.status}\n`);
 
     // ========================================
-    // STEP 4: DISTRIBUTION (FEATURE 5)
+    // STEP 4: LOGISTICS FLOW (FEATURE 4)
     // ========================================
-    console.log('🚚 STEP 4: DISTRIBUTION TO STORES');
+    console.log('🚚 STEP 4: LOGISTICS FLOW (Feature 4 - Supply Chain)');
     console.log('==========================================');
 
-    console.log('Creating Store Inventory (Transfer from Central Kitchen)...');
+    console.log('Creating Order from Q1 Branch...');
+    const orderAmount = greenBeanMooncake.price * 20; // 20 mooncakes
+    const order = await Order.create({
+      orderNumber: 'ORD-20260130-001',
+      storeId: createdStores[0]._id,
+      orderDate: new Date('2026-01-30'),
+      requestedDeliveryDate: new Date('2026-01-30'),
+      status: 'Shipped',
+      orderItems: [
+        {
+          productId: greenBeanMooncake._id,
+          batchId: finishedBatch._id,
+          quantity: 20,
+          unitPrice: greenBeanMooncake.price,
+          subtotal: greenBeanMooncake.price * 20,
+        },
+      ],
+      totalAmount: orderAmount,
+    });
+    console.log(`✅ Order created: ${order.orderNumber}`);
+    console.log(`   Store: ${createdStores[0].storeName}`);
+    console.log(`   Product: ${greenBeanMooncake.name} x 20`);
+    console.log(`   Total Amount: ${orderAmount.toLocaleString()} VND`);
+    console.log(`   Status: ${order.status}`);
+
+    console.log('\nCreating Delivery Trip (CRITICAL: Linked to Finished Batch)...');
+    const deliveryTrip = await DeliveryTrip.create({
+      tripNumber: 'TRIP-20260130-001',
+      orderId: order._id,
+      storeId: createdStores[0]._id,
+      driverId: coordinatorUser._id,
+      departureDate: new Date('2026-01-30T08:00:00'),
+      estimatedArrival: new Date('2026-01-30T08:45:00'),
+      actualArrival: new Date('2026-01-30T08:45:00'),
+      status: 'Completed',
+      exportDetails: [
+        {
+          productId: greenBeanMooncake._id,
+          batchId: finishedBatch._id, // CRITICAL TRACEABILITY LINK
+          quantity: 20,
+        },
+      ],
+    });
+    console.log(`✅ Delivery Trip created: ${deliveryTrip.tripNumber}`);
+    console.log(`   Order: ${order.orderNumber}`);
+    console.log(`   Store: ${createdStores[0].storeName}`);
+    console.log(`   Driver: ${coordinatorUser.fullName}`);
+    console.log(`   Batch Exported: ${finishedBatch.batchCode}`);
+    console.log(`   Quantity: 20 units`);
+    console.log(`   Status: ${deliveryTrip.status}`);
+
+    console.log('\nCreating Invoice...');
+    const invoice = await Invoice.create({
+      invoiceNumber: 'INV-20260130-001',
+      orderId: order._id,
+      storeId: createdStores[0]._id,
+      invoiceDate: new Date('2026-01-30'),
+      dueDate: new Date('2026-02-13'), // 14 days payment term
+      subtotal: orderAmount,
+      taxRate: 8,
+      taxAmount: orderAmount * 0.08,
+      totalAmount: orderAmount * 1.08,
+      paymentStatus: 'Paid',
+      paidAmount: orderAmount * 1.08,
+      paymentDate: new Date('2026-01-30'),
+    });
+    console.log(`✅ Invoice created: ${invoice.invoiceNumber}`);
+    console.log(`   Order: ${order.orderNumber}`);
+    console.log(`   Subtotal: ${invoice.subtotal.toLocaleString()} VND`);
+    console.log(`   Tax (8%): ${invoice.taxAmount.toLocaleString()} VND`);
+    console.log(`   Total Amount: ${invoice.totalAmount.toLocaleString()} VND`);
+    console.log(`   Payment Status: ${invoice.paymentStatus}\n`);
+
+    // ========================================
+    // STEP 5: STORE INVENTORY (RESULT OF LOGISTICS)
+    // ========================================
+    console.log('📦 STEP 5: STORE INVENTORY (Result of Delivery)');
+    console.log('==========================================');
+
+    console.log('Creating Store Inventory (Result of completed delivery trip)...');
     const storeInventory = await StoreInventory.create({
       storeId: createdStores[0]._id,
       productId: greenBeanMooncake._id,
-      batchId: finishedBatch._id,
+      batchId: finishedBatch._id, // Same batch as in DeliveryTrip.exportDetails
       quantity: 20,
     });
     console.log(`✅ Store Inventory created:`);
@@ -353,6 +471,7 @@ const importData = async () => {
     console.log(`   Product: ${greenBeanMooncake.name}`);
     console.log(`   Batch: ${finishedBatch.batchCode}`);
     console.log(`   Quantity: ${storeInventory.quantity} units`);
+    console.log(`   Source: Delivery Trip ${deliveryTrip.tripNumber}`);
 
     // Update finished batch quantity
     finishedBatch.currentQuantity -= storeInventory.quantity;
@@ -367,6 +486,7 @@ const importData = async () => {
     console.log('\n📊 SUMMARY:');
     console.log(`   Roles: ${createdRoles.length}`);
     console.log(`   Stores: ${createdStores.length}`);
+    console.log(`   System Settings: ${createdSettings.length}`);
     console.log(`   Users: 5 (Admin, Manager, Kitchen Staff, Store Staff, Coordinator)`);
     console.log(`   Suppliers: ${createdSuppliers.length}`);
     console.log(`   Ingredients: 4`);
@@ -375,6 +495,9 @@ const importData = async () => {
     console.log(`   Products: 1`);
     console.log(`   Production Plans: 1`);
     console.log(`   Finished Batches: 1`);
+    console.log(`   Orders: 1`);
+    console.log(`   Delivery Trips: 1`);
+    console.log(`   Invoices: 1`);
     console.log(`   Store Inventories: 1`);
 
     console.log('\n📝 LOGIN CREDENTIALS:');
@@ -386,7 +509,8 @@ const importData = async () => {
 
     console.log('\n✅ Traceability Chain Established:');
     console.log('   Supplier → Ingredient Batch → Ingredient → Product Recipe');
-    console.log('   Production Plan → Finished Batch → Store Inventory\n');
+    console.log('   Production Plan → Finished Batch → Order → Delivery Trip → Store Inventory');
+    console.log('   Order → Invoice (Financial Tracking)\n');
 
     process.exit(0);
   } catch (error) {
@@ -404,6 +528,7 @@ const destroyData = async () => {
     console.log('==========================================');
     await Role.deleteMany({});
     await Store.deleteMany({});
+    await SystemSetting.deleteMany({});
     await User.deleteMany({});
     await Category.deleteMany({});
     await Supplier.deleteMany({});
@@ -412,6 +537,9 @@ const destroyData = async () => {
     await Product.deleteMany({});
     await ProductionPlan.deleteMany({});
     await Batch.deleteMany({});
+    await Order.deleteMany({});
+    await DeliveryTrip.deleteMany({});
+    await Invoice.deleteMany({});
     await StoreInventory.deleteMany({});
 
     console.log('✅ All data destroyed successfully!\n');

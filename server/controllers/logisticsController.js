@@ -15,52 +15,47 @@ const StoreInventory = require('../models/StoreInventory');
  */
 const createOrder = async (req, res, next) => {
   try {
-    const { orderNumber, storeId, requestedDeliveryDate, items, notes } = req.body;
+    const { storeId, requestedDeliveryDate, items, notes } = req.body;
 
-    // Validation: Check if items array is not empty
+    // ========================================
+    // STEP 1: Validation - Basic Input
+    // ========================================
+    
+    // Validate items array
     if (!items || !Array.isArray(items) || items.length === 0) {
       res.status(400);
       return next(new Error('Order must contain at least one item'));
     }
 
-    // Validation: Check if storeId is provided
+    // Validate storeId
     if (!storeId) {
       res.status(400);
       return next(new Error('Store ID is required'));
     }
 
-    // Validation: Check if storeId exists
+    // Validate requestedDeliveryDate
+    if (!requestedDeliveryDate) {
+      res.status(400);
+      return next(new Error('Requested delivery date is required'));
+    }
+
+    // ========================================
+    // STEP 2: Validate Store Existence & Status
+    // ========================================
     const store = await Store.findById(storeId);
     if (!store) {
       res.status(404);
       return next(new Error('Store not found'));
     }
 
-    // Validation: Check if store is active
     if (store.status !== 'Active') {
       res.status(400);
       return next(new Error(`Store is ${store.status}. Only Active stores can place orders.`));
     }
 
-    // Validation: Check if orderNumber is provided
-    if (!orderNumber) {
-      res.status(400);
-      return next(new Error('Order number is required'));
-    }
-
-    // Check if orderNumber already exists
-    const existingOrder = await Order.findOne({ orderNumber: orderNumber.toUpperCase() });
-    if (existingOrder) {
-      res.status(400);
-      return next(new Error(`Order with number '${orderNumber}' already exists`));
-    }
-
-    // Validation: Check if requestedDeliveryDate is provided and valid
-    if (!requestedDeliveryDate) {
-      res.status(400);
-      return next(new Error('Requested delivery date is required'));
-    }
-
+    // ========================================
+    // STEP 3: Validate Delivery Date
+    // ========================================
     const deliveryDate = new Date(requestedDeliveryDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -70,98 +65,95 @@ const createOrder = async (req, res, next) => {
       return next(new Error('Requested delivery date cannot be in the past'));
     }
 
-    // Process order items - fetch product prices and validate
+    // ========================================
+    // STEP 4: Auto-generate Order Number
+    // ========================================
+    const timestamp = Date.now();
+    const orderNumber = `ORD-${timestamp}`;
+
+    // Double-check uniqueness (unlikely collision but good practice)
+    const existingOrder = await Order.findOne({ orderNumber });
+    if (existingOrder) {
+      // Add random suffix if collision
+      const orderNumberUnique = `${orderNumber}-${Math.floor(Math.random() * 1000)}`;
+      return createOrder({ 
+        body: { storeId, requestedDeliveryDate, items, notes, _orderNumber: orderNumberUnique } 
+      }, res, next);
+    }
+
+    // ========================================
+    // STEP 5: Process Order Items - Fetch Prices & Calculate
+    // ========================================
     const orderItems = [];
     let totalAmount = 0;
 
     for (const item of items) {
-      const { productId, batchId, quantity } = item;
+      const { productId, quantityRequested } = item;
 
       // Validate item fields
-      if (!productId || !batchId || !quantity) {
+      if (!productId) {
         res.status(400);
-        return next(new Error('Each item must have productId, batchId, and quantity'));
+        return next(new Error('Each item must have productId'));
       }
 
-      // Validate quantity
-      if (quantity < 1) {
+      if (!quantityRequested || quantityRequested < 1) {
         res.status(400);
-        return next(new Error('Quantity must be at least 1'));
+        return next(new Error('Each item must have quantityRequested of at least 1'));
       }
 
-      // Fetch product to get price
+      // Fetch product to get current price (NEVER trust client-sent prices)
       const product = await Product.findById(productId);
       if (!product) {
         res.status(404);
         return next(new Error(`Product not found: ${productId}`));
       }
 
-      // Validate batch exists and belongs to the product
-      const batch = await Batch.findById(batchId);
-      if (!batch) {
-        res.status(404);
-        return next(new Error(`Batch not found: ${batchId}`));
-      }
-
-      if (batch.productId.toString() !== productId.toString()) {
-        res.status(400);
-        return next(new Error(`Batch ${batch.batchCode} does not belong to product ${product.name}`));
-      }
-
-      // Check if batch has enough quantity
-      if (batch.currentQuantity < quantity) {
-        res.status(400);
-        return next(new Error(
-          `Insufficient stock for batch ${batch.batchCode}. Available: ${batch.currentQuantity}, Requested: ${quantity}`
-        ));
-      }
-
-      // Check if batch is not expired
-      const now = new Date();
-      if (batch.expDate < now) {
-        res.status(400);
-        return next(new Error(`Batch ${batch.batchCode} has expired on ${batch.expDate.toLocaleDateString()}`));
-      }
-
-      // Calculate subtotal
+      // Calculate subtotal using current product price
       const unitPrice = product.price;
-      const subtotal = unitPrice * quantity;
+      const subtotal = unitPrice * quantityRequested;
 
       // Add to order items
+      // NOTE: batchId is NOT set at this stage - assigned during approval/shipment
       orderItems.push({
         productId,
-        batchId,
-        quantity,
+        quantityRequested,
+        quantity: quantityRequested, // Initially same as requested
         unitPrice,
         subtotal,
+        // batchId: will be assigned during fulfillment (approve/ship phase)
       });
 
       // Add to total amount
       totalAmount += subtotal;
     }
 
-    // Create order document with status Pending
+    // ========================================
+    // STEP 6: Create Order Document
+    // ========================================
     const order = await Order.create({
-      orderNumber: orderNumber.toUpperCase(),
+      orderNumber,
       storeId,
       orderDate: new Date(),
       requestedDeliveryDate: deliveryDate,
-      orderItems,
+      items: orderItems, // Note: using 'items' field name per model
       totalAmount,
       status: 'Pending',
       notes: notes || '',
+      createdBy: req.user ? req.user._id : null, // Track who created the order
     });
 
-    // Populate order details
+    // ========================================
+    // STEP 7: Populate and Return Response
+    // ========================================
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address phone' },
-      { path: 'orderItems.productId', select: 'name sku price categoryId' },
-      { path: 'orderItems.batchId', select: 'batchCode mfgDate expDate currentQuantity' },
+      { path: 'items.productId', select: 'name sku price unit categoryId' },
+      { path: 'createdBy', select: 'fullName email' },
     ]);
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: 'Order created successfully. Awaiting approval from Kitchen Manager.',
       data: order,
     });
   } catch (error) {
