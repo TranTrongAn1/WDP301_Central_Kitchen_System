@@ -1988,40 +1988,6 @@ paths:
         '404':
           description: Order not found
 
-  /api/logistics/orders/{id}/approve:
-    post:
-      tags:
-        - Logistics
-      summary: Approve order (Kitchen Manager)
-      description: |
-        Approve an order and mark it ready for shipment.
-        This validates inventory availability before approval.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Order ID
-      responses:
-        '200':
-          description: Order approved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: '#/components/schemas/Order'
-        '400':
-          description: Insufficient inventory or order already processed
-        '404':
-          description: Order not found
-
   /api/logistics/orders/{id}/cancel:
     post:
       tags:
@@ -3337,13 +3303,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/logistics/orders/{id}/receive-by-qr:
+  /api/logistics/orders/{id}/receive:
     post:
       tags:
         - Logistics
-      summary: Receive order by QR code scan
+      summary: Receive order (QR scan or manual confirmation)
       description: |
-        Store Staff can receive an order by scanning its QR code.
+        Store Staff can receive an order by scanning its QR code or manually confirming receipt.
         Order must be in 'In_Transit' status to be received.
         This automatically updates store inventory and marks the delivery trip as complete if all orders are received.
       security:
@@ -3447,6 +3413,7 @@ paths:
               required:
                 - driverId
                 - vehicleInfo
+                - items
               properties:
                 driverId:
                   type: string
@@ -3456,6 +3423,28 @@ paths:
                   type: string
                   example: 'Truck 51A-12345'
                   description: 'Vehicle license plate or identifier'
+                items:
+                  type: array
+                  description: 'List of products with assigned batches for this shipment'
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - batchId
+                      - quantity
+                    properties:
+                      productId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1c3'
+                        description: 'Product ID from the order'
+                      batchId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1d4'
+                        description: 'Finished batch ID to fulfill this item (FEFO logic)'
+                      quantity:
+                        type: number
+                        example: 20
+                        description: 'Quantity to ship from this batch'
                 estimatedDeliveryTime:
                   type: string
                   format: date-time
