@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store as StoreIcon, Plus, Search, Loader2, RefreshCcw, MapPin, Phone, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { Store as StoreIcon, Plus, Search, Loader2, MapPin, Phone, Edit, Trash2, Eye, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../../manager/components/ui/Card';
 import { Button } from '../../manager/components/ui/Button';
 import { Badge } from '../../manager/components/ui/Badge';

@@ -78,3 +78,8 @@ export interface AuthState {
   setAuth: (user: User, token: string) => void;
   logout: () => void;
 }
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  data?: User;
+}
