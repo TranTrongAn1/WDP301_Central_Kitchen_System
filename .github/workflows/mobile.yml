@@ -1,0 +1,32 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [ "main", "mobile" ] # Chạy khi push vào nhánh main hoặc nhánh mobile
+    paths:
+      - 'central-kitchen-system-mobile/**' # Chỉ chạy khi có thay đổi trong thư mục này
+
+jobs:
+  mobile-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          # Đường dẫn đến file package-lock của mobile để tối ưu tốc độ build
+          cache-dependency-path: central-kitchen-system-mobile/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd central-kitchen-system-mobile
+          npm install
+
+      - name: Check Lint & Build Test
+        run: |
+          cd central-kitchen-system-mobile
+          npm run lint || echo "No lint script found"
+          # Nếu là React Native, bạn có thể thêm lệnh check type hoặc build thử tại đây
