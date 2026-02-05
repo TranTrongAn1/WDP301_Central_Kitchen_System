@@ -14,12 +14,7 @@ const Batch = require('./models/BatchModel');
 const StoreInventory = require('./models/StoreInventory');
 const Order = require('./models/Order');
 const DeliveryTrip = require('./models/DeliveryTrip');
-<<<<<<< Updated upstream
-const Invoice = require('./models/Invoice');
-const SystemSetting = require('./models/SystemSetting');
-=======
 const Feedback = require('./models/Feedback');
->>>>>>> Stashed changes
 
 // ============================================================
 // SAMPLE DATA DEFINITIONS
@@ -713,9 +708,6 @@ const importData = async () => {
     console.log(`✅ Batch created: ${finishedDurianBatch.batchCode} - ${finishedDurianBatch.initialQuantity} units\n`);
 
     // ========================================
-<<<<<<< Updated upstream
-    // STEP 4: LOGISTICS FLOW (FEATURE 4)
-    // ========================================
     console.log('🚚 STEP 4: LOGISTICS FLOW (Feature 4 - Supply Chain)');
     console.log('==========================================');
 
@@ -1174,7 +1166,6 @@ const importData = async () => {
       quantity: 20,
     });
     console.log(`✅ Inventory: ${createdStores[0].storeName} - ${greenBeanMooncake.name}: 20 units`);
->>>>>>> Stashed changes
 
     // Store 1 (District 2)
     await StoreInventory.create({
@@ -1292,19 +1283,11 @@ const importData = async () => {
     console.log(`   Categories: ${createdCategories.length}`);
     console.log(`   Products: 5 (Green Bean, Mixed Nuts, Lotus Seed, Taro, Durian)`);
     console.log(`   Production Plans: 1`);
-<<<<<<< Updated upstream
-    console.log(`   Finished Batches: 1`);
-    console.log(`   Orders: 1`);
-    console.log(`   Delivery Trips: 1`);
-    console.log(`   Invoices: 1`);
-    console.log(`   Store Inventories: 1`);
-=======
     console.log(`   Finished Batches: 5`);
     console.log(`   Orders: 20 (5 Pending, 5 Approved, 5 In_Transit, 5 Received)`);
     console.log(`   Delivery Trips: 3 (for In_Transit orders)`);
     console.log(`   Feedback: 3 (for Received orders)`);
     console.log(`   Store Inventories: 9 (across 5 stores)`);
->>>>>>> Stashed changes
 
     console.log('\n📝 LOGIN CREDENTIALS:');
     console.log('   Admin:        username: admin        password: admin123');
@@ -1315,10 +1298,6 @@ const importData = async () => {
 
     console.log('\n✅ Traceability Chain Established:');
     console.log('   Supplier → Ingredient Batch → Ingredient → Product Recipe');
-<<<<<<< Updated upstream
-    console.log('   Production Plan → Finished Batch → Order → Delivery Trip → Store Inventory');
-    console.log('   Order → Invoice (Financial Tracking)\n');
-=======
     console.log('   Production Plan → Finished Batch → Store Inventory');
     console.log('   Store → Order → Delivery Trip → Feedback');
 
@@ -1327,7 +1306,6 @@ const importData = async () => {
     console.log('   5 Approved   - Ready for shipping (aggregate endpoint test data)');
     console.log('   5 In_Transit - Active delivery trips (QR receive test data)');
     console.log('   5 Received   - Completed orders (feedback test data)\n');
->>>>>>> Stashed changes
 
     process.exit(0);
   } catch (error) {
