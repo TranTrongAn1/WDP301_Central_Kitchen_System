@@ -35,6 +35,7 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import './App.css';
 import { AccountManagement } from './features/admin/pages/AccountManagment';
 import StoreManagment from './features/admin/pages/StoreManagment';
+import { CoordinatorLayout } from './features/coordinator/CoordinatorLayout';
 
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
@@ -146,7 +147,7 @@ function App() {
               <ProtectedRoute allowedRoles={['Coordinator']} />
             }
           >
-            <Route element={<DashboardLayout />}>
+            <Route element={<CoordinatorLayout/>}>
               <Route path="/coordinator/dashboard" element={<CoordinatorDashboard />} />
             </Route>
           </Route>
