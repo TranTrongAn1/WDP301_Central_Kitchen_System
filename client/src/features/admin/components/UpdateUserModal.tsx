@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { User, Role, UpdateUserPayload } from '../../../api/UserApi';
+import type { User, Role} from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 
 interface UpdateUserModalProps {
