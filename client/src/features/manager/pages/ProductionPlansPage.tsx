@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw, Eye, Package, Trash2 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, AlertCircle, Loader2, Eye, Package, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';

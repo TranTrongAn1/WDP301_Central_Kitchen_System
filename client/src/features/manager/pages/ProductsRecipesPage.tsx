@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UtensilsCrossed, Plus, Search, Loader2, RefreshCcw, Package, Eye, Filter } from 'lucide-react';
+import { UtensilsCrossed, Plus, Search, Loader2, Package, Eye, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -20,7 +20,7 @@ const ProductsRecipesPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
-    const [categoryLoading, setCategoryLoading] = useState(false);
+    const [_categoryLoading, setCategoryLoading] = useState(false);
 
     const fetchProducts = async () => {
         try {

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+// Link import removed - not used in this component
 
 interface FeatureCardProps {
   icon: string;
