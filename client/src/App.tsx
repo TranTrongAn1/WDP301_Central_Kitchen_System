@@ -36,6 +36,10 @@ import './App.css';
 import { AccountManagement } from './features/admin/pages/AccountManagment';
 import StoreManagment from './features/admin/pages/StoreManagment';
 import { CoordinatorLayout } from './features/coordinator/CoordinatorLayout';
+import Order from './features/coordinator/pages/Order';
+import Shipment from './features/coordinator/pages/Shipment';
+import Inventory from './features/coordinator/pages/Inventory';
+import IssuseReport from './features/coordinator/pages/IssuseReport';
 
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
@@ -149,6 +153,11 @@ function App() {
           >
             <Route element={<CoordinatorLayout/>}>
               <Route path="/coordinator/dashboard" element={<CoordinatorDashboard />} />
+              <Route path="/coordinator/orders" element={<Order/>} />
+              <Route path="/coordinator/shipments" element={<Shipment/>} />
+              <Route path="/coordinator/inventory" element={<Inventory />} />
+              <Route path="/coordinator/issues" element={<IssuseReport />} />
+
             </Route>
           </Route>
 
