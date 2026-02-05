@@ -7,6 +7,7 @@ export interface Supplier {
     phone: string;
     email: string;
     address: string;
+    status?: 'Active' | 'Inactive';
     createdAt: string;
     updatedAt: string;
 }

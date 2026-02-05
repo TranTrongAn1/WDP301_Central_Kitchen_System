@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { User, Role, UpdateUserPayload } from '../../../api/UserApi';
+import type { User, Role } from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 
 interface UpdateUserModalProps {
@@ -62,7 +62,7 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
         // Create payload, remove empty password
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password;
-        
+
         onUpdate(user._id, payload);
     };
 

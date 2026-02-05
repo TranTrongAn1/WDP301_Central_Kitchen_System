@@ -4,7 +4,7 @@ import { Plus, Package, Search, MoreHorizontal, Pencil, Trash2, ChevronRight } f
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
+// Badge import removed - not used in this component
 import {
   Table,
   TableBody,
@@ -44,9 +44,11 @@ export default function CategoryPage() {
       setIsLoading(true);
       const response = await categoryApi.getAll();
       if (response.data) {
-        const categoriesData = Array.isArray(response.data)
-          ? response.data
-          : [response.data];
+        // response.data is CategoryResponse which has data property
+        const responseData = response.data as any;
+        const categoriesData = responseData.data
+          ? (Array.isArray(responseData.data) ? responseData.data : [responseData.data])
+          : (Array.isArray(responseData) ? responseData : []);
         setCategories(categoriesData);
       }
     } catch (error: any) {

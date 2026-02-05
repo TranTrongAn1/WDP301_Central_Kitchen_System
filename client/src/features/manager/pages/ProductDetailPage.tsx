@@ -35,7 +35,7 @@ const ProductDetailPage = () => {
             const response = await productApi.getById(id);
             const data = (response as any)?.data || response;
             setProduct(data);
-            
+
             // Fetch all ingredients once and create a map
             try {
                 const ingResponse = await ingredientApi.getAll();
@@ -43,7 +43,7 @@ const ProductDetailPage = () => {
                 const map: Record<string, string> = {};
                 (Array.isArray(ingData) ? ingData : []).forEach((ing: Ingredient) => {
                     if (ing._id) {
-                        map[ing._id] = ing.ingredientName || ing.name || ing._id;
+                        map[ing._id] = ing.ingredientName || (ing as any).name || ing._id;
                     }
                 });
                 setIngredientMap(map);
@@ -51,12 +51,12 @@ const ProductDetailPage = () => {
             } catch (ingErr) {
                 console.error('Error fetching ingredients:', ingErr);
             }
-            
+
             // Fetch category name
-            const catId = typeof data?.categoryId === 'string' 
-                ? data.categoryId 
+            const catId = typeof data?.categoryId === 'string'
+                ? data.categoryId
                 : data?.categoryId?._id;
-            
+
             if (catId) {
                 try {
                     const catResponse = await categoryApi.getById(catId);
@@ -98,7 +98,7 @@ const ProductDetailPage = () => {
         if (!product?.categoryId) return 'Uncategorized';
         if (typeof product.categoryId === 'string') return product.categoryId;
         const cat = product.categoryId;
-        return cat.name || cat.categoryName || 'Uncategorized';
+        return (cat as any).name || (cat as any).categoryName || 'Uncategorized';
     };
 
     const getIngredientName = (ingredient: any) => {
@@ -110,12 +110,12 @@ const ProductDetailPage = () => {
             // Try name as fallback
             if (ingData?.name) return ingData.name;
         }
-        
+
         // If ingredientId is just an ID string, use the ingredientMap
         if (typeof ingredient.ingredientId === 'string') {
             return ingredientMap[ingredient.ingredientId] || `Ingredient (${ingredient.ingredientId.substring(0, 8)}...)`;
         }
-        
+
         // If ingredientId is an object without name, try to find in map using _id
         if (typeof ingredient.ingredientId === 'object') {
             const ingId = ingredient.ingredientId?._id;
@@ -123,7 +123,7 @@ const ProductDetailPage = () => {
                 return ingredientMap[ingId] || `Ingredient (${ingId.substring(0, 8)}...)`;
             }
         }
-        
+
         return 'Unknown';
     };
 

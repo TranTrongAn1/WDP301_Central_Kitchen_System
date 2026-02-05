@@ -21,7 +21,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const LoginForm = () => {
   const navigate = useNavigate();
   const { setAuth, getRedirectRoute } = useAuthStore();
-  const { darkMode } = useThemeStore();
+  const { darkMode: _darkMode } = useThemeStore();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,9 +44,9 @@ const LoginForm = () => {
       if (response.success && response.token) {
         const { user, token } = response;
         setAuth(user, token);
-        
+
         toast.success(response.message || 'Login successful!', { id: toastId });
-        
+
         const redirectRoute = getRedirectRoute();
         navigate(redirectRoute, { replace: true });
       } else {
@@ -56,7 +56,7 @@ const LoginForm = () => {
       const errorMessage =
         error.message ||
         'An error occurred during login';
-      
+
       toast.error(errorMessage, { id: toastId });
       console.error('Login Error:', error);
     } finally {
@@ -66,7 +66,7 @@ const LoginForm = () => {
 
   return (
     <div className="relative z-10 w-full p-4 flex justify-center">
-        <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6">
+      <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6">
         {/* Content kept as is */}
         <Link
           to="/"
@@ -88,8 +88,8 @@ const LoginForm = () => {
         </div>
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit(onSubmit)}>
-           {/* Form inputs */}
-           <div className="flex flex-col gap-1.5">
+          {/* Form inputs */}
+          <div className="flex flex-col gap-1.5">
             <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="username">Username</label>
             <input
               id="username"
