@@ -83,7 +83,8 @@ export default function IngredientPage() {
       setIsBatchesLoading(true);
       const response = await ingredientApi.getBatches(ingredientId);
       if (response.data) {
-        setBatches(response.data as IngredientBatch[]);
+        const batchData = (response as any).data?.data || response.data;
+        setBatches(Array.isArray(batchData) ? batchData : []);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch batches';

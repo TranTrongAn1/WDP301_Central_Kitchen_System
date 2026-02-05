@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store as StoreIcon, Plus, Search, Loader2, RefreshCcw, MapPin, Phone, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { Store as StoreIcon, Plus, Search, Loader2, MapPin, Phone, Edit, Trash2, Eye, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -441,11 +441,10 @@ const StoresPage = () => {
                 {selectedStore && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                                (selectedStore.status === 'Active' || selectedStore.status === true)
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${(selectedStore.status === 'Active' || selectedStore.status === true)
                                     ? 'bg-gradient-to-br from-orange-400 to-amber-500'
                                     : 'bg-gray-400'
-                            }`}>
+                                }`}>
                                 <StoreIcon className="w-8 h-8 text-white" />
                             </div>
                             <div>

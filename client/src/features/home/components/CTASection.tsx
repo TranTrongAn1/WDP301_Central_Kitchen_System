@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
+// Link import removed - not used in this component
 
 export const CTASection = () => {
   return (
     <div className="relative py-20 px-4">
       <div className="max-w-5xl mx-auto rounded-3xl overflow-hidden relative shadow-2xl">
-        {}
+        { }
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
