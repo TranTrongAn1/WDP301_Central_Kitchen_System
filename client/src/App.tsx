@@ -5,7 +5,7 @@ import { useAuthStore } from './shared/zustand/authStore';
 
 import HomePage from '@/features/home/pages/HomePage';
 import LoginPage from '@/features/auth/pages/LoginPage';
-import SignupPage from '@/features/auth/pages/SignupPage';
+// import SignupPage from '@/features/auth/pages/SignupPage';
 
 import { HomeLayout } from '@/features/home/components/HomeLayout';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
@@ -67,7 +67,7 @@ function App() {
           </Route>
 
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          {/* <Route path="/signup" element={<SignupPage />} /> */}
 
           <Route
             path="/auth/callback"
