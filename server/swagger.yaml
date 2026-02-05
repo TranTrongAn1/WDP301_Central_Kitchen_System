@@ -42,16 +42,25 @@ tags:
     description: Product management with recipe and bundle capabilities
   - name: Production Plans
     description: Production plan management and scheduling (Feature 3)
+  - name: Production
+    description: Production batch execution and completion tracking
   - name: Finished Batches
     description: Finished goods batch tracking with production plan linkage (Feature 3)
+<<<<<<< Updated upstream
   - name: Logistics
     description: Order management, shipping, and receiving operations (Feature 4)
+=======
+>>>>>>> Stashed changes
   - name: Inventory
     description: Store inventory tracking and management (Feature 5)
   - name: Stores
     description: Store management and retail location operations
   - name: Users
     description: User and staff administration endpoints
+  - name: Logistics
+    description: Order management and delivery operations
+  - name: Feedback
+    description: Order feedback and rating management
 
 paths:
   /health:
@@ -1172,11 +1181,26 @@ paths:
           required: true
           schema:
             type: string
+          description: Product ID
       responses:
         '200':
           description: Successfully retrieved product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Product'
         '404':
           description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
       tags:
         - Products
@@ -1781,6 +1805,7 @@ paths:
         '201':
           description: Batch created
 
+<<<<<<< Updated upstream
   # ============================================================
   # FEATURE 4: LOGISTICS & SUPPLY CHAIN
   # ============================================================
@@ -2405,8 +2430,10 @@ paths:
         '404':
           description: Invoice not found
 
+=======
+>>>>>>> Stashed changes
   # ============================================================
-  # FEATURE 5: STORE INVENTORY (Read-Only for Stores)
+  # FEATURE 5: STORE INVENTORY & OPERATIONS
   # ============================================================
   /api/inventory/store/{storeId}:
     get:
@@ -2492,6 +2519,7 @@ paths:
           description: Successfully retrieved expiring items
 
   # ============================================================
+<<<<<<< Updated upstream
   # FEATURE 5: STORE INVENTORY (Read-Only for Stores)
   # ============================================================
   /api/inventory/store/{storeId}:
@@ -2565,6 +2593,10 @@ paths:
   # ============================================================
   # FEATURE 1: STORES MANAGEMENT
   # ============================================================
+=======
+  # STORES MANAGEMENT
+  # ============================================================
+>>>>>>> Stashed changes
   /api/stores:
     get:
       tags:
@@ -2913,6 +2945,1155 @@ paths:
           description: User deactivated successfully
         '404':
           description: User not found
+
+  # ============================================================
+  # LOGISTICS: ORDER MANAGEMENT
+  # ============================================================
+  /api/logistics/orders:
+    post:
+      tags:
+        - Logistics
+      summary: Create new order
+      description: |
+        Store staff creates a new order for products from the central kitchen.
+        The backend automatically generates orderNumber. Order starts with 'Pending' status.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - storeId
+                - requestedDeliveryDate
+                - items
+              properties:
+                storeId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a7'
+                  description: 'Store ID making the order'
+                requestedDeliveryDate:
+                  type: string
+                  format: date
+                  example: '2026-02-06'
+                  description: 'Requested delivery date'
+                items:
+                  type: array
+                  description: 'Products to order'
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - quantityRequested
+                    properties:
+                      productId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1a5'
+                        description: 'Product ID'
+                      quantityRequested:
+                        type: integer
+                        example: 50
+                        description: 'Quantity requested'
+                  example:
+                    - productId: '60d5ec49f1b2c8b1f8e4e1a5'
+                      quantityRequested: 50
+                    - productId: '60d5ec49f1b2c8b1f8e4e1a6'
+                      quantityRequested: 30
+                notes:
+                  type: string
+                  example: 'Urgent order for weekend promotion'
+                  description: 'Optional order notes'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order created successfully'
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      orderNumber:
+                        type: string
+                        example: 'ORD-20260205-001'
+                        description: 'Auto-generated order number'
+                      storeId:
+                        type: string
+                      status:
+                        type: string
+                        example: 'Pending'
+                      requestedDeliveryDate:
+                        type: string
+                        format: date
+                      items:
+                        type: array
+                      totalAmount:
+                        type: number
+                        description: 'Calculated from product prices'
+                      createdAt:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request - Invalid input or product not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Store Staff only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+        - Logistics
+      summary: Get all orders
+      description: |
+        Retrieve list of orders with optional filtering by store, status, or date range.
+        Kitchen Managers see all orders, Store Staff see only their store's orders.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: 'Filter by store ID'
+          example: '60d5ec49f1b2c8b1f8e4e1a7'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Approved, In_Transit, Received, Cancelled]
+          description: 'Filter by order status'
+          example: 'Pending'
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter orders from this date'
+          example: '2026-02-01'
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter orders until this date'
+          example: '2026-02-07'
+        - in: query
+          name: requestedDeliveryDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter by requested delivery date'
+          example: '2026-02-05'
+      responses:
+        '200':
+          description: Successfully retrieved orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        orderNumber:
+                          type: string
+                          example: 'ORD-20260205-001'
+                        storeId:
+                          type: object
+                          description: 'Populated store details'
+                          properties:
+                            _id:
+                              type: string
+                            storeName:
+                              type: string
+                            storeCode:
+                              type: string
+                        status:
+                          type: string
+                          enum: [Pending, Approved, In_Transit, Received, Cancelled]
+                        requestedDeliveryDate:
+                          type: string
+                          format: date
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              productId:
+                                type: object
+                                description: 'Populated product details'
+                              quantityRequested:
+                                type: integer
+                        totalAmount:
+                          type: number
+                        notes:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/{id}:
+    get:
+      tags:
+        - Logistics
+      summary: Get order by ID
+      description: |
+        Retrieve detailed information about a specific order including full item details,
+        delivery trip information, and status history.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      responses:
+        '200':
+          description: Successfully retrieved order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      orderNumber:
+                        type: string
+                        example: 'ORD-20260205-001'
+                      storeId:
+                        type: object
+                        description: 'Populated store details with address and contact'
+                      status:
+                        type: string
+                        enum: [Pending, Approved, In_Transit, Received, Cancelled]
+                      requestedDeliveryDate:
+                        type: string
+                        format: date
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            productId:
+                              type: object
+                              description: 'Full product details including recipe'
+                            quantityRequested:
+                              type: integer
+                            unitPrice:
+                              type: number
+                            subtotal:
+                              type: number
+                      totalAmount:
+                        type: number
+                      notes:
+                        type: string
+                      rejectionReason:
+                        type: string
+                        description: 'Present if order was rejected'
+                      deliveryTripId:
+                        type: object
+                        description: 'Populated delivery trip details if order is shipped'
+                      receivedAt:
+                        type: string
+                        format: date-time
+                        description: 'When order was received by store'
+                      createdBy:
+                        type: object
+                        description: 'User who created the order'
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Cannot access other store's orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/{id}/reject:
+    post:
+      tags:
+        - Logistics
+      summary: Reject/Cancel a pending order
+      description: |
+        Kitchen Manager can reject a pending order with a reason.
+        Order must be in 'Pending' status to be rejected.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Order ID to reject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  example: 'Out of stock for key ingredients'
+                  description: 'Reason for rejecting the order (max 500 characters)'
+      responses:
+        '200':
+          description: Order rejected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order rejected successfully'
+                  data:
+                    type: object
+                    properties:
+                      orderId:
+                        type: string
+                      status:
+                        type: string
+                        example: 'Cancelled'
+                      rejectionReason:
+                        type: string
+        '400':
+          description: Bad request - Order not in Pending status or invalid reason
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Kitchen Manager only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/{id}/receive-by-qr:
+    post:
+      tags:
+        - Logistics
+      summary: Receive order by QR code scan
+      description: |
+        Store Staff can receive an order by scanning its QR code.
+        Order must be in 'In_Transit' status to be received.
+        This automatically updates store inventory and marks the delivery trip as complete if all orders are received.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Order ID from QR code scan
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  example: 'Received in good condition'
+                  description: 'Optional note from receiving staff'
+      responses:
+        '200':
+          description: Order received successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order received successfully'
+                  data:
+                    type: object
+                    properties:
+                      orderId:
+                        type: string
+                      status:
+                        type: string
+                        example: 'Received'
+                      receivedAt:
+                        type: string
+                        format: date-time
+                      tripCompleted:
+                        type: boolean
+                        description: 'True if all orders in the delivery trip are now received'
+        '400':
+          description: Bad request - Order not in In_Transit status or no active delivery trip
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Store Staff only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/{id}/approve-and-ship:
+    post:
+      tags:
+        - Logistics
+      summary: Approve order and create delivery trip (Export/Ship)
+      description: |
+        Kitchen Manager approves a pending order and immediately creates a delivery trip.
+        This changes order status from 'Pending' to 'Approved' to 'In_Transit'.
+        
+        **Mobile Workflow:** This is the "Export/Ship" action that starts the delivery process.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Order ID to approve and ship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - driverId
+                - vehicleInfo
+              properties:
+                driverId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1b1'
+                  description: 'Driver/Coordinator user ID'
+                vehicleInfo:
+                  type: string
+                  example: 'Truck 51A-12345'
+                  description: 'Vehicle license plate or identifier'
+                estimatedDeliveryTime:
+                  type: string
+                  format: date-time
+                  example: '2026-02-05T14:00:00Z'
+                  description: 'Optional estimated delivery time'
+                note:
+                  type: string
+                  example: 'Fragile - handle with care'
+                  description: 'Optional shipping note'
+      responses:
+        '200':
+          description: Order approved and delivery trip created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order approved and shipped successfully'
+                  data:
+                    type: object
+                    properties:
+                      orderId:
+                        type: string
+                      orderStatus:
+                        type: string
+                        example: 'In_Transit'
+                      deliveryTripId:
+                        type: string
+                        description: 'Created delivery trip ID'
+                      estimatedDeliveryTime:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request - Order not in Pending status or invalid driver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Kitchen Manager only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/{id}/status:
+    get:
+      tags:
+        - Logistics
+      summary: Get lightweight order status
+      description: |
+        Lightweight endpoint that returns only the current status and last update time.
+        Useful for mobile apps to quickly check order status without fetching full order details.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      responses:
+        '200':
+          description: Successfully retrieved order status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [Pending, Approved, In_Transit, Received, Cancelled]
+                    example: 'In_Transit'
+                    description: 'Current order status'
+                  updatedAt:
+                    type: string
+                    format: date-time
+                    example: '2026-02-05T12:30:45.123Z'
+                    description: 'Last status update timestamp'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logistics/orders/aggregate:
+    get:
+      tags:
+        - Logistics
+      summary: Aggregate product demand for production planning
+      description: |
+        Kitchen Manager dashboard to view aggregated product demand across all pending and approved orders.
+        Helps determine production quantities based on actual store orders.
+        
+        **Use Case:** Daily production planning to meet store demand.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter orders from this date (optional)'
+          example: '2026-02-01'
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter orders until this date (optional)'
+          example: '2026-02-07'
+        - in: query
+          name: requestedDeliveryDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter by specific requested delivery date'
+          example: '2026-02-05'
+      responses:
+        '200':
+          description: Successfully retrieved aggregated demand
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  summary:
+                    type: object
+                    properties:
+                      totalProducts:
+                        type: integer
+                        example: 3
+                        description: 'Number of unique products'
+                      totalQuantityAllProducts:
+                        type: integer
+                        example: 150
+                        description: 'Total quantity across all products'
+                      totalOrders:
+                        type: integer
+                        example: 5
+                        description: 'Number of orders included'
+                      dateRange:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                            format: date
+                          to:
+                            type: string
+                            format: date
+                  count:
+                    type: integer
+                    example: 3
+                    description: 'Number of product aggregations'
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: string
+                          example: '60d5ec49f1b2c8b1f8e4e1a5'
+                        productName:
+                          type: string
+                          example: 'Green Bean Mooncake'
+                        sku:
+                          type: string
+                          example: 'MOON-GB-001'
+                        totalQuantityNeeded:
+                          type: integer
+                          example: 50
+                          description: 'Total quantity needed across all orders'
+                        orderCount:
+                          type: integer
+                          example: 3
+                          description: 'Number of orders requesting this product'
+                        orders:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              orderId:
+                                type: string
+                              orderNumber:
+                                type: string
+                              quantity:
+                                type: integer
+                              storeName:
+                                type: string
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Kitchen Manager only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================
+  # PRODUCTION BATCH MANAGEMENT
+  # ============================================================
+  /api/production/batches:
+    get:
+      tags:
+        - Production
+      summary: Get all production batches
+      description: List all production batches with optional filtering by status or date
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [InProgress, Completed, Cancelled]
+          description: Filter by batch status
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by product
+        - in: query
+          name: batchDate
+          schema:
+            type: string
+            format: date
+          description: Filter by production date
+      responses:
+        '200':
+          description: Successfully retrieved production batches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        batchNumber:
+                          type: string
+                          example: 'PB-20260205-001'
+                        productId:
+                          type: string
+                        productName:
+                          type: string
+                          example: 'Green Bean Mooncake'
+                        plannedQuantity:
+                          type: integer
+                          example: 100
+                        actualQuantity:
+                          type: integer
+                          example: 95
+                        status:
+                          type: string
+                          enum: [InProgress, Completed, Cancelled]
+                        startTime:
+                          type: string
+                          format: date-time
+                        completedTime:
+                          type: string
+                          format: date-time
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - Production
+      summary: Create new production batch
+      description: |
+        Kitchen Staff creates a new production batch to execute production plan.
+        This starts the actual manufacturing process.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - plannedQuantity
+              properties:
+                productId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a5'
+                  description: 'Product to produce'
+                plannedQuantity:
+                  type: integer
+                  example: 100
+                  description: 'Planned production quantity'
+                productionPlanId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a6'
+                  description: 'Optional reference to production plan'
+                note:
+                  type: string
+                  example: 'Batch for weekend orders'
+                  description: 'Optional production notes'
+      responses:
+        '201':
+          description: Production batch created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Production batch created successfully'
+                  data:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      batchNumber:
+                        type: string
+                        example: 'PB-20260205-001'
+                      productId:
+                        type: string
+                      plannedQuantity:
+                        type: integer
+                        example: 100
+                      status:
+                        type: string
+                        example: 'InProgress'
+                      startTime:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request - Invalid input or insufficient ingredients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Kitchen Staff only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/production/batches/{batchId}/complete:
+    post:
+      tags:
+        - Production
+      summary: Mark production batch as completed
+      description: |
+        Complete a production batch and update actual quantity produced.
+        This automatically creates finished goods batch and updates ingredient inventory (deducts used ingredients).
+        
+        **Critical:** Triggers inventory updates and makes products available for distribution.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: batchId
+          required: true
+          schema:
+            type: string
+          description: Production batch ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - actualQuantity
+              properties:
+                actualQuantity:
+                  type: integer
+                  example: 95
+                  description: 'Actual quantity produced (may differ from planned)'
+                note:
+                  type: string
+                  example: '5 units rejected due to quality issues'
+                  description: 'Optional completion notes'
+                expiryDays:
+                  type: integer
+                  example: 30
+                  description: 'Days until expiry (defaults to product shelf life)'
+      responses:
+        '200':
+          description: Production batch completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Production batch completed and inventory updated'
+                  data:
+                    type: object
+                    properties:
+                      batchId:
+                        type: string
+                      status:
+                        type: string
+                        example: 'Completed'
+                      actualQuantity:
+                        type: integer
+                        example: 95
+                      completedTime:
+                        type: string
+                        format: date-time
+                      finishedBatchId:
+                        type: string
+                        description: 'ID of created finished goods batch'
+                      ingredientsDeducted:
+                        type: boolean
+                        example: true
+                        description: 'Whether ingredient inventory was updated'
+        '400':
+          description: Bad request - Batch already completed or invalid quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Kitchen Staff only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Production batch not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================
+  # FEEDBACK MANAGEMENT
+  # ============================================================
+  /api/feedback/{orderId}:
+    post:
+      tags:
+        - Feedback
+      summary: Create feedback for a received order
+      description: |
+        Store staff can submit feedback (rating and review) for an order they have received.
+        The order must be in 'Received' status to accept feedback.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID to provide feedback for
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                  description: 'Rating from 1 (poor) to 5 (excellent)'
+                content:
+                  type: string
+                  example: 'Great quality mooncakes, delivered on time!'
+                  description: 'Feedback comment (optional)'
+                images:
+                  type: array
+                  items:
+                    type: string
+                  example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+                  description: 'Optional array of image URLs'
+      responses:
+        '201':
+          description: Feedback created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Feedback submitted successfully'
+                  data:
+                    $ref: '#/components/schemas/Feedback'
+        '400':
+          description: Bad request - Invalid rating or order not in Received status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Store Staff only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/feedback:
+    get:
+      tags:
+        - Feedback
+      summary: Get all feedback
+      description: Retrieve feedback with optional filtering by order or rating
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: orderId
+          schema:
+            type: string
+          description: Filter by specific order
+        - in: query
+          name: rating
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: Filter by rating
+      responses:
+        '200':
+          description: Successfully retrieved feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Feedback'
 
 components:
   securitySchemes:
@@ -3517,6 +4698,46 @@ components:
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Feedback:
+      type: object
+      required:
+        - orderId
+        - rating
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a9'
+        orderId:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a8'
+          description: 'Reference to Order'
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+          description: 'Rating from 1 (poor) to 5 (excellent)'
+        content:
+          type: string
+          example: 'Great quality mooncakes, delivered on time!'
+          description: 'Feedback comment'
+        images:
+          type: array
+          items:
+            type: string
+          example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+          description: 'Array of image URLs'
+        createdBy:
+          type: string
+          description: 'Reference to User who created the feedback'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-02-05T10:30:00.000Z'
         updatedAt:
           type: string
           format: date-time

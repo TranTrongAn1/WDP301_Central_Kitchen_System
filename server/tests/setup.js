@@ -37,6 +37,15 @@ const clearDB = async () => {
     for (const key in collections) {
       const collection = collections[key];
       await collection.deleteMany({});
+      // Drop indexes to avoid stale index issues (except _id index)
+      try {
+        await collection.dropIndexes();
+      } catch (err) {
+        // Ignore errors from dropping indexes (e.g., if no indexes exist)
+        if (!err.message.includes('ns not found')) {
+          console.warn(`⚠️ Could not drop indexes for ${key}:`, err.message);
+        }
+      }
     }
     
     console.log('🧹 Test Database Cleared');
