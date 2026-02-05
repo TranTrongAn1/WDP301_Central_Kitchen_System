@@ -46,11 +46,6 @@ tags:
     description: Production batch execution and completion tracking
   - name: Finished Batches
     description: Finished goods batch tracking with production plan linkage (Feature 3)
-<<<<<<< Updated upstream
-  - name: Logistics
-    description: Order management, shipping, and receiving operations (Feature 4)
-=======
->>>>>>> Stashed changes
   - name: Inventory
     description: Store inventory tracking and management (Feature 5)
   - name: Stores
@@ -1805,8 +1800,6 @@ paths:
         '201':
           description: Batch created
 
-<<<<<<< Updated upstream
-  # ============================================================
   # FEATURE 4: LOGISTICS & SUPPLY CHAIN
   # ============================================================
   /api/logistics/orders:
@@ -2430,8 +2423,6 @@ paths:
         '404':
           description: Invoice not found
 
-=======
->>>>>>> Stashed changes
   # ============================================================
   # FEATURE 5: STORE INVENTORY & OPERATIONS
   # ============================================================
@@ -2519,9 +2510,6 @@ paths:
           description: Successfully retrieved expiring items
 
   # ============================================================
-<<<<<<< Updated upstream
-  # FEATURE 5: STORE INVENTORY (Read-Only for Stores)
-  # ============================================================
   /api/inventory/store/{storeId}:
     get:
       tags:
@@ -2593,10 +2581,6 @@ paths:
   # ============================================================
   # FEATURE 1: STORES MANAGEMENT
   # ============================================================
-=======
-  # STORES MANAGEMENT
-  # ============================================================
->>>>>>> Stashed changes
   /api/stores:
     get:
       tags:
