@@ -3,7 +3,7 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 
 const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: 'storefront', label: 'Stores', path: '/admin/store' },
+  { icon: 'storefront', label: 'Stores', path: '/admin/stores' },
   { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
   { icon: 'settings', label: 'Setting System', path: '/admin/setting' },
   { icon: 'group', label: 'Users', path: '/admin/users' },

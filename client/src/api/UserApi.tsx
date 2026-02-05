@@ -1,7 +1,24 @@
 import apiClient from './Client';
 
 // --- INTERFACES ---
+export interface Role {
+  _id: string;
+  roleName: string;
+}
 
+export interface User {
+  _id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  roleId: {
+    _id: string;
+    roleName: string;
+  };
+  isActive: boolean;
+  storeId: any;
+  createdAt: string;
+}
 // Payload for creating new user
 export interface CreateUserPayload {
   username: string;
@@ -26,10 +43,14 @@ export interface UpdateUserPayload {
 
 export const userApi = {
   // 1. GET ALL USERS
-  getAllUsers: async () => {
-    const res = await apiClient.get<any>('/users');
-    return res.data?.data || [];
-  },
+getAllUsers: async () => {
+  const res = await apiClient.get<any>('/users');
+  console.log("Dữ liệu thô từ Server:", res.data);
+
+  if (Array.isArray(res.data)) return res.data;        
+  if (res.data && Array.isArray(res.data.data)) return res.data.data;
+  return [];
+},
 
   // 2. GET ALL ROLES
   getAllRoles: async () => {
