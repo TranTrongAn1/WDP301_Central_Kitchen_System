@@ -4,7 +4,6 @@ const {
   approveAndShipOrder,
   receiveOrder,
   rejectOrder,
-  receiveOrderByQr,
   getOrders,
   getOrderById,
   getTrips,
@@ -46,11 +45,11 @@ router.post(
   rejectOrder
 );
 
-// Receive order by QR code scan (Store Staff, Manager, Admin)
+// Receive order (QR scan or manual confirmation) (Store Staff, Manager, Admin)
 router.post(
-  '/orders/:orderId/receive-by-qr',
+  '/orders/:orderId/receive',
   authorize('StoreStaff', 'Manager', 'Admin'),
-  receiveOrderByQr
+  receiveOrder
 );
 
 // ===== DELIVERY TRIP ROUTES =====
@@ -60,12 +59,5 @@ router.get('/trips', getTrips);
 
 // Get single trip by ID
 router.get('/trips/:id', getTripById);
-
-// Receive order by trip ID (Store Staff, Manager, Admin)
-router.post(
-  '/trips/:tripId/receive',
-  authorize('StoreStaff', 'Manager', 'Admin'),
-  receiveOrder
-);
 
 module.exports = router;
