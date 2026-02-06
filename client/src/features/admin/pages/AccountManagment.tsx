@@ -34,7 +34,12 @@ export const AccountManagement = () => {
         roleId: '',
         storeId: ''
     });
-
+const getRoleName = (roleId: any) => {
+    if (typeof roleId === 'object' && roleId !== null) {
+        return roleId.roleName || 'No Role';
+    }
+    return 'No Role';
+};
     // FETCH DATA
     const fetchData = async () => {
         try {
@@ -50,7 +55,6 @@ export const AccountManagement = () => {
                 ? usersData.filter((user: any) => user.roleId?.roleName !== 'Admin')
                 : [];
             setUsers(filteredUsers);
-
             // Filter out Admin roles from dropdown
             const rawRoles = Array.isArray(rolesData) ? rolesData : [];
             const selectableRoles = rawRoles.filter(role => role.roleName !== 'Admin');
@@ -223,12 +227,12 @@ export const AccountManagement = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getRoleBadgeColor(user.roleId?.roleName)}`}>
-                                            {user.roleId?.roleName || 'No Role'}
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getRoleBadgeColor(getRoleName(user.roleId))}`}>
+                                            {getRoleName(user.roleId)}
                                         </span>
                                     </td>
                                     <td className={`px-6 py-4 font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {user.storeId?.storeName || '-'}
+                                        {user.storeId?.storeName || 'Central Kitchen'}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${user.isActive

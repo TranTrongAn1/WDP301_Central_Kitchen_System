@@ -18,7 +18,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 interface DashboardHeaderProps {
-  isSidebarCollapsed: boolean;
+  isSidebarCollapsed?: boolean;
   onMenuClick?: () => void;
 }
 
@@ -40,7 +40,7 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
 };
 
 export const DashboardHeader = ({
-  isSidebarCollapsed,
+  isSidebarCollapsed: _isSidebarCollapsed,
   onMenuClick,
 }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
@@ -210,7 +210,7 @@ export const DashboardHeader = ({
                         ? "border-border hover:bg-secondary/50"
                         : "border-orange-50 hover:bg-orange-50/50",
                       notification.unread &&
-                        (darkMode ? "bg-primary/5" : "bg-orange-50/30")
+                      (darkMode ? "bg-primary/5" : "bg-orange-50/30")
                     )}
                   >
                     <div className="flex items-start gap-3">

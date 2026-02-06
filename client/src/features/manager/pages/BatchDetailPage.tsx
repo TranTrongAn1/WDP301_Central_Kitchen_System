@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
-    ArrowLeft, Loader2, Package, Calendar,
-    Clock, DollarSign, Layers, AlertTriangle, CheckCircle2
+    ArrowLeft, Loader2, Package, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';

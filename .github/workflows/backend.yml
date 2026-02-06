@@ -1,0 +1,23 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main", "Back-end" ]
+    paths:
+      - 'server/**'
+
+jobs:
+  test-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install & Lint
+        run: |
+          cd server
+          npm install
+          # npm run lint (Để đảm bảo code sạch trước khi lên Railway)

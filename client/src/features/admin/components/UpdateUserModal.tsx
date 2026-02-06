@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { User, Role, UpdateUserPayload } from '../../../api/UserApi';
+import type { User, Role } from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 
 interface UpdateUserModalProps {
@@ -29,8 +29,8 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
             setFormData({
                 fullName: user.fullName || '',
                 email: user.email || '',
-                roleId: user.roleId?._id || '',
-                storeId: user.storeId?._id || '',
+                roleId: typeof user.roleId === 'object' ? (user.roleId as any)?._id : user.roleId,
+                storeId: typeof user.storeId === 'object' ? (user.storeId as any)?._id : (user.storeId || ''),
                 password: '',
                 isActive: user.isActive
             });
@@ -62,7 +62,7 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
         // Create payload, remove empty password
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password;
-        
+
         onUpdate(user._id, payload);
     };
 

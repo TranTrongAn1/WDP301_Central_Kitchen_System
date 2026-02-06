@@ -6,7 +6,7 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useAuthStore } from '@/shared/zustand/authStore';
-import type { RegisterRequest, RegisterResponse, Role, Store, UserRole } from '@/shared/types/auth';
+import type { Role, Store, UserRole } from '@/shared/types/auth';
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -36,7 +36,6 @@ const RegisterForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<RegisterFormData>({
@@ -98,7 +97,7 @@ const RegisterForm = () => {
     const roleId = e.target.value;
     setSelectedRole(roleId);
     setValue('roleId', roleId);
-    
+
     const role = roles.find(r => r._id === roleId);
     if (role && ROLES_WITHOUT_STORE.includes(role.roleName)) {
       setValue('storeId', null);
@@ -118,7 +117,7 @@ const RegisterForm = () => {
     const toastId = toast.loading('Creating account...');
 
     try {
-      const response = await axios.post<RegisterResponse>(
+      const response = await axios.post<{ success: boolean; message?: string }>(
         '/auth/register',
         {
           username: data.username,
@@ -151,7 +150,7 @@ const RegisterForm = () => {
         axiosError.response?.data?.message ||
         axiosError.message ||
         'An error occurred during registration';
-      
+
       toast.error(errorMessage, { id: toastId });
     } finally {
       setIsSubmitting(false);
@@ -195,9 +194,8 @@ const RegisterForm = () => {
             </label>
             <input
               id="username"
-              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${
-                errors.username ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-              }`}
+              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.username ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                }`}
               placeholder="Enter username (min 3 characters)"
               type="text"
               {...register('username')}
@@ -214,9 +212,8 @@ const RegisterForm = () => {
             </label>
             <input
               id="fullName"
-              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${
-                errors.fullName ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-              }`}
+              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.fullName ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                }`}
               placeholder="Enter full name"
               type="text"
               {...register('fullName')}
@@ -233,9 +230,8 @@ const RegisterForm = () => {
             </label>
             <input
               id="email"
-              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${
-                errors.email ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-              }`}
+              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.email ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                }`}
               placeholder="name@kendobakery.com"
               type="email"
               {...register('email')}
@@ -252,9 +248,8 @@ const RegisterForm = () => {
             </label>
             <select
               id="roleId"
-              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm appearance-none cursor-pointer ${
-                errors.roleId ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-              }`}
+              className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm appearance-none cursor-pointer ${errors.roleId ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                }`}
               {...register('roleId')}
               onChange={handleRoleChange}
               disabled={isLoading || isSubmitting}
@@ -281,9 +276,8 @@ const RegisterForm = () => {
               </label>
               <select
                 id="storeId"
-                className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm appearance-none cursor-pointer ${
-                  errors.storeId ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-                }`}
+                className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm appearance-none cursor-pointer ${errors.storeId ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                  }`}
                 {...register('storeId')}
                 disabled={isGettingStores || isSubmitting}
                 defaultValue=""
@@ -310,9 +304,8 @@ const RegisterForm = () => {
             <div className="relative flex w-full items-center">
               <input
                 id="password"
-                className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 pl-4 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${
-                  errors.password ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
-                }`}
+                className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-11 pl-4 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.password ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'
+                  }`}
                 placeholder="Min 6 characters"
                 type={showPassword ? 'text' : 'password'}
                 {...register('password')}
