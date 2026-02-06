@@ -1471,7 +1471,7 @@ paths:
           description: Cannot delete plan (e.g., plan has completed items)
     patch:
       tags:
-        - Production Plans
+        - Production
       summary: Update production plan status
       description: |
         Update only the status of a production plan (Admin, Manager, Kitchen Staff only).
@@ -1524,7 +1524,7 @@ paths:
   /api/production-plans/{planId}/complete-item:
     post:
       tags:
-        - Production Plans
+        - Production
       summary: Complete production item and auto-create finished batch
       description: |
         Mark a production item as complete and automatically create a finished goods batch.
@@ -1993,28 +1993,37 @@ paths:
             schema:
               type: object
               required:
+                - driverId
+                - vehicleNumber
                 - items
-                - scheduledDeliveryDate
               properties:
+                driverId:
+                  type: string
+                  description: ID of the driver assigned to this delivery
+                  example: '60d5ec49f1b2c8b1f8e4e1b2'
+                vehicleNumber:
+                  type: string
+                  description: Vehicle license plate or identification number
+                  example: '51A-12345'
                 items:
                   type: array
-                  description: Products being shipped with their quantities
+                  description: Products being shipped with batch assignments (CRITICAL for traceability)
                   items:
                     type: object
                     required:
-                      - productId
-                      - quantityShipped
+                      - batchId
                     properties:
-                      productId:
+                      batchId:
                         type: string
-                        example: '60d5ec49f1b2c8b1f8e4e1a5'
-                      quantityShipped:
-                        type: integer
-                        example: 50
-                scheduledDeliveryDate:
-                  type: string
-                  format: date
-                  example: '2024-12-20'
+                        description: 'CRITICAL: Finished batch ID for traceability (Production Plan → Batch → Delivery)'
+                        example: '60d5ec49f1b2c8b1f8e4e1c3'
+            example:
+              driverId: '60d5ec49f1b2c8b1f8e4e1b2'
+              vehicleNumber: '51A-12345'
+              items:
+                - batchId: '60d5ec49f1b2c8b1f8e4e1c3'
+                - batchId: '60d5ec49f1b2c8b1f8e4e1c4'
+                - batchId: '60d5ec49f1b2c8b1f8e4e1c5'
       responses:
         '200':
           description: Order approved and shipped successfully

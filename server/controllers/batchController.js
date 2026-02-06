@@ -1,5 +1,6 @@
 const Batch = require('../models/BatchModel');
 const Product = require('../models/Product');
+const ProductionPlan = require('../models/ProductionPlan');
 
 /**
  * @desc    Create a new batch
@@ -8,13 +9,30 @@ const Product = require('../models/Product');
  */
 const createBatch = async (req, res, next) => {
   try {
-    const { batchCode, productId, mfgDate, expDate, initialQuantity, currentQuantity } = req.body;
+    const { 
+      batchCode, 
+      productionPlanId, 
+      productId, 
+      mfgDate, 
+      expDate, 
+      initialQuantity, 
+      currentQuantity,
+      status,
+      ingredientBatchesUsed 
+    } = req.body;
 
     // Check if batch code already exists
     const existingBatch = await Batch.findOne({ batchCode });
     if (existingBatch) {
       res.status(400);
       return next(new Error(`Batch with code ${batchCode} already exists`));
+    }
+
+    // Validate production plan exists (CRITICAL for traceability)
+    const productionPlan = await ProductionPlan.findById(productionPlanId);
+    if (!productionPlan) {
+      res.status(400);
+      return next(new Error('Invalid production plan'));
     }
 
     // Validate product exists
@@ -24,17 +42,29 @@ const createBatch = async (req, res, next) => {
       return next(new Error('Invalid product'));
     }
 
-    // Create new batch
+    // Validate expiration date is after manufacturing date
+    if (expDate && mfgDate && new Date(expDate) <= new Date(mfgDate)) {
+      res.status(400);
+      return next(new Error('Expiration date must be after manufacturing date'));
+    }
+
+    // Create new batch with all required fields
     const batch = await Batch.create({
       batchCode,
+      productionPlanId,
       productId,
       mfgDate: mfgDate || Date.now(),
       expDate,
-      initialQuantity: initialQuantity || currentQuantity,
-      currentQuantity,
+      initialQuantity,
+      currentQuantity: currentQuantity || initialQuantity,
+      status: status || 'Active',
+      ingredientBatchesUsed: ingredientBatchesUsed || [],
     });
 
-    await batch.populate('productId', 'name sku price shelfLifeDays');
+    await batch.populate([
+      { path: 'productId', select: 'name sku price shelfLifeDays categoryId' },
+      { path: 'productionPlanId', select: 'planCode planDate status' }
+    ]);
 
     res.status(201).json({
       success: true,
@@ -53,7 +83,7 @@ const createBatch = async (req, res, next) => {
  */
 const getBatches = async (req, res, next) => {
   try {
-    const { expiring, productId } = req.query;
+    const { expiring, productId, status, productionPlanId } = req.query;
     const filter = {};
 
     // Filter by product
@@ -61,16 +91,28 @@ const getBatches = async (req, res, next) => {
       filter.productId = productId;
     }
 
-    // Filter expiring batches (within next 7 days)
-    if (expiring === 'true') {
+    // Filter by production plan
+    if (productionPlanId) {
+      filter.productionPlanId = productionPlanId;
+    }
+
+    // Filter by status
+    if (status) {
+      filter.status = status;
+    }
+
+    // Filter expiring batches (within next X days, default 7)
+    if (expiring) {
+      const days = parseInt(expiring) || 7;
       const today = new Date();
-      const nextWeek = new Date();
-      nextWeek.setDate(today.getDate() + 7);
-      filter.expDate = { $gte: today, $lte: nextWeek };
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + days);
+      filter.expDate = { $gte: today, $lte: futureDate };
     }
 
     const batches = await Batch.find(filter)
       .populate('productId', 'name sku price shelfLifeDays categoryId')
+      .populate('productionPlanId', 'planCode planDate status')
       .sort({ expDate: 1 });
 
     res.status(200).json({
@@ -90,7 +132,9 @@ const getBatches = async (req, res, next) => {
  */
 const getBatchById = async (req, res, next) => {
   try {
-    const batch = await Batch.findById(req.params.id).populate('productId', 'name sku price shelfLifeDays categoryId');
+    const batch = await Batch.findById(req.params.id)
+      .populate('productId', 'name sku price shelfLifeDays categoryId')
+      .populate('productionPlanId', 'planCode planDate status note');
 
     if (!batch) {
       res.status(404);
@@ -129,6 +173,28 @@ const updateBatch = async (req, res, next) => {
       }
     }
 
+    // Validate production plan if being changed
+    if (req.body.productionPlanId && req.body.productionPlanId !== batch.productionPlanId.toString()) {
+      const productionPlan = await ProductionPlan.findById(req.body.productionPlanId);
+      if (!productionPlan) {
+        res.status(400);
+        return next(new Error('Invalid production plan'));
+      }
+    }
+
+    // Validate expiration date if being changed
+    if (req.body.expDate && req.body.mfgDate) {
+      if (new Date(req.body.expDate) <= new Date(req.body.mfgDate)) {
+        res.status(400);
+        return next(new Error('Expiration date must be after manufacturing date'));
+      }
+    } else if (req.body.expDate) {
+      if (new Date(req.body.expDate) <= batch.mfgDate) {
+        res.status(400);
+        return next(new Error('Expiration date must be after manufacturing date'));
+      }
+    }
+
     const updatedBatch = await Batch.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -136,7 +202,9 @@ const updateBatch = async (req, res, next) => {
         new: true,
         runValidators: true,
       }
-    ).populate('productId', 'name sku price shelfLifeDays categoryId');
+    )
+    .populate('productId', 'name sku price shelfLifeDays categoryId')
+    .populate('productionPlanId', 'planCode planDate status');
 
     res.status(200).json({
       success: true,

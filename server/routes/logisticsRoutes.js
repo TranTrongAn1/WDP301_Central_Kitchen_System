@@ -54,10 +54,10 @@ router.post(
 
 // ===== DELIVERY TRIP ROUTES =====
 
-// Get all trips
-router.get('/trips', getTrips);
+// Get all delivery trips
+router.get('/delivery-trips', getTrips);
 
-// Get single trip by ID
-router.get('/trips/:id', getTripById);
+// Get single delivery trip by ID
+router.get('/delivery-trips/:id', getTripById);
 
 module.exports = router;
