@@ -1,11 +1,13 @@
 import type { LoginResponse, MeResponse } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/env";
 import type {
-  Ingredient,
-  IngredientResponse,
-  IngredientsResponse,
+    Ingredient,
+    IngredientResponse,
+    IngredientsResponse,
 } from "@/lib/ingredients";
 import type { Product, ProductsResponse } from "@/lib/products";
+
+const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
 type ApiError = {
   success: false;
@@ -16,36 +18,73 @@ const buildUrl = (path: string) => {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
-
   return `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
 const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
-  const response = await fetch(buildUrl(path), {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    API_REQUEST_TIMEOUT_MS,
+  );
 
-  const data = (await response.json()) as T | ApiError;
+  try {
+    const url = buildUrl(path);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers ?? {}),
+      },
+      ...options,
+    });
 
-  if (!response.ok) {
-    const message =
-      (data as ApiError).message ??
-      `Request failed with status ${response.status}`;
-    throw new Error(message);
+    clearTimeout(timeoutId);
+
+    let data: T | ApiError;
+    try {
+      data = (await response.json()) as T | ApiError;
+    } catch (parseError) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn("[api] JSON parse error for", path, parseError);
+      }
+      throw new Error("Invalid response from server");
+    }
+
+    if (!response.ok) {
+      const message =
+        (data as ApiError).message ??
+        `Request failed with status ${response.status}`;
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn("[api] Request failed:", path, response.status, message);
+      }
+      throw new Error(message);
+    }
+
+    return data as T;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.warn("[api] Error:", path, err);
+    }
+    if (err instanceof Error) {
+      if (err.name === "AbortError") {
+        throw new Error("Request timeout. Please try again.");
+      }
+      throw err;
+    }
+    throw new Error("Network error. Please try again.");
   }
-
-  return data as T;
 };
 
 const withAuth = (token?: string | null): Record<string, string> =>
   token
     ? {
-      Authorization: `Bearer ${token}`,
-    }
+        Authorization: `Bearer ${token}`,
+      }
     : {};
 
 export const authApi = {

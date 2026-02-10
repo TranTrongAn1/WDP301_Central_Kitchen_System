@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { cardShadow } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function SettingsScreen() {
@@ -18,7 +19,7 @@ export default function SettingsScreen() {
 
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => router.push('/(tabs)/profile')}
+          onPress={() => router.push('/(tabs)/settings/profile')}
         >
           <Text style={styles.secondaryButtonText}>Xem hồ sơ</Text>
         </Pressable>
@@ -57,10 +58,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#FFE1E1',
-    shadowColor: '#B40000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...cardShadow,
     elevation: 2,
   },
   cardTitle: {

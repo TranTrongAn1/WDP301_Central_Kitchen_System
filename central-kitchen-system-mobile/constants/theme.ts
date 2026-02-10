@@ -3,7 +3,29 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-import { Platform } from 'react-native';
+import { Platform, type ViewStyle } from 'react-native';
+
+/** Shadow cho card: dùng boxShadow trên web (tránh deprecation "shadow*"), shadow* trên native. */
+export const cardShadow: ViewStyle =
+  Platform.OS === 'web'
+    ? { boxShadow: '0px 6px 10px rgba(180, 0, 0, 0.08)' }
+    : {
+        shadowColor: '#B40000',
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+      };
+
+/** Shadow nhỏ hơn cho card. */
+export const cardShadowSmall: ViewStyle =
+  Platform.OS === 'web'
+    ? { boxShadow: '0px 4px 8px rgba(180, 0, 0, 0.06)' }
+    : {
+        shadowColor: '#B40000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      };
 
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';

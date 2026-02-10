@@ -1,3 +1,4 @@
+import { cardShadow } from "@/constants/theme";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -6,7 +7,23 @@ export default function StoreOrdersScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Đơn đặt hàng</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Đơn đặt hàng</Text>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => router.push("/(tabs)/store/inventory")}
+          >
+            <Text style={styles.linkButtonText}>Tồn kho</Text>
+          </Pressable>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => router.push("/(tabs)/store/products")}
+          >
+            <Text style={styles.linkButtonText}>Sản phẩm</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Tạo đơn hàng mới</Text>
@@ -15,7 +32,7 @@ export default function StoreOrdersScreen() {
         </Text>
         <Pressable
           style={styles.primaryButton}
-          onPress={() => router.push("/orders/create")}
+          onPress={() => router.push("/(tabs)/store/products")}
         >
           <Text style={styles.primaryButtonText}>Tạo đơn</Text>
         </Pressable>
@@ -38,6 +55,28 @@ export default function StoreOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  linkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FFD6D6",
+  },
+  linkButtonText: {
+    color: "#9B0F0F",
+    fontWeight: "600",
+    fontSize: 13,
+  },
   content: {
     flexGrow: 1,
     padding: 20,
@@ -50,15 +89,12 @@ const styles = StyleSheet.create({
     color: "#9B0F0F",
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
     padding: 20,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#FFE1E1",
-    shadowColor: "#B40000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...cardShadow,
     elevation: 2,
   },
   cardTitle: {

@@ -1,15 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
-  createContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
+    createContext,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 
 import { authApi } from "@/lib/api";
 import type { User } from "@/lib/auth";
 import { isAllowedRole } from "@/lib/auth";
+
+const AUTH_RESTORE_TIMEOUT_MS = 2000;
 
 type AuthState = {
   token: string | null;
@@ -33,23 +36,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const restoreDone = useRef(false);
 
   useEffect(() => {
+    if (restoreDone.current) return;
+    restoreDone.current = true;
+
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.log("[auth] restoreSession start");
+    }
+
+    const timeoutId = setTimeout(() => {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log("[auth] restoreSession timeout – forcing isLoading false");
+      }
+      setIsLoading(false);
+    }, AUTH_RESTORE_TIMEOUT_MS);
+
     const restoreSession = async () => {
       try {
-        const [storedToken, storedUser] = await Promise.all([
+        const [storedToken, storedUserJson] = await Promise.all([
           AsyncStorage.getItem(AUTH_TOKEN_KEY),
           AsyncStorage.getItem(AUTH_USER_KEY),
         ]);
 
-        if (storedToken) {
-          setToken(storedToken);
+        if (storedToken) setToken(storedToken);
+        if (storedUserJson) {
+          try {
+            const parsed = JSON.parse(storedUserJson) as User;
+            if (parsed && typeof parsed === "object") setUser(parsed);
+          } catch (parseErr) {
+            if (__DEV__) {
+              // eslint-disable-next-line no-console
+              console.warn("[auth] restoreSession invalid stored user JSON", parseErr);
+            }
+            await AsyncStorage.removeItem(AUTH_USER_KEY);
+          }
         }
-        if (storedUser) {
-          setUser(JSON.parse(storedUser) as User);
+      } catch (err) {
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.warn("[auth] restoreSession error", err);
+        }
+        // Do not block: clear storage and continue so Login can render
+        try {
+          await Promise.all([
+            AsyncStorage.removeItem(AUTH_TOKEN_KEY),
+            AsyncStorage.removeItem(AUTH_USER_KEY),
+          ]);
+        } catch {
+          // ignore
         }
       } finally {
+        clearTimeout(timeoutId);
         setIsLoading(false);
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.log("[auth] restoreSession end – isLoading false");
+        }
       }
     };
 
@@ -62,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.setItem(AUTH_TOKEN_KEY, nextToken),
         AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser)),
       ]);
-
       setToken(nextToken);
       setUser(nextUser);
     },
@@ -87,10 +132,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await Promise.all([
-      AsyncStorage.removeItem(AUTH_TOKEN_KEY),
-      AsyncStorage.removeItem(AUTH_USER_KEY),
-    ]);
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(AUTH_TOKEN_KEY),
+        AsyncStorage.removeItem(AUTH_USER_KEY),
+      ]);
+    } catch {
+      // ignore
+    }
     setToken(null);
     setUser(null);
   }, []);

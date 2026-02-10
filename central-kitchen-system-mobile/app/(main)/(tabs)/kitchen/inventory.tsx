@@ -1,14 +1,15 @@
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 
+import { cardShadowSmall } from '@/constants/theme';
 import { useIngredients } from '@/hooks/use-ingredients';
 import type { Ingredient } from '@/lib/ingredients';
 
@@ -25,9 +26,20 @@ export default function InventoryScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>Kho nguyên liệu</Text>
-        <Pressable style={styles.primaryButton} onPress={() => router.push('/ingredient/create')}>
-          <Text style={styles.primaryButtonText}>Tạo mới</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => router.push('/(tabs)/kitchen/orders')}
+          >
+            <Text style={styles.linkButtonText}>← Đơn</Text>
+          </Pressable>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => router.push('/ingredient/create')}
+          >
+            <Text style={styles.primaryButtonText}>Tạo mới</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Pressable style={styles.secondaryButton} onPress={refetch}>
@@ -51,7 +63,7 @@ export default function InventoryScreen() {
               onPress={() => router.push(`/ingredient/${item._id}`)}
               style={[styles.card, isLow && styles.cardLow]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{item.name ?? item.ingredientName ?? '--'}</Text>
+                <Text style={styles.cardTitle}>{item.ingredientName ?? '--'}</Text>
                 <Text style={styles.cardUnit}>{formatValue(item.unit)}</Text>
               </View>
               <View style={styles.cardMeta}>
@@ -81,6 +93,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  linkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD6D6',
+  },
+  linkButtonText: {
+    color: '#9B0F0F',
+    fontWeight: '600',
+    fontSize: 12,
   },
   title: {
     fontSize: 18,
@@ -121,10 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#FFE1E1',
-    shadowColor: '#B40000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    ...cardShadowSmall,
     elevation: 1,
   },
   cardLow: {
