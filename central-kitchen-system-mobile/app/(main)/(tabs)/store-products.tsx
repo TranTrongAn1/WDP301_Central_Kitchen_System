@@ -1,11 +1,12 @@
+import { cardShadowSmall } from "@/constants/theme";
 import { useRouter } from "expo-router";
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 import { useProducts } from "@/hooks/use-products";
@@ -93,10 +94,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#FFE1E1",
-    shadowColor: "#B40000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    ...cardShadowSmall,
     elevation: 1,
   },
   cardHeader: {
