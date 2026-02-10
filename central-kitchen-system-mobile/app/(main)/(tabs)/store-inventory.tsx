@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { cardShadowSmall } from '@/constants/theme';
 import { useStoreInventory } from '@/hooks/use-store-inventory';
 
 const formatValue = (value: number | string | null | undefined) =>
@@ -91,10 +92,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#FFE1E1',
-    shadowColor: '#B40000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    ...cardShadowSmall,
     elevation: 1,
   },
   cardLow: {

@@ -1,16 +1,17 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { cardShadow } from '@/constants/theme';
 import { useIngredient } from '@/hooks/use-ingredient';
 import type { Ingredient } from '@/lib/ingredients';
 
@@ -233,10 +234,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#FFE1E1',
-    shadowColor: '#B40000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...cardShadow,
     elevation: 2,
     marginBottom: 20,
   },

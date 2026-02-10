@@ -1,19 +1,20 @@
-import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 
+import { cardShadow } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function LoginScreen() {
@@ -35,6 +36,10 @@ export default function LoginScreen() {
       await login(username.trim(), password);
       router.replace('/(tabs)');
     } catch (error) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('[login] Login failed', error);
+      }
       Alert.alert('Đăng nhập thất bại', error instanceof Error ? error.message : 'Có lỗi xảy ra.');
     } finally {
       setIsSubmitting(false);
@@ -132,10 +137,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#FFE1E1',
-    shadowColor: '#B40000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...cardShadow,
     elevation: 2,
   },
   label: {
