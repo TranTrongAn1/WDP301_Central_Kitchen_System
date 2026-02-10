@@ -417,10 +417,20 @@ const receiveOrder = async (req, res, next) => {
 
     // Verify store staff can only receive orders for their store
     if (req.user.roleId?.roleName === 'StoreStaff') {
-      if (
-        !req.user.storeId ||
-        req.user.storeId.toString() !== order.storeId.toString()
-      ) {
+      // Safely extract store IDs for comparison
+      const userStoreId = req.user.storeId?._id 
+        ? req.user.storeId._id.toString() 
+        : req.user.storeId?.toString();
+      
+      const orderStoreId = order.storeId?._id 
+        ? order.storeId._id.toString() 
+        : order.storeId?.toString();
+
+      console.log('🔍 Store ID Comparison (receiveOrder):');
+      console.log('  User Store ID:', userStoreId);
+      console.log('  Order Store ID:', orderStoreId);
+
+      if (!userStoreId || userStoreId !== orderStoreId) {
         await session.abortTransaction();
         res.status(403);
         return next(
@@ -579,10 +589,23 @@ const getOrderById = async (req, res, next) => {
 
     // If user is store staff, verify they can only view their store's orders
     if (req.user.roleId?.roleName === 'StoreStaff') {
-      if (
-        !req.user.storeId ||
-        order.storeId._id.toString() !== req.user.storeId.toString()
-      ) {
+      // Safely extract store IDs for comparison
+      // Handle both populated objects (with _id) and unpopulated ObjectIds
+      const userStoreId = req.user.storeId?._id 
+        ? req.user.storeId._id.toString() 
+        : req.user.storeId?.toString();
+      
+      const orderStoreId = order.storeId?._id 
+        ? order.storeId._id.toString() 
+        : order.storeId?.toString();
+
+      // Debug logging
+      console.log('🔍 Store ID Comparison Debug:');
+      console.log('  User Store ID:', userStoreId);
+      console.log('  Order Store ID:', orderStoreId);
+      console.log('  Match:', userStoreId === orderStoreId);
+
+      if (!userStoreId || userStoreId !== orderStoreId) {
         res.status(403);
         return next(
           new Error('You can only view orders for your assigned store')
