@@ -1,9 +1,18 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { productsApi } from '@/lib/api';
 import type { Product } from '@/lib/products';
+import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/hooks/use-auth';
 
 const formatValue = (value: number | string | null | undefined) =>
@@ -11,8 +20,11 @@ const formatValue = (value: number | string | null | undefined) =>
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { token } = useAuth();
+  const router = useRouter();
+  const { token, user } = useAuth();
+  const cart = useCart();
   const [item, setItem] = useState<Product | null>(null);
+  const isStoreStaff = user?.role === 'StoreStaff';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,26 +57,52 @@ export default function ProductDetailScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {item ? (
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.label}>Tên</Text>
-            <Text style={styles.value}>{formatValue(item.name)}</Text>
+        <>
+          {item.image ? (
+            <View style={styles.imageWrap}>
+              <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+            </View>
+          ) : null}
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.label}>Tên</Text>
+              <Text style={styles.value}>{formatValue(item.name)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>SKU</Text>
+              <Text style={styles.value}>{formatValue(item.sku)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Giá</Text>
+              <Text style={styles.value}>
+                {item.price != null ? `${item.price.toLocaleString('vi-VN')} đ` : '--'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Hạn sử dụng (ngày)</Text>
+              <Text style={styles.value}>{formatValue(item.shelfLifeDays)}</Text>
+            </View>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>SKU</Text>
-            <Text style={styles.value}>{formatValue(item.sku)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Giá</Text>
-            <Text style={styles.value}>
-              {item.price ? `${item.price.toLocaleString('vi-VN')} VND` : '--'}
-            </Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Hạn sử dụng (ngày)</Text>
-            <Text style={styles.value}>{formatValue(item.shelfLifeDays)}</Text>
-          </View>
-        </View>
+          {isStoreStaff ? (
+            <Pressable
+              style={styles.addBtn}
+              onPress={() => {
+                cart.addItem(
+                  {
+                    productId: item._id,
+                    productName: item.name ?? '',
+                    price: item.price ?? 0,
+                    image: item.image,
+                  },
+                  1,
+                );
+                router.back();
+              }}
+            >
+              <Text style={styles.addBtnText}>Thêm vào giỏ</Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
     </ScrollView>
   );
@@ -106,5 +144,29 @@ const styles = StyleSheet.create({
     color: '#D91E18',
     fontSize: 12,
     marginBottom: 8,
+  },
+  imageWrap: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+    marginBottom: 16,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  addBtn: {
+    backgroundColor: '#D91E18',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  addBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

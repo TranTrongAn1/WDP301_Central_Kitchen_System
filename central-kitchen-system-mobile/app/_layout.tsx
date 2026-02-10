@@ -11,6 +11,7 @@ import { Platform } from "react-native";
 
 import { RootErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/context/auth-context";
+import { CartProvider } from "@/context/cart-context";
 import { useAuth as useAuthHook } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { isAllowedRole } from "@/lib/auth";
@@ -103,14 +104,16 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <AuthProvider>
-        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <SplashHideController />
-          <AuthGate />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(main)" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <CartProvider>
+          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+            <SplashHideController />
+            <AuthGate />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(main)" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </CartProvider>
       </AuthProvider>
     </RootErrorBoundary>
   );
