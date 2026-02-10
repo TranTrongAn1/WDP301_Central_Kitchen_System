@@ -1,10 +1,16 @@
 import type { LoginResponse, MeResponse } from "@/lib/auth";
+import type { CategoriesResponse } from "@/lib/categories";
 import { API_BASE_URL } from "@/lib/env";
 import type {
-    Ingredient,
-    IngredientResponse,
-    IngredientsResponse,
+  Ingredient,
+  IngredientResponse,
+  IngredientsResponse,
 } from "@/lib/ingredients";
+import type {
+  CreateOrderPayload,
+  OrderResponse,
+  OrdersResponse,
+} from "@/lib/orders";
 import type { Product, ProductsResponse } from "@/lib/products";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
@@ -148,4 +154,34 @@ export const storeInventoryApi = {
         headers: withAuth(token),
       },
     ),
+};
+
+export const categoriesApi = {
+  getAll: (token?: string | null) =>
+    request<CategoriesResponse>("/api/categories", {
+      headers: withAuth(token),
+    }),
+};
+
+export const logisticsOrdersApi = {
+  getAll: (params?: { storeId?: string; status?: string }, token?: string | null) => {
+    const search = new URLSearchParams();
+    if (params?.storeId) search.set("storeId", params.storeId);
+    if (params?.status) search.set("status", params.status);
+    const qs = search.toString();
+    return request<OrdersResponse>(
+      `/api/logistics/orders${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) },
+    );
+  },
+  getById: (id: string, token?: string | null) =>
+    request<OrderResponse>(`/api/logistics/orders/${id}`, {
+      headers: withAuth(token),
+    }),
+  create: (payload: CreateOrderPayload, token?: string | null) =>
+    request<OrderResponse>("/api/logistics/orders", {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
 };

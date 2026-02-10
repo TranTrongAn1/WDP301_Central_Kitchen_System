@@ -5,7 +5,9 @@ export type Product = {
   sku?: string;
   categoryId?: string;
   price?: number;
+  unit?: string;
   shelfLifeDays?: number;
+  image?: string;
 };
 
 export type ProductsResponse = {

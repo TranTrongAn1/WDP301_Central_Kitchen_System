@@ -30,22 +30,9 @@ export default function TabLayout() {
           title: "Trang chủ",
         }}
       />
+      {/* Store Staff: 4 tabs only — Products, Cart, Orders, Settings */}
       <Tabs.Screen
-        name="store-orders"
-        options={{
-          title: "Đơn hàng",
-          href: isStore ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="list.bullet.rectangle.fill"
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="store-products"
+        name="products"
         options={{
           title: "Sản phẩm",
           href: isStore ? undefined : null,
@@ -55,13 +42,52 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="store-inventory"
+        name="cart"
         options={{
-          title: "Tồn kho",
+          title: "Giỏ hàng",
           href: isStore ? undefined : null,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="archivebox.fill" color={color} />
+            <IconSymbol size={28} name="cart.fill" color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: "Đơn hàng",
+          href: isStore ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="list.bullet.rectangle.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="store-orders"
+        options={{
+          href: null,
+          title: "Đơn (Store)",
+        }}
+      />
+      <Tabs.Screen
+        name="store-products"
+        options={{
+          href: null,
+          title: "SP (Store)",
+        }}
+      />
+      <Tabs.Screen
+        name="store-inventory"
+        options={{
+          href: null,
+          title: "Tồn kho",
+        }}
+      />
+      {/* Ẩn hoàn toàn nhóm store (mock UI cũ) khỏi tab bar */}
+      <Tabs.Screen
+        name="store"
+        options={{
+          href: null,
+          title: "Store",
         }}
       />
       <Tabs.Screen
@@ -96,6 +122,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="cube.box.fill" color={color} />
           ),
+        }}
+      />
+      {/* Ẩn hoàn toàn nhóm kitchen (mock UI cũ) khỏi tab bar */}
+      <Tabs.Screen
+        name="kitchen"
+        options={{
+          href: null,
+          title: "Kitchen",
         }}
       />
       <Tabs.Screen
