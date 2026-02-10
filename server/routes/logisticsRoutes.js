@@ -14,6 +14,10 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Parse JSON request bodies
+router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
+
 // All routes require authentication
 router.use(protect);
 

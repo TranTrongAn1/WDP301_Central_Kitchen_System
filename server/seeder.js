@@ -15,6 +15,8 @@ const StoreInventory = require('./models/StoreInventory');
 const Order = require('./models/Order');
 const DeliveryTrip = require('./models/DeliveryTrip');
 const Feedback = require('./models/Feedback');
+const SystemSetting = require('./models/SystemSetting');
+const Invoice = require('./models/Invoice');
 
 // ============================================================
 // SAMPLE DATA DEFINITIONS
@@ -1240,8 +1242,6 @@ const destroyData = async () => {
     await DeliveryTrip.deleteMany({});
     await Invoice.deleteMany({});
     await StoreInventory.deleteMany({});
-    await Order.deleteMany({});
-    await DeliveryTrip.deleteMany({});
     await Feedback.deleteMany({});
 
     console.log('✅ All data destroyed successfully!\n');
