@@ -48,11 +48,10 @@ const feedbackSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries
-feedbackSchema.index({ orderId: 1 });
 feedbackSchema.index({ storeId: 1 });
 feedbackSchema.index({ rating: 1 });
 
-// Prevent duplicate feedback for the same order
+// Prevent duplicate feedback for the same order (also indexes orderId)
 feedbackSchema.index({ orderId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Feedback', feedbackSchema);

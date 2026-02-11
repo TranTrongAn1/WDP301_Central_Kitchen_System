@@ -52,8 +52,8 @@ const supplierSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries
-supplierSchema.index({ name: 1 });
-supplierSchema.index({ email: 1 }, { unique: true });
+// name already has unique: true index
+// email already has unique: true index
 supplierSchema.index({ status: 1 });
 
 const Supplier = mongoose.model('Supplier', supplierSchema);

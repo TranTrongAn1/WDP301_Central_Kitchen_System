@@ -123,7 +123,7 @@ orderSchema.pre('save', function () {
 orderSchema.index({ storeId: 1 });
 orderSchema.index({ createdBy: 1 });
 orderSchema.index({ status: 1 });
-orderSchema.index({ orderCode: 1 });
+// orderCode already has unique: true index
 
 const Order = mongoose.model('Order', orderSchema);
 

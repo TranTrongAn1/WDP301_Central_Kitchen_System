@@ -76,7 +76,7 @@ deliveryTripSchema.pre('save', function () {
 // Indexes for faster queries
 deliveryTripSchema.index({ driverId: 1 });
 deliveryTripSchema.index({ status: 1 });
-deliveryTripSchema.index({ tripCode: 1 });
+// tripCode already has unique: true index
 
 const DeliveryTrip = mongoose.model('DeliveryTrip', deliveryTripSchema);
 

@@ -13,7 +13,18 @@ const getStoreInventory = async (req, res, next) => {
     }
 
     if (req.user.roleId.roleName === 'StoreStaff') {
-      if (!req.user.storeId || req.user.storeId.toString() !== storeId) {
+      // Extract ID safely - handle both populated object and plain ObjectId
+      const userStoreId = req.user.storeId?._id 
+        ? req.user.storeId._id.toString() 
+        : req.user.storeId?.toString();
+      
+      console.log('[DEBUG] StoreStaff Authorization Check:', {
+        userStoreId,
+        requestedStoreId: storeId,
+        match: userStoreId === storeId
+      });
+
+      if (!userStoreId || userStoreId !== storeId) {
         res.status(403);
         return next(new Error('You can only view your own store inventory'));
       }

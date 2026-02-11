@@ -96,8 +96,8 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 // Indexes for efficient querying
-invoiceSchema.index({ invoiceNumber: 1 });
-invoiceSchema.index({ orderId: 1 });
+// invoiceNumber already has unique: true index
+// orderId already has index: true
 invoiceSchema.index({ storeId: 1, invoiceDate: -1 });
 invoiceSchema.index({ paymentStatus: 1 });
 invoiceSchema.index({ dueDate: 1 });
