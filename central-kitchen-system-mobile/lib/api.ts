@@ -36,13 +36,18 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
 
   try {
     const url = buildUrl(path);
+    const method = options?.method ?? "GET";
+    const hasBody = options?.body != null;
+    const defaultHeaders: Record<string, string> = {
+      Accept: "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(options?.headers ?? {}),
+    };
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options?.headers ?? {}),
-      },
       ...options,
+      method,
+      headers: defaultHeaders,
     });
 
     clearTimeout(timeoutId);
