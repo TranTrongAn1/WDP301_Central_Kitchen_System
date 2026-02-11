@@ -14,6 +14,14 @@ const Invoice = require('../models/Invoice');
  */
 const createOrder = async (req, res, next) => {
   try {
+    // STEP 0: Defensive Check - Prevent Crash on Empty Body
+    // ========================================
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.error('❌ [createOrder] Request body is empty or missing');
+      res.status(400);
+      return next(new Error('Request body is required. Please ensure Content-Type: application/json header is set.'));
+    }
+
     const { storeId, items, notes, requestedDeliveryDate } = req.body;
 
     // STEP 1: Validation - Basic Input
@@ -547,7 +555,8 @@ const getOrders = async (req, res, next) => {
 
     // If user is store staff, only show orders for their store
     if (req.user.roleId?.roleName === 'StoreStaff' && req.user.storeId) {
-      filter.storeId = req.user.storeId;
+      // Safely extract ID - handle both populated object and plain ObjectId
+      filter.storeId = req.user.storeId?._id || req.user.storeId;
     }
 
     const orders = await Order.find(filter)
