@@ -38,10 +38,19 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
     const url = buildUrl(path);
     const method = options?.method ?? "GET";
     const hasBody = options?.body != null;
+    const incomingHeaders = options?.headers;
+    const normalizedHeaders: Record<string, string> =
+      incomingHeaders == null
+        ? {}
+        : incomingHeaders instanceof Headers
+          ? Object.fromEntries(incomingHeaders.entries())
+          : Array.isArray(incomingHeaders)
+            ? Object.fromEntries(incomingHeaders as [string, string][])
+            : (incomingHeaders as Record<string, string>);
     const defaultHeaders: Record<string, string> = {
       Accept: "application/json",
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
-      ...(options?.headers ?? {}),
+      ...normalizedHeaders,
     };
     const response = await fetch(url, {
       signal: controller.signal,
@@ -57,7 +66,6 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
       data = (await response.json()) as T | ApiError;
     } catch (parseError) {
       if (__DEV__) {
-        // eslint-disable-next-line no-console
         console.warn("[api] JSON parse error for", path, parseError);
       }
       throw new Error("Invalid response from server");
@@ -68,7 +76,6 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
         (data as ApiError).message ??
         `Request failed with status ${response.status}`;
       if (__DEV__) {
-        // eslint-disable-next-line no-console
         console.warn("[api] Request failed:", path, response.status, message);
       }
       throw new Error(message);
@@ -78,7 +85,6 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
   } catch (err) {
     clearTimeout(timeoutId);
     if (__DEV__) {
-      // eslint-disable-next-line no-console
       console.warn("[api] Error:", path, err);
     }
     if (err instanceof Error) {
