@@ -20,6 +20,7 @@ export default function MainLayout() {
       <Stack.Screen name="orders/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="orders/create" options={{ headerShown: false }} />
       <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="kitchen" options={{ headerShown: false }} />
     </Stack>
   );
 }

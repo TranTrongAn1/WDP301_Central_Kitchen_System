@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { logisticsOrdersApi } from "@/lib/api";
@@ -43,6 +44,7 @@ function formatDateTime(iso?: string) {
 }
 
 export default function OrdersTabScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -86,7 +88,7 @@ export default function OrdersTabScreen() {
     : orders;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}>
       <Text style={styles.title}>Đơn hàng</Text>
 
       <View style={styles.filters}>

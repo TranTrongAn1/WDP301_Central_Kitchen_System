@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -13,20 +12,27 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadow } from '@/constants/theme';
+import { useNotification } from '@/context/notification-context';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { login, isLoading } = useAuth();
+  const { showToast } = useNotification();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!username || !password) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
+    setFieldError(null);
+    if (!username?.trim() || !password) {
+      showToast('Vui lòng nhập đầy đủ tài khoản và mật khẩu.', 'error');
+      setFieldError('Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
       return;
     }
 
@@ -40,19 +46,22 @@ export default function LoginScreen() {
         // eslint-disable-next-line no-console
         console.warn('[login] Login failed', error);
       }
-      Alert.alert('Đăng nhập thất bại', error instanceof Error ? error.message : 'Có lỗi xảy ra.');
+      const msg = error instanceof Error ? error.message : 'Có lỗi xảy ra.';
+      showToast(msg, 'error');
+      setFieldError(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const disabled = isSubmitting || isLoading;
+  const isValid = Boolean(username?.trim() && password);
+  const disabled = isSubmitting || isLoading || !isValid;
 
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 24 + insets.top }]} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image source={require('@/assets/images/icon.png')} style={styles.logo} />
           <Text style={styles.title}>Central Kitchen System</Text>
@@ -75,8 +84,11 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             placeholder="Nhập mật khẩu"
             secureTextEntry
-            style={styles.input}
+            style={[styles.input, fieldError && styles.inputError]}
           />
+          {fieldError ? (
+            <Text style={styles.fieldErrorText}>{fieldError}</Text>
+          ) : null}
 
           <Pressable
             disabled={disabled}
@@ -155,6 +167,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#FFF',
     color: '#1C1C1C',
+  },
+  inputError: {
+    borderColor: '#C62828',
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#C62828',
+    marginBottom: 8,
   },
   button: {
     backgroundColor: '#D91E18',

@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -6,17 +7,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { useCart } from "@/context/cart-context";
 import { useProducts } from "@/hooks/use-products";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
 export default function ProductsTabScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { items, isLoading, error, refetch } = useProducts();
-  const { addItem } = useCart();
+  const { addItem, items: cartItems } = useCart();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleAddToCart = (product: { _id: string; name: string; price?: number; image?: string }) => {
     addItem({
@@ -27,20 +33,49 @@ export default function ProductsTabScreen() {
     }, 1);
   };
 
+  const filteredItems = searchQuery.trim()
+    ? items.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(searchQuery.toLowerCase().trim())
+      )
+    : items;
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 24 + insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Sản phẩm</Text>
-        <Pressable style={styles.refreshBtn} onPress={refetch}>
-          <Text style={styles.refreshBtnText}>Làm mới</Text>
-        </Pressable>
+        <Text style={styles.title}>Bán hàng</Text>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.refreshBtn} onPress={refetch}>
+            <Text style={styles.refreshBtnText}>Làm mới</Text>
+          </Pressable>
+          <Pressable
+            style={styles.cartIconBtn}
+            onPress={() => router.push("/(tabs)/cart")}
+          >
+            <IconSymbol size={24} name="cart.fill" color="#9B0F0F" />
+            {cartItems.length > 0 ? (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>
+                  {cartItems.length > 99 ? "99+" : cartItems.length}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
       </View>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Tìm sản phẩm..."
+        placeholderTextColor="#999"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
 
       {isLoading ? <ActivityIndicator color="#D91E18" style={styles.loader} /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.grid}>
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <Pressable
             key={item._id}
             style={styles.card}
@@ -87,6 +122,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cartIconBtn: {
+    padding: 8,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#D91E18",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  searchInput: {
+    height: 44,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFE1E1",
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: "#2A2A2A",
     marginBottom: 16,
   },
   title: {

@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -10,9 +9,11 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { useCart } from "@/context/cart-context";
+import { useNotification } from "@/context/notification-context";
 import { logisticsOrdersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import type { Order } from "@/lib/orders";
@@ -24,19 +25,47 @@ function formatDate(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
+/** Merge items by productId, sum quantity; filter quantity > 0. */
+function buildOrderItems(
+  items: { productId: string; quantity: number }[]
+): { productId: string; quantityRequested: number }[] {
+  const byId = new Map<string, number>();
+  for (const x of items) {
+    if (!x.productId || x.quantity <= 0) continue;
+    byId.set(x.productId, (byId.get(x.productId) ?? 0) + x.quantity);
+  }
+  return Array.from(byId.entries()).map(([productId, quantityRequested]) => ({
+    productId,
+    quantityRequested,
+  }));
+}
+
 export default function CartTabScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, user } = useAuth();
   const { items, updateQuantity, removeItem, clearCart, subtotal } = useCart();
+  const { showToast } = useNotification();
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const orderItems = buildOrderItems(items);
+  const isValid = orderItems.length > 0 && Boolean(token && user?.storeId);
+  const canSubmit = isValid && !submitting;
 
   const handleSubmitOrder = async () => {
+    setSubmitError(null);
     if (!token || !user?.storeId) {
-      Alert.alert("Lỗi", "Bạn cần đăng nhập và thuộc cửa hàng để tạo đơn.");
+      showToast("Bạn cần đăng nhập và thuộc cửa hàng để tạo đơn.", "error");
       return;
     }
-    if (items.length === 0) {
-      Alert.alert("Giỏ trống", "Vui lòng thêm sản phẩm trước khi tạo đơn.");
+    if (orderItems.length === 0) {
+      if (items.length === 0) {
+        showToast("Giỏ hàng đang trống.", "error");
+      } else {
+        showToast("Số lượng mỗi sản phẩm phải lớn hơn 0.", "error");
+      }
+      setSubmitError("Bạn chưa chọn sản phẩm hoặc số lượng không hợp lệ.");
       return;
     }
     setSubmitting(true);
@@ -44,20 +73,18 @@ export default function CartTabScreen() {
       const payload = {
         storeId: user.storeId,
         requestedDeliveryDate: formatDate(new Date()),
-        items: items.map((x) => ({
-          productId: x.productId,
-          quantityRequested: x.quantity,
-        })),
+        items: orderItems,
       };
       const res = await logisticsOrdersApi.create(payload, token);
       clearCart();
+      setSubmitError(null);
+      showToast("Tạo đơn thành công.");
       const order = res.data as Order;
-      Alert.alert("Thành công", `Đơn hàng đã tạo: ${order.orderNumber ?? order._id}.`, [
-        { text: "Xem đơn hàng", onPress: () => router.push(`/orders/${order._id}`) },
-        { text: "OK" },
-      ]);
+      router.push(`/orders/${order._id}`);
     } catch (e) {
-      Alert.alert("Lỗi", e instanceof Error ? e.message : "Không thể tạo đơn. Thử lại.");
+      const msg = e instanceof Error ? e.message : "Không thể tạo đơn. Thử lại.";
+      showToast(msg, "error");
+      setSubmitError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -65,18 +92,23 @@ export default function CartTabScreen() {
 
   if (items.length === 0 && !submitting) {
     return (
-      <View style={styles.empty}>
+      <View style={[styles.empty, { paddingTop: insets.top }]}>
         <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
-        <Text style={styles.emptySub}>Thêm sản phẩm từ tab Sản phẩm</Text>
+        <Text style={styles.emptySub}>Thêm sản phẩm từ tab Bán hàng</Text>
         <Pressable style={styles.emptyBtn} onPress={() => router.replace("/(tabs)/products")}>
-          <Text style={styles.emptyBtnText}>Đến Sản phẩm</Text>
+          <Text style={styles.emptyBtnText}>Đến Bán hàng</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}>
+      <View style={styles.headerRow}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>‹ Quay lại</Text>
+        </Pressable>
+      </View>
       <Text style={styles.title}>Giỏ hàng</Text>
       {items.map((item) => (
         <View key={item.productId} style={styles.row}>
@@ -124,10 +156,13 @@ export default function CartTabScreen() {
           <Text style={styles.summaryTotal}>{subtotal.toLocaleString("vi-VN")} đ</Text>
         </View>
       </View>
+      {submitError ? (
+        <Text style={styles.fieldError}>{submitError}</Text>
+      ) : null}
       <Pressable
-        style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+        style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
         onPress={handleSubmitOrder}
-        disabled={submitting}
+        disabled={!canSubmit || submitting}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -145,6 +180,20 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "#FFF4F4",
     paddingBottom: 32,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  backBtn: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backText: {
+    fontSize: 14,
+    color: "#9B0F0F",
+    fontWeight: "600",
   },
   title: {
     fontSize: 20,
@@ -225,4 +274,9 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.7 },
   submitBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  fieldError: {
+    fontSize: 13,
+    color: "#C62828",
+    marginBottom: 8,
+  },
 });

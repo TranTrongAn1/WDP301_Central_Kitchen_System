@@ -1,4 +1,6 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadow } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
@@ -7,11 +9,18 @@ import { useProfile } from '@/hooks/use-profile';
 const formatValue = (value: string | null | undefined) => value ?? '--';
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { logout } = useAuth();
   const { profile, isLoading, error, refetch } = useProfile();
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
+      <View style={styles.headerRow}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>‹ Quay lại</Text>
+        </Pressable>
+      </View>
       <View style={styles.card}>
         <Text style={styles.title}>Thông tin tài khoản</Text>
 
@@ -67,6 +76,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: '#FFF4F4',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  backBtn: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backText: {
+    fontSize: 14,
+    color: '#9B0F0F',
+    fontWeight: '600',
   },
   card: {
     backgroundColor: '#FFFFFF',

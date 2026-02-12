@@ -32,6 +32,12 @@ export default function StoreInventoryScreen() {
       {isLoading ? <ActivityIndicator color="#D91E18" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      {!isLoading && !error && items.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>📦</Text>
+          <Text style={styles.emptyText}>Cửa hàng chưa có tồn kho.</Text>
+        </View>
+      ) : (
       <View style={styles.list}>
         {items.map((item) => {
           return (
@@ -52,10 +58,11 @@ export default function StoreInventoryScreen() {
                 <Text style={styles.cardLabel}>Hạn dùng</Text>
                 <Text style={styles.cardValue}>{formatValue(item.expDate)}</Text>
               </View>
-            </View>
-          );
+          </View>
+        );
         })}
       </View>
+      )}
     </ScrollView>
   );
 }
@@ -154,5 +161,19 @@ const styles = StyleSheet.create({
     color: '#D91E18',
     fontSize: 12,
     marginBottom: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
 });
