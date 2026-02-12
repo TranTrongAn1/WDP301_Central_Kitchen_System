@@ -40,6 +40,7 @@ import Order from './features/coordinator/pages/Order';
 import Shipment from './features/coordinator/pages/Shipment';
 import Inventory from './features/coordinator/pages/Inventory';
 import IssuseReport from './features/coordinator/pages/IssuseReport';
+import OrderDetail from './features/coordinator/pages/OrderDetail';
 
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
@@ -157,7 +158,7 @@ function App() {
               <Route path="/coordinator/shipments" element={<Shipment/>} />
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
-
+              <Route path="/orders/:id" element={<OrderDetail />} />
             </Route>
           </Route>
 
