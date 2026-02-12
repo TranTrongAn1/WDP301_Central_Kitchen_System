@@ -1,15 +1,17 @@
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadow } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { logout, user } = useAuth();
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
       <Text style={styles.title}>Cài đặt</Text>
 
       <View style={styles.card}>
@@ -19,20 +21,19 @@ export default function SettingsScreen() {
 
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => router.push('/(tabs)/settings/profile')}
+          onPress={() => router.push('/(main)/(tabs)/settings/profile')}
         >
           <Text style={styles.secondaryButtonText}>Xem hồ sơ</Text>
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Hỗ trợ</Text>
-        <Text style={styles.cardSubtitle}>Thông tin liên hệ hoặc hướng dẫn sử dụng.</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => {}}>
-          <Text style={styles.secondaryButtonText}>Hướng dẫn</Text>
-        </Pressable>
-      </View>
-
+      {user?.storeId || user?.storeName ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Thông tin cửa hàng</Text>
+          <Text style={styles.cardSubtitle}>{user?.storeName ?? 'Cửa hàng của bạn'}</Text>
+          <Text style={styles.cardMeta}>Mã: {user?.storeId ?? '--'}</Text>
+        </View>
+      ) : null}
       <Pressable style={styles.dangerButton} onPress={logout}>
         <Text style={styles.dangerButtonText}>Đăng xuất</Text>
       </Pressable>

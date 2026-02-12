@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { productsApi } from '@/lib/api';
 import type { Product } from '@/lib/products';
@@ -19,6 +20,7 @@ const formatValue = (value: number | string | null | undefined) =>
   value === null || value === undefined ? '--' : String(value);
 
 export default function ProductDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { token, user } = useAuth();
@@ -51,7 +53,12 @@ export default function ProductDetailScreen() {
   }, [id, token]);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
+      <View style={styles.headerRow}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>‹ Quay lại</Text>
+        </Pressable>
+      </View>
       <Text style={styles.title}>Chi tiết sản phẩm</Text>
       {isLoading ? <ActivityIndicator color="#D91E18" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -113,6 +120,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: '#FFF4F4',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  backBtn: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backText: {
+    fontSize: 14,
+    color: '#9B0F0F',
+    fontWeight: '600',
   },
   title: {
     fontSize: 18,

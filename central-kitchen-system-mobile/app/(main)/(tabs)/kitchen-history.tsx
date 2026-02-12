@@ -13,14 +13,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProductionPlans } from "@/hooks/use-production-plans";
 import type { ProductionPlan } from "@/lib/production-plans";
 
-const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "", label: "Tất cả" },
-  { value: "Planned", label: "Kế hoạch" },
-  { value: "In_Progress", label: "Đang làm" },
-  { value: "Completed", label: "Hoàn thành" },
-  { value: "Cancelled", label: "Đã hủy" },
-];
-
 function formatDate(iso?: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("vi-VN", {
@@ -40,57 +32,63 @@ function productSummary(plan: ProductionPlan): string {
   return names.join(", ") + (details.length > 2 ? "..." : "");
 }
 
-export default function KitchenOrdersScreen() {
+export default function KitchenHistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [statusFilter, setStatusFilter] = useState("");
+  const [planDate, setPlanDate] = useState("");
   const { plans, isLoading, error, refetch } = useProductionPlans({
-    status: statusFilter || undefined,
+    status: "Completed",
+    planDate: planDate || undefined,
   });
+
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Đơn sản xuất</Text>
+        <Text style={styles.title}>Lịch sử sản xuất</Text>
         <Pressable style={styles.refreshBtn} onPress={refetch}>
           <Text style={styles.refreshBtnText}>Làm mới</Text>
         </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.statusScroll}
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <Pressable
-            key={opt.value}
+      <View style={styles.filters}>
+        <Pressable
+          style={[styles.filterChip, !planDate && styles.filterChipActive]}
+          onPress={() => setPlanDate("")}
+        >
+          <Text
             style={[
-              styles.statusChip,
-              statusFilter === opt.value && styles.statusChipActive,
+              styles.filterChipText,
+              !planDate && styles.filterChipTextActive,
             ]}
-            onPress={() => setStatusFilter(opt.value)}
           >
-            <Text
-              style={[
-                styles.statusChipText,
-                statusFilter === opt.value && styles.statusChipTextActive,
-              ]}
-            >
-              {opt.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+            Tất cả
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.filterChip, planDate === today && styles.filterChipActive]}
+          onPress={() => setPlanDate(today)}
+        >
+          <Text
+            style={[
+              styles.filterChipText,
+              planDate === today && styles.filterChipTextActive,
+            ]}
+          >
+            Hôm nay
+          </Text>
+        </Pressable>
+      </View>
 
       {isLoading ? (
         <ActivityIndicator color="#D91E18" style={styles.loader} />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
       ) : plans.length === 0 ? (
-        <Text style={styles.empty}>Chưa có đơn sản xuất.</Text>
+        <Text style={styles.empty}>Chưa có đơn hoàn thành.</Text>
       ) : (
         plans.map((plan) => (
           <Pressable
@@ -100,21 +98,15 @@ export default function KitchenOrdersScreen() {
           >
             <View style={styles.cardHeader}>
               <Text style={styles.cardCode}>{plan.planCode}</Text>
-              <Text
-                style={[
-                  styles.cardStatus,
-                  styles[`status_${plan.status}` as keyof typeof styles],
-                ]}
-              >
-                {plan.status}
+              <Text style={styles.cardDate}>
+                {formatDate(plan.planDate)}
               </Text>
             </View>
-            <Text style={styles.cardDate}>Ngày: {formatDate(plan.planDate)}</Text>
             <Text style={styles.cardProducts} numberOfLines={2}>
               {productSummary(plan)}
             </Text>
             <Text style={styles.cardMeta}>
-              Số dòng: {plan.details?.length ?? 0}
+              Số dòng: {plan.details?.length ?? 0} • Hoàn thành
             </Text>
           </Pressable>
         ))
@@ -153,29 +145,29 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 13,
   },
-  statusScroll: {
+  filters: {
+    flexDirection: "row",
+    gap: 8,
     marginBottom: 16,
-    maxHeight: 44,
   },
-  statusChip: {
-    paddingHorizontal: 12,
+  filterChip: {
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#FFE1E1",
-    marginRight: 8,
   },
-  statusChipActive: {
+  filterChipActive: {
     backgroundColor: "#D91E18",
     borderColor: "#D91E18",
   },
-  statusChipText: {
-    fontSize: 12,
+  filterChipText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#666",
+    color: "#9B0F0F",
   },
-  statusChipTextActive: {
+  filterChipTextActive: {
     color: "#fff",
   },
   loader: { marginVertical: 24 },
@@ -207,18 +199,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2A2A2A",
   },
-  cardStatus: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  status_Planned: { color: "#E65100" },
-  status_In_Progress: { color: "#1565C0" },
-  status_Completed: { color: "#2E7D32" },
-  status_Cancelled: { color: "#666" },
   cardDate: {
     fontSize: 13,
     color: "#666",
-    marginBottom: 4,
   },
   cardProducts: {
     fontSize: 13,

@@ -30,11 +30,11 @@ export default function TabLayout() {
           title: "Trang chủ",
         }}
       />
-      {/* Store Staff: 4 tabs only — Products, Cart, Orders, Settings */}
+      {/* Store Staff: 4 tabs — Bán hàng | Kho | Đơn hàng | Cài đặt (cart is inside Bán hàng flow, not a tab) */}
       <Tabs.Screen
         name="products"
         options={{
-          title: "Sản phẩm",
+          title: isStore ? "Bán hàng" : "Sản phẩm",
           href: isStore ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="shippingbox.fill" color={color} />
@@ -45,9 +45,19 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: "Giỏ hàng",
-          href: isStore ? undefined : null,
+          href: null,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="cart.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="store-inventory"
+        options={{
+          title: "Kho",
+          href: isStore ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="archivebox.fill" color={color} />
           ),
         }}
       />
@@ -75,13 +85,6 @@ export default function TabLayout() {
           title: "SP (Store)",
         }}
       />
-      <Tabs.Screen
-        name="store-inventory"
-        options={{
-          href: null,
-          title: "Tồn kho",
-        }}
-      />
       {/* Ẩn hoàn toàn nhóm store (mock UI cũ) khỏi tab bar */}
       <Tabs.Screen
         name="store"
@@ -93,7 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="kitchen-orders"
         options={{
-          title: "Đơn cần xử lý",
+          title: isKitchen ? "Đơn sản xuất" : "Đơn cần xử lý",
           href: isKitchen ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="tray.full.fill" color={color} />
@@ -103,7 +106,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="inventory"
         options={{
-          title: isKitchen ? "Kho" : "Loading...",
+          title: isKitchen ? "Kho NL" : "Loading...",
           href: isKitchen || isLoading ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol
@@ -115,13 +118,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="kitchen-batches"
+        name="kitchen-history"
         options={{
-          title: "Batch",
+          title: "Lịch sử",
           href: isKitchen ? undefined : null,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="cube.box.fill" color={color} />
+            <IconSymbol size={28} name="clock.fill" color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="kitchen-batches"
+        options={{
+          href: null,
+          title: "Batch",
         }}
       />
       {/* Ẩn hoàn toàn nhóm kitchen (mock UI cũ) khỏi tab bar */}
