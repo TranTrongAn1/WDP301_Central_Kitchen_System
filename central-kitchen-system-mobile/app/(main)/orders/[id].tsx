@@ -1,14 +1,18 @@
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
+import { useNotification } from "@/context/notification-context";
 import { logisticsOrdersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import type { Order, OrderItem } from "@/lib/orders";
@@ -31,11 +35,15 @@ function productName(item: OrderItem): string {
 }
 
 export default function OrderDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { token } = useAuth();
+  const { showToast } = useNotification();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [receiving, setReceiving] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !token) return;
@@ -56,23 +64,63 @@ export default function OrderDetailScreen() {
     load();
   }, [load]);
 
+  const canReceive = order?.status === "Shipped" && id && token;
+  const handleReceive = () => {
+    if (!canReceive || !id || !token) return;
+    Alert.alert(
+      "Xác nhận nhận hàng",
+      "Xác nhận đã nhận đủ hàng?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xác nhận",
+          onPress: async () => {
+            setReceiving(true);
+            try {
+              await logisticsOrdersApi.receive(id, token);
+              showToast("Đã xác nhận nhận hàng.");
+              load();
+            } catch (e) {
+              const status = (e as Error & { status?: number }).status;
+              if (status === 403) {
+                showToast("Bạn không có quyền nhận đơn này.", "error");
+              } else if (status === 400) {
+                showToast("Đơn không hợp lệ hoặc đã được nhận.", "error");
+              } else if (status !== 401 && status !== 500) {
+                const msg = e instanceof Error ? e.message : "Không thể xác nhận nhận hàng.";
+                showToast(msg, "error");
+              }
+            } finally {
+              setReceiving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator color="#D91E18" size="large" />
       </View>
     );
   }
   if (error || !order) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <Text style={styles.error}>{error ?? "Không tìm thấy đơn hàng."}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}>
+      <View style={styles.headerRow}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>‹ Quay lại</Text>
+        </Pressable>
+      </View>
       <Text style={styles.title}>Đơn #{order.orderNumber ?? order._id.slice(-6)}</Text>
       <View style={[styles.card, cardShadowSmall]}>
         <View style={styles.row}>
@@ -120,6 +168,20 @@ export default function OrderDetailScreen() {
             : "—"}
         </Text>
       </View>
+
+      {canReceive && (
+        <Pressable
+          style={[styles.receiveBtn, receiving && styles.receiveBtnDisabled]}
+          onPress={handleReceive}
+          disabled={receiving}
+        >
+          {receiving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.receiveBtnText}>Xác nhận nhận hàng</Text>
+          )}
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -136,6 +198,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FFF4F4",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  backBtn: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backText: {
+    fontSize: 14,
+    color: "#9B0F0F",
+    fontWeight: "600",
   },
   title: {
     fontSize: 20,
@@ -228,4 +304,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#9B0F0F",
   },
+  receiveBtn: {
+    marginTop: 16,
+    backgroundColor: "#2E7D32",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  receiveBtnDisabled: { opacity: 0.7 },
+  receiveBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

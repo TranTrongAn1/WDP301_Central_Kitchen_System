@@ -8,8 +8,10 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadowSmall } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
 import { useIngredients } from '@/hooks/use-ingredients';
 import type { Ingredient } from '@/lib/ingredients';
 
@@ -17,18 +19,22 @@ const formatValue = (value: number | string | null | undefined) =>
   value === null || value === undefined ? '--' : String(value);
 
 export default function InventoryScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
   const { items, isLoading, error, refetch } = useIngredients();
-
+  const isKitchen = user?.role === 'KitchenStaff';
   const cards = useMemo(() => items ?? [], [items]);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Kho nguyên liệu</Text>
-        <Pressable style={styles.primaryButton} onPress={() => router.push('/ingredient/create')}>
-          <Text style={styles.primaryButtonText}>Tạo mới</Text>
-        </Pressable>
+        {!isKitchen && (
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/ingredient/create')}>
+            <Text style={styles.primaryButtonText}>Tạo mới</Text>
+          </Pressable>
+        )}
       </View>
 
       <Pressable style={styles.secondaryButton} onPress={refetch}>

@@ -25,6 +25,7 @@ const MAPPING = {
   'gearshape.fill': 'settings',
   'tray.full.fill': 'breakfast-dining',
   'cube.box.fill': 'category',
+  'clock.fill': 'history',
   hourglass: 'hourglass-empty',
 } as IconMapping;
 

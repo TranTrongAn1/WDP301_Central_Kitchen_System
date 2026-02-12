@@ -8,10 +8,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { RootErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/context/auth-context";
 import { CartProvider } from "@/context/cart-context";
+import { NotificationProvider } from "@/context/notification-context";
 import { useAuth as useAuthHook } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { isAllowedRole } from "@/lib/auth";
@@ -65,7 +67,13 @@ function AuthGate() {
     if (!isAuthed && !inLoginScreen) {
       router.replace("/login");
     } else if (isAuthed && inLoginScreen) {
-      router.replace("/(tabs)");
+      // Điều hướng theo role: Kitchen → Đơn sản xuất, Store → Bán hàng
+      const role = user?.role;
+      if (role === "KitchenStaff") {
+        router.replace("/(tabs)/kitchen-orders");
+      } else {
+        router.replace("/(tabs)/products");
+      }
     }
   }, [isLoading, logout, router, segments, token, user]);
 
@@ -103,18 +111,22 @@ export default function RootLayout() {
 
   return (
     <RootErrorBoundary>
-      <AuthProvider>
-        <CartProvider>
-          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-            <SplashHideController />
-            <AuthGate />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(main)" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </CartProvider>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+              <SplashHideController />
+              <AuthGate />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(main)" options={{ headerShown: false }} />
+              </Stack>
+              <StatusBar style="auto" />
+              </ThemeProvider>
+            </CartProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </RootErrorBoundary>
   );
 }

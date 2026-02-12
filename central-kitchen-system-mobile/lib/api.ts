@@ -11,7 +11,13 @@ import type {
   OrderResponse,
   OrdersResponse,
 } from "@/lib/orders";
+import type { StoreInventoryResponse } from "@/lib/inventory";
 import type { Product, ProductsResponse } from "@/lib/products";
+import type {
+  ProductionPlanResponse,
+  ProductionPlansResponse,
+} from "@/lib/production-plans";
+import { getApiErrorHandlers } from "@/lib/api-error-handler";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
@@ -39,14 +45,16 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
     const method = options?.method ?? "GET";
     const hasBody = options?.body != null;
     const incomingHeaders = options?.headers;
-    const normalizedHeaders: Record<string, string> =
-      incomingHeaders == null
-        ? {}
-        : incomingHeaders instanceof Headers
-          ? Object.fromEntries(incomingHeaders.entries())
-          : Array.isArray(incomingHeaders)
-            ? Object.fromEntries(incomingHeaders as [string, string][])
-            : (incomingHeaders as Record<string, string>);
+    let normalizedHeaders: Record<string, string> = {};
+    if (incomingHeaders != null) {
+      if (incomingHeaders instanceof Headers) {
+        normalizedHeaders = Object.fromEntries(incomingHeaders.entries()) as Record<string, string>;
+      } else if (Array.isArray(incomingHeaders)) {
+        normalizedHeaders = Object.fromEntries(incomingHeaders as [string, string][]) as Record<string, string>;
+      } else if (typeof incomingHeaders === "object" && incomingHeaders !== null && !("length" in incomingHeaders)) {
+        normalizedHeaders = { ...incomingHeaders } as Record<string, string>;
+      }
+    }
     const defaultHeaders: Record<string, string> = {
       Accept: "application/json",
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
@@ -78,7 +86,17 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
       if (__DEV__) {
         console.warn("[api] Request failed:", path, response.status, message);
       }
-      throw new Error(message);
+      const errHandlers = getApiErrorHandlers();
+      if (response.status === 401) {
+        errHandlers.on401?.();
+      } else if (response.status === 403) {
+        errHandlers.on403?.(message);
+      } else if (response.status >= 500) {
+        errHandlers.on500?.(message);
+      }
+      const err = new Error(message) as Error & { status?: number };
+      err.status = response.status;
+      throw err;
     }
 
     return data as T;
@@ -159,12 +177,49 @@ export const productsApi = {
 
 export const storeInventoryApi = {
   getByStore: (storeId: string, token?: string | null) =>
-    request<{ success: boolean; data: unknown[] }>(
-      `/api/inventory/store/${storeId}`,
-      {
-        headers: withAuth(token),
-      },
-    ),
+    request<StoreInventoryResponse>(`/api/inventory/store/${storeId}`, {
+      headers: withAuth(token),
+    }),
+};
+
+export const productionPlansApi = {
+  getAll: (
+    params?: { status?: string; planDate?: string },
+    token?: string | null
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.planDate) search.set("planDate", params.planDate);
+    const qs = search.toString();
+    return request<ProductionPlansResponse>(
+      `/api/production-plans${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) }
+    );
+  },
+  getById: (id: string, token?: string | null) =>
+    request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
+      headers: withAuth(token),
+    }),
+  updateStatus: (id: string, status: string, token?: string | null) =>
+    request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
+      method: "PATCH",
+      headers: withAuth(token),
+      body: JSON.stringify({ status }),
+    }),
+  completeItem: (
+    planId: string,
+    payload: { productId: string; actualQuantity: number },
+    token?: string | null
+  ) =>
+    request<{
+      success: boolean;
+      message?: string;
+      data?: { productionPlan?: unknown; batch?: unknown };
+    }>(`/api/production-plans/${planId}/complete-item`, {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const categoriesApi = {
@@ -194,5 +249,10 @@ export const logisticsOrdersApi = {
       method: "POST",
       headers: withAuth(token),
       body: JSON.stringify(payload),
+    }),
+  receive: (orderId: string, token?: string | null) =>
+    request<OrderResponse>(`/api/logistics/orders/${orderId}/receive`, {
+      method: "POST",
+      headers: withAuth(token),
     }),
 };
