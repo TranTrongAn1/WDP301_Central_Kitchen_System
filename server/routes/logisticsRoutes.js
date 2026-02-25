@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   createOrder,
+  updateOrder,
   approveOrder,
   createDeliveryTrip,
   receiveOrder,
@@ -36,6 +37,9 @@ router.get('/orders/:id', getOrderById);
 // Create new order (Store Staff, Manager, Admin)
 router.post('/orders', authorize('StoreStaff', 'Manager', 'Admin'), createOrder);
 
+// Update order (Store Staff, Manager, Admin)
+router.put('/orders/:id', authorize('StoreStaff', 'Manager', 'Admin'), updateOrder);
+
 // Approve order (assign batches, deduct inventory) (Kitchen Staff, Manager, Admin)
 router.post(
   '/orders/:orderId/approve',
@@ -59,10 +63,10 @@ router.post(
 
 // ===== DELIVERY TRIP ROUTES =====
 
-// Create delivery trip from multiple approved orders (Manager, Admin, LogisticsStaff)
+// Create delivery trip from multiple approved orders (Manager, Admin, Coordinator)
 router.post(
   '/trips/create',
-  authorize('Manager', 'Admin', 'LogisticsStaff'),
+  authorize('Manager', 'Admin', 'Coordinator'),
   createDeliveryTrip
 );
 

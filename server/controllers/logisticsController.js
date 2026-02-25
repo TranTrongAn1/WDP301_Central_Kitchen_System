@@ -238,11 +238,19 @@ const approveOrder = async (req, res, next) => {
     await order.save({ session });
 
     // Create invoice for the order
+    const invoiceNumber = `INV-${Date.now()}`;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14); // Due date: 14 days after creation
+
     const invoice = await Invoice.create(
       [
         {
+          invoiceNumber: invoiceNumber,
           orderId: order._id,
           storeId: order.storeId,
+          invoiceDate: new Date(), 
+          dueDate: dueDate,
+          subtotal: order.totalAmount, 
           totalAmount: order.totalAmount,
           items: order.items.map(item => ({
             productId: item.productId,
@@ -251,8 +259,7 @@ const approveOrder = async (req, res, next) => {
             unitPrice: item.unitPrice,
             subtotal: item.subtotal,
           })),
-          status: 'Pending',
-          issueDate: new Date(),
+          paymentStatus: 'Pending', 
         },
       ],
       { session }
@@ -272,9 +279,7 @@ const approveOrder = async (req, res, next) => {
 
     await invoice[0].populate([
       { path: 'orderId', select: 'orderNumber totalAmount' },
-      { path: 'storeId', select: 'storeName storeCode' },
-      { path: 'items.productId', select: 'name sku' },
-      { path: 'items.batchId', select: 'batchCode' },
+      { path: 'storeId', select: 'storeName storeCode' }
     ]);
 
     res.status(200).json({
@@ -305,19 +310,13 @@ const createDeliveryTrip = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { orderIds, vehicleNumber, driverId } = req.body;
+    const { orderIds } = req.body;
 
     // Validate input
     if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
       await session.abortTransaction();
       res.status(400);
       return next(new Error('orderIds must be a non-empty array'));
-    }
-
-    if (!vehicleNumber) {
-      await session.abortTransaction();
-      res.status(400);
-      return next(new Error('vehicleNumber is required'));
     }
 
     // Find all orders
@@ -343,18 +342,12 @@ const createDeliveryTrip = async (req, res, next) => {
       );
     }
 
-    // Determine driver ID (use provided driverId or fallback to current user)
-    const assignedDriverId = driverId || req.user._id;
-
     // Create delivery trip
     const trip = await DeliveryTrip.create(
       [
         {
-          driverId: assignedDriverId,
-          vehicleNumber,
           orders: orderIds,
           status: 'In_Transit',
-          departureTime: new Date(),
         },
       ],
       { session }
@@ -376,17 +369,8 @@ const createDeliveryTrip = async (req, res, next) => {
     // Commit transaction
     await session.commitTransaction();
 
-    // Fetch updated orders for response
-    const updatedOrders = await Order.find({ _id: { $in: orderIds } })
-      .populate('storeId', 'storeName storeCode address')
-      .populate('createdBy', 'username fullName email')
-      .populate('approvedBy', 'username fullName email')
-      .populate('items.productId', 'name sku price')
-      .populate('items.batchId', 'batchCode mfgDate expDate');
-
     // Populate trip
     await trip[0].populate([
-      { path: 'driverId', select: 'username fullName email' },
       {
         path: 'orders',
         populate: [
@@ -399,10 +383,7 @@ const createDeliveryTrip = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: `Delivery trip created successfully with ${orderIds.length} orders`,
-      data: {
-        trip: trip[0],
-        orders: updatedOrders,
-      },
+      data: trip[0]
     });
   } catch (error) {
     if (session.inTransaction()) {
@@ -607,7 +588,6 @@ const receiveOrder = async (req, res, next) => {
     ]);
 
     await trip.populate([
-      { path: 'driverId', select: 'username fullName email' },
       { path: 'orders', select: 'orderCode status' },
     ]);
 
@@ -740,7 +720,6 @@ const getTrips = async (req, res, next) => {
     }
 
     const trips = await DeliveryTrip.find(filter)
-      .populate('driverId', 'username fullName email')
       .populate({
         path: 'orders',
         populate: [
@@ -768,7 +747,6 @@ const getTrips = async (req, res, next) => {
 const getTripById = async (req, res, next) => {
   try {
     const trip = await DeliveryTrip.findById(req.params.id)
-      .populate('driverId', 'username fullName email phone')
       .populate({
         path: 'orders',
         populate: [
@@ -786,6 +764,103 @@ const getTripById = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: trip,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update order (edit requestedDeliveryDate, notes, or items)
+ * @route   PUT /api/logistics/orders/:id
+ * @access  Private (Store Staff, Manager, Admin)
+ */
+const updateOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { requestedDeliveryDate, notes, orderItems } = req.body;
+
+    // Find order
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404);
+      return next(new Error('Order not found'));
+    }
+
+    // Check status - only Pending orders can be updated
+    if (order.status !== 'Pending') {
+      res.status(400);
+      return next(new Error('Only Pending orders can be updated'));
+    }
+
+    // Update requestedDeliveryDate if provided
+    if (requestedDeliveryDate) {
+      order.requestedDeliveryDate = new Date(requestedDeliveryDate);
+    }
+
+    // Update notes if provided
+    if (notes !== undefined) {
+      order.notes = notes;
+    }
+
+    // Update items if provided
+    if (orderItems && Array.isArray(orderItems)) {
+      const enrichedItems = [];
+      let totalAmount = 0;
+
+      for (const item of orderItems) {
+        const { productId, quantityRequested } = item;
+
+        // Validate quantity
+        if (!quantityRequested || quantityRequested < 1) {
+          res.status(400);
+          return next(
+            new Error(`Invalid quantity for product: ${productId}`)
+          );
+        }
+
+        // Fetch product to get real price
+        const product = await Product.findById(productId);
+        if (!product) {
+          res.status(400);
+          return next(new Error(`Product not found: ${productId}`));
+        }
+
+        // Calculate pricing
+        const unitPrice = product.price || 0;
+        const subtotal = unitPrice * quantityRequested;
+
+        // Accumulate total
+        totalAmount += subtotal;
+
+        // Build enriched item with pricing data
+        enrichedItems.push({
+          productId: product._id,
+          quantity: quantityRequested,
+          unitPrice,
+          subtotal,
+        });
+      }
+
+      // Replace order items and total amount
+      order.items = enrichedItems;
+      order.totalAmount = totalAmount;
+    }
+
+    // Save order
+    await order.save();
+
+    // Populate and return
+    await order.populate([
+      { path: 'storeId', select: 'storeName storeCode address' },
+      { path: 'createdBy', select: 'username fullName email' },
+      { path: 'items.productId', select: 'name sku price unit' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order updated successfully',
+      data: order,
     });
   } catch (error) {
     next(error);
@@ -937,6 +1012,7 @@ const aggregateDailyDemand = async (req, res, next) => {
 
 module.exports = {
   createOrder,
+  updateOrder,
   approveOrder,
   createDeliveryTrip,
   receiveOrder,

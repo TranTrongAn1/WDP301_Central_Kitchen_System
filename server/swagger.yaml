@@ -1876,8 +1876,7 @@ paths:
         **NEW WORKFLOW:**
         1. Manager reviews multiple 'Approved' orders
         2. Groups them into a single delivery trip
-        3. Assigns vehicle and driver
-        4. All orders transition from 'Approved' to 'In_Transit'
+        3. All orders transition from 'Approved' to 'In_Transit'
         
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
@@ -1890,7 +1889,6 @@ paths:
               type: object
               required:
                 - orderIds
-                - vehicleNumber
               properties:
                 orderIds:
                   type: array
@@ -1900,18 +1898,8 @@ paths:
                     type: string
                     description: 'Order ObjectId'
                   example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
-                vehicleNumber:
-                  type: string
-                  description: 'Vehicle license plate or identification number'
-                  example: '51A-12345'
-                driverId:
-                  type: string
-                  description: 'Optional: Driver/coordinator assigned to this trip (defaults to current user if not provided)'
-                  example: '60d5ec49f1b2c8b1f8e4e1b2'
             example:
               orderIds: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
-              vehicleNumber: '51A-12345'
-              driverId: '60d5ec49f1b2c8b1f8e4e1b2'
       responses:
         '201':
           description: Delivery trip created successfully
@@ -2975,7 +2963,6 @@ components:
       type: object
       required:
         - orders
-        - vehicleNumber
         - status
       properties:
         _id:
@@ -2989,25 +2976,11 @@ components:
             type: string
             description: 'Order ObjectId'
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
-        vehicleNumber:
-          type: string
-          description: 'Vehicle license plate or identification number'
-          example: '51A-12345'
-        driverId:
-          type: string
-          description: 'Driver/coordinator assigned to this trip (nullable, defaults to creator if not specified)'
-          nullable: true
-          example: '60d5ec49f1b2c8b1f8e4e1b2'
         status:
           type: string
           enum: [In_Transit, Completed, Cancelled]
           default: In_Transit
           description: 'Current trip status'
-        departureTime:
-          type: string
-          format: date-time
-          description: 'Actual departure timestamp (auto-set when trip is created)'
-          example: '2026-02-05T08:00:00Z'
         completedTime:
           type: string
           format: date-time
