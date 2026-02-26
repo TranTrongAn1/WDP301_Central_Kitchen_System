@@ -1,10 +1,9 @@
 import apiClient from './Client';
 
-// 1. Định nghĩa Type cho Item trong giỏ hàng (Dựa trên cấu trúc thường thấy của MERN)
 export interface OrderItem {
-  productId: string | { _id: string; name: string; price: number }; // Có thể là ID hoặc Object nếu backend populate
+  productId: string | { _id: string; name: string; price: number }; 
   quantity: number;
-  price?: number; // Giá tại thời điểm đặt
+  price?: number; 
   _id?: string;
 }
 
@@ -42,7 +41,6 @@ interface OrderListResponse {
 export const OrderApi = {
   getAllOrders: async (params?: OrderQueryParams): Promise<Order[]> => {
     try {
-      // FIX: Thêm "as unknown as OrderListResponse" để báo TS biết đây là cục data đã xử lý
       const response = await apiClient.get('/logistics/orders', {
         params, 
       }) as unknown as OrderListResponse;

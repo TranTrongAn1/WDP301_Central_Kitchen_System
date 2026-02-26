@@ -147,7 +147,7 @@ const Order = () => {
         ))}
       </div>
 
-      {/* --- PAGINATION (Góc phải dưới giống mẫu) --- */}
+      {/* --- PAGINATION --- */}
       {totalPages > 1 && (
         <div className="flex justify-end items-center gap-2 mt-4 select-none">
           {/* Nút Back */}
