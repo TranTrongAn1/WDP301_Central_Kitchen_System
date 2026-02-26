@@ -166,17 +166,17 @@ const createOrder = async (req, res, next) => {
 };
 
 /**
- * @desc    Approve order and create shipping trip
- * @route   POST /api/logistics/orders/:orderId/approve-and-ship
+ * @desc    Approve order (assign batches, deduct inventory, create invoice)
+ * @route   POST /api/logistics/orders/:orderId/approve
  * @access  Private (Manager, Admin)
  */
-const approveAndShipOrder = async (req, res, next) => {
+const approveOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { orderId } = req.params;
-    const { driverId, vehicleNumber, items } = req.body;
+    const { items } = req.body;
 
     // Find order
     const order = await Order.findById(orderId).session(session);
@@ -231,32 +231,26 @@ const approveAndShipOrder = async (req, res, next) => {
       orderItem.batchId = batchId;
     }
 
-    // Update order status to Approved
+    // Update order status to Approved (NOT In_Transit)
     order.status = 'Approved';
     order.approvedBy = req.user._id;
     order.approvedDate = new Date();
     await order.save({ session });
 
-    // Create delivery trip
-    const trip = await DeliveryTrip.create(
-      [
-        {
-          driverId,
-          vehicleNumber,
-          orders: [orderId],
-          status: 'In_Transit',
-          departureTime: new Date(),
-        },
-      ],
-      { session }
-    );
-
     // Create invoice for the order
+    const invoiceNumber = `INV-${Date.now()}`;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14); // Due date: 14 days after creation
+
     const invoice = await Invoice.create(
       [
         {
+          invoiceNumber: invoiceNumber,
           orderId: order._id,
           storeId: order.storeId,
+          invoiceDate: new Date(), 
+          dueDate: dueDate,
+          subtotal: order.totalAmount, 
           totalAmount: order.totalAmount,
           items: order.items.map(item => ({
             productId: item.productId,
@@ -265,17 +259,11 @@ const approveAndShipOrder = async (req, res, next) => {
             unitPrice: item.unitPrice,
             subtotal: item.subtotal,
           })),
-          status: 'Pending',
-          issueDate: new Date(),
+          paymentStatus: 'Pending', 
         },
       ],
       { session }
     );
-
-    // Update order status to In_Transit
-    order.status = 'In_Transit';
-    order.shippedDate = new Date();
-    await order.save({ session });
 
     // Commit transaction
     await session.commitTransaction();
@@ -289,26 +277,113 @@ const approveAndShipOrder = async (req, res, next) => {
       { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
     ]);
 
-    await trip[0].populate([
-      { path: 'driverId', select: 'username fullName email' },
-      { path: 'orders' },
-    ]);
-
     await invoice[0].populate([
       { path: 'orderId', select: 'orderNumber totalAmount' },
-      { path: 'storeId', select: 'storeName storeCode' },
-      { path: 'items.productId', select: 'name sku' },
-      { path: 'items.batchId', select: 'batchCode' },
+      { path: 'storeId', select: 'storeName storeCode' }
     ]);
 
     res.status(200).json({
       success: true,
-      message: 'Order approved and shipped successfully',
+      message: 'Order approved successfully',
       data: {
         order,
-        trip: trip[0],
         invoice: invoice[0],
       },
+    });
+  } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * @desc    Create delivery trip from multiple approved orders
+ * @route   POST /api/logistics/trips/create
+ * @access  Private (Manager, Admin, LogisticsStaff)
+ */
+const createDeliveryTrip = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { orderIds } = req.body;
+
+    // Validate input
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      await session.abortTransaction();
+      res.status(400);
+      return next(new Error('orderIds must be a non-empty array'));
+    }
+
+    // Find all orders
+    const orders = await Order.find({ _id: { $in: orderIds } }).session(session);
+
+    // Validate all orders exist
+    if (orders.length !== orderIds.length) {
+      await session.abortTransaction();
+      res.status(404);
+      return next(new Error('One or more orders not found'));
+    }
+
+    // Validate all orders have 'Approved' status
+    const invalidOrders = orders.filter(order => order.status !== 'Approved');
+    if (invalidOrders.length > 0) {
+      await session.abortTransaction();
+      res.status(400);
+      const invalidOrderNumbers = invalidOrders.map(o => o.orderNumber || o._id).join(', ');
+      return next(
+        new Error(
+          `All orders must have 'Approved' status. Invalid orders: ${invalidOrderNumbers}`
+        )
+      );
+    }
+
+    // Create delivery trip
+    const trip = await DeliveryTrip.create(
+      [
+        {
+          orders: orderIds,
+          status: 'In_Transit',
+        },
+      ],
+      { session }
+    );
+
+    // Update all orders to In_Transit status
+    const shippedDate = new Date();
+    await Order.updateMany(
+      { _id: { $in: orderIds } },
+      {
+        $set: {
+          status: 'In_Transit',
+          shippedDate: shippedDate,
+        },
+      },
+      { session }
+    );
+
+    // Commit transaction
+    await session.commitTransaction();
+
+    // Populate trip
+    await trip[0].populate([
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku' },
+        ],
+      },
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: `Delivery trip created successfully with ${orderIds.length} orders`,
+      data: trip[0]
     });
   } catch (error) {
     if (session.inTransaction()) {
@@ -513,7 +588,6 @@ const receiveOrder = async (req, res, next) => {
     ]);
 
     await trip.populate([
-      { path: 'driverId', select: 'username fullName email' },
       { path: 'orders', select: 'orderCode status' },
     ]);
 
@@ -646,7 +720,6 @@ const getTrips = async (req, res, next) => {
     }
 
     const trips = await DeliveryTrip.find(filter)
-      .populate('driverId', 'username fullName email')
       .populate({
         path: 'orders',
         populate: [
@@ -674,7 +747,6 @@ const getTrips = async (req, res, next) => {
 const getTripById = async (req, res, next) => {
   try {
     const trip = await DeliveryTrip.findById(req.params.id)
-      .populate('driverId', 'username fullName email phone')
       .populate({
         path: 'orders',
         populate: [
@@ -692,6 +764,103 @@ const getTripById = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: trip,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update order (edit requestedDeliveryDate, notes, or items)
+ * @route   PUT /api/logistics/orders/:id
+ * @access  Private (Store Staff, Manager, Admin)
+ */
+const updateOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { requestedDeliveryDate, notes, orderItems } = req.body;
+
+    // Find order
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404);
+      return next(new Error('Order not found'));
+    }
+
+    // Check status - only Pending orders can be updated
+    if (order.status !== 'Pending') {
+      res.status(400);
+      return next(new Error('Only Pending orders can be updated'));
+    }
+
+    // Update requestedDeliveryDate if provided
+    if (requestedDeliveryDate) {
+      order.requestedDeliveryDate = new Date(requestedDeliveryDate);
+    }
+
+    // Update notes if provided
+    if (notes !== undefined) {
+      order.notes = notes;
+    }
+
+    // Update items if provided
+    if (orderItems && Array.isArray(orderItems)) {
+      const enrichedItems = [];
+      let totalAmount = 0;
+
+      for (const item of orderItems) {
+        const { productId, quantityRequested } = item;
+
+        // Validate quantity
+        if (!quantityRequested || quantityRequested < 1) {
+          res.status(400);
+          return next(
+            new Error(`Invalid quantity for product: ${productId}`)
+          );
+        }
+
+        // Fetch product to get real price
+        const product = await Product.findById(productId);
+        if (!product) {
+          res.status(400);
+          return next(new Error(`Product not found: ${productId}`));
+        }
+
+        // Calculate pricing
+        const unitPrice = product.price || 0;
+        const subtotal = unitPrice * quantityRequested;
+
+        // Accumulate total
+        totalAmount += subtotal;
+
+        // Build enriched item with pricing data
+        enrichedItems.push({
+          productId: product._id,
+          quantity: quantityRequested,
+          unitPrice,
+          subtotal,
+        });
+      }
+
+      // Replace order items and total amount
+      order.items = enrichedItems;
+      order.totalAmount = totalAmount;
+    }
+
+    // Save order
+    await order.save();
+
+    // Populate and return
+    await order.populate([
+      { path: 'storeId', select: 'storeName storeCode address' },
+      { path: 'createdBy', select: 'username fullName email' },
+      { path: 'items.productId', select: 'name sku price unit' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order updated successfully',
+      data: order,
     });
   } catch (error) {
     next(error);
@@ -843,7 +1012,9 @@ const aggregateDailyDemand = async (req, res, next) => {
 
 module.exports = {
   createOrder,
-  approveAndShipOrder,
+  updateOrder,
+  approveOrder,
+  createDeliveryTrip,
   receiveOrder,
   rejectOrder,
   getOrders,

@@ -447,76 +447,6 @@ paths:
   # ============================================================
   # FEATURE 2: INGREDIENTS (Updated with ingredientName)
   # ============================================================
-    get:
-      tags:
-        - Categories
-      summary: Get category by ID
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Category ID
-      responses:
-        '200':
-          description: Successfully retrieved category
-        '404':
-          description: Category not found
-    put:
-      tags:
-        - Categories
-      summary: Update category
-      description: Update an existing category (Admin, Kitchen_Manager only)
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Category ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                categoryName:
-                  type: string
-                  example: 'Bánh Dẻo'
-      responses:
-        '200':
-          description: Category updated successfully
-        '400':
-          description: Invalid input or duplicate category name
-        '404':
-          description: Category not found
-    delete:
-      tags:
-        - Categories
-      summary: Delete category
-      description: Delete a category (Admin, Kitchen_Manager only). Cannot delete if category is used by products.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Category ID
-      responses:
-        '200':
-          description: Category deleted successfully
-        '400':
-          description: Cannot delete - category is in use
-        '404':
-          description: Category not found
 
   /api/ingredients:
     get:
@@ -893,164 +823,6 @@ paths:
   # ============================================================
   # FEATURE 3: PRODUCTS (with Recipe & Bundles)
   # ============================================================
-    get:
-      tags:
-        - Ingredients
-      summary: Get all ingredients
-      description: Retrieve list of all raw materials and ingredients
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully retrieved ingredients
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  count:
-                    type: integer
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        _id:
-                          type: string
-                        ingredientName:
-                          type: string
-                        unit:
-                          type: string
-                        costPrice:
-                          type: number
-                        warningThreshold:
-                          type: number
-                        createdAt:
-                          type: string
-                        updatedAt:
-                          type: string
-    post:
-      tags:
-        - Ingredients
-      summary: Create ingredient
-      description: Create a new ingredient (Admin, Kitchen_Manager only)
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - ingredientName
-                - unit
-                - costPrice
-                - warningThreshold
-              properties:
-                ingredientName:
-                  type: string
-                  example: 'Bột mì'
-                unit:
-                  type: string
-                  example: 'kg'
-                  description: 'Unit of measurement (stored in lowercase)'
-                costPrice:
-                  type: number
-                  example: 20000
-                  description: 'Cost per unit in VND'
-                warningThreshold:
-                  type: number
-                  example: 10
-                  description: 'Low stock alert threshold'
-      responses:
-        '201':
-          description: Ingredient created successfully
-        '400':
-          description: Invalid input or duplicate ingredient name
-
-  /api/ingredients/{id}:
-    get:
-      tags:
-        - Ingredients
-      summary: Get ingredient by ID
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Ingredient ID
-      responses:
-        '200':
-          description: Successfully retrieved ingredient
-        '404':
-          description: Ingredient not found
-    put:
-      tags:
-        - Ingredients
-      summary: Update ingredient
-      description: Update an existing ingredient (Admin, Kitchen_Manager only)
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Ingredient ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                ingredientName:
-                  type: string
-                  example: 'Trứng muối'
-                unit:
-                  type: string
-                  example: 'quả'
-                costPrice:
-                  type: number
-                  example: 5000
-                warningThreshold:
-                  type: number
-                  example: 20
-      responses:
-        '200':
-          description: Ingredient updated successfully
-        '400':
-          description: Invalid input or duplicate ingredient name
-        '404':
-          description: Ingredient not found
-    delete:
-      tags:
-        - Ingredients
-      summary: Delete ingredient
-      description: Delete an ingredient (Admin, Kitchen_Manager only). Cannot delete if ingredient is used in product recipes.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Ingredient ID
-      responses:
-        '200':
-          description: Ingredient deleted successfully
-        '400':
-          description: Cannot delete - ingredient is used in recipes
-        '404':
-          description: Ingredient not found
 
   /api/products:
     get:
@@ -1947,45 +1719,25 @@ paths:
         '404':
           description: Order not found
 
-  /api/logistics/orders/{id}/cancel:
+  /api/logistics/orders/{orderId}/approve:
     post:
       tags:
         - Logistics
-      summary: Cancel order
-      description: Cancel a pending or approved order
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order cancelled successfully
-        '400':
-          description: Cannot cancel - order already shipped
-        '404':
-          description: Order not found
-
-  /api/logistics/orders/{id}/approve-and-ship:
-    post:
-      tags:
-        - Logistics
-      summary: Approve and ship order
+      summary: Approve order and deduct inventory
       description: |
-        Approves an order, creates a delivery trip, generates an invoice, and updates inventory.
-        Transitions order status from "Pending" or "Approved" to "Shipped".
+        Approve a pending order, assign batch inventory, deduct quantities, and create an invoice.
+        Transitions order status from "Pending" to "Approved" (NOT "In_Transit").
+        
+        **Traceability:** Assigns specific batches to order items for full supply chain tracking.
       security:
         - BearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: orderId
           required: true
           schema:
             type: string
-          description: Order ID
+          description: Order ID to approve
       requestBody:
         required: true
         content:
@@ -1993,21 +1745,12 @@ paths:
             schema:
               type: object
               required:
-                - driverId
-                - vehicleNumber
                 - items
               properties:
-                driverId:
-                  type: string
-                  description: ID of the driver assigned to this delivery
-                  example: '60d5ec49f1b2c8b1f8e4e1b2'
-                vehicleNumber:
-                  type: string
-                  description: Vehicle license plate or identification number
-                  example: '51A-12345'
                 items:
                   type: array
-                  description: Products being shipped with batch assignments (CRITICAL for traceability)
+                  description: Array of batch assignments for each order item (must match order items count)
+                  minItems: 1
                   items:
                     type: object
                     required:
@@ -2015,52 +1758,92 @@ paths:
                     properties:
                       batchId:
                         type: string
-                        description: 'CRITICAL: Finished batch ID for traceability (Production Plan → Batch → Delivery)'
+                        description: 'CRITICAL: Finished batch ID for traceability (Production Plan → Batch → Order)'
                         example: '60d5ec49f1b2c8b1f8e4e1c3'
             example:
-              driverId: '60d5ec49f1b2c8b1f8e4e1b2'
-              vehicleNumber: '51A-12345'
               items:
                 - batchId: '60d5ec49f1b2c8b1f8e4e1c3'
                 - batchId: '60d5ec49f1b2c8b1f8e4e1c4'
-                - batchId: '60d5ec49f1b2c8b1f8e4e1c5'
       responses:
         '200':
-          description: Order approved and shipped successfully
+          description: Order approved successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  order:
-                    $ref: '#/components/schemas/Order'
-                  deliveryTrip:
-                    $ref: '#/components/schemas/DeliveryTrip'
-                  invoice:
-                    $ref: '#/components/schemas/Invoice'
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order approved successfully'
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        $ref: '#/components/schemas/Order'
+                      invoice:
+                        $ref: '#/components/schemas/Invoice'
         '400':
-          description: Invalid input or order already shipped
+          description: Invalid input (e.g., insufficient batch quantity, wrong item count)
+        '404':
+          description: Order or batch not found
+
+  /api/logistics/orders/{orderId}/reject:
+    post:
+      tags:
+        - Logistics
+      summary: Reject/Cancel order with reason
+      description: Cancel a pending order with a cancellation reason
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID to reject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancelling the order
+                  example: 'Insufficient inventory to fulfill order'
+      responses:
+        '200':
+          description: Order cancelled successfully
+        '400':
+          description: Cannot cancel - order not in Pending status
         '404':
           description: Order not found
 
-  /api/logistics/orders/{id}/receive:
+  /api/logistics/orders/{orderId}/receive:
     post:
       tags:
         - Logistics
       summary: Receive order at store
       description: |
         Mark an order as received by the store (QR scan or manual confirmation).
-        Updates delivery trip status to "Delivered", updates store inventory, 
-        and transitions order status to "Received".
+        Updates store inventory and transitions order status to "Received".
+        When all orders in a delivery trip are received, the trip status is updated to "Completed".
       security:
         - BearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: orderId
           required: true
           schema:
             type: string
-          description: Order ID
+          description: Order ID to receive
       responses:
         '200':
           description: Order received successfully
@@ -2082,62 +1865,20 @@ paths:
         '404':
           description: Order or delivery trip not found
 
-  /api/logistics/delivery-trips:
-    get:
-      tags:
-        - Logistics
-      summary: Get all delivery trips
-      description: |
-        Retrieve all delivery trips with optional filtering.
-        
-        **CRITICAL TRACEABILITY:** Each trip links orders to specific finished batches via exportDetails.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [Pending, InTransit, Completed, Cancelled]
-          description: Filter by trip status
-        - in: query
-          name: storeId
-          schema:
-            type: string
-          description: Filter by destination store
-        - in: query
-          name: orderId
-          schema:
-            type: string
-          description: Filter by order
-      responses:
-        '200':
-          description: Successfully retrieved delivery trips
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/DeliveryTrip'
+  /api/logistics/trips/create:
     post:
       tags:
         - Logistics
-      summary: Create delivery trip (CRITICAL for Traceability)
+      summary: Create delivery trip from multiple approved orders
       description: |
-        Create a new delivery trip to ship orders to stores.
+        Create a new delivery trip that groups multiple approved orders into a single shipment.
         
-        **CRITICAL WORKFLOW:**
-        1. Kitchen Manager reviews the approved order
-        2. Assigns specific finished batches to fulfill the order using FEFO logic (First Expired, First Out)
-        3. Backend auto-generates unique tripNumber (e.g., TRIP-20260202-001)
-        4. exportDetails creates the traceability link: Production Plan → Finished Batch → Delivery Trip → Store Inventory
+        **NEW WORKFLOW:**
+        1. Manager reviews multiple 'Approved' orders
+        2. Groups them into a single delivery trip
+        3. All orders transition from 'Approved' to 'In_Transit'
         
-        **Security:** userId extracted from Bearer Token to track who created the trip.
+        **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
         - BearerAuth: []
       requestBody:
@@ -2147,62 +1888,18 @@ paths:
             schema:
               type: object
               required:
-                - orderId
-                - storeId
-                - departureDate
-                - estimatedArrival
-                - exportDetails
+                - orderIds
               properties:
-                orderId:
-                  type: string
-                  description: 'Order being fulfilled'
-                  example: '60d5ec49f1b2c8b1f8e4e1a9'
-                storeId:
-                  type: string
-                  description: 'Destination store'
-                  example: '60d5ec49f1b2c8b1f8e4e1a7'
-                driverId:
-                  type: string
-                  description: 'Optional: Driver/coordinator assigned to this trip'
-                  example: '60d5ec49f1b2c8b1f8e4e1b2'
-                departureDate:
-                  type: string
-                  format: date-time
-                  example: '2026-02-05T08:00:00Z'
-                  description: 'Scheduled departure time'
-                estimatedArrival:
-                  type: string
-                  format: date-time
-                  example: '2026-02-05T08:45:00Z'
-                  description: 'Estimated arrival time at store'
-                exportDetails:
+                orderIds:
                   type: array
-                  description: 'CRITICAL: List of items with specific batch assignments (FEFO logic)'
+                  description: 'Array of order IDs to include in this delivery trip (all must have "Approved" status)'
                   minItems: 1
                   items:
-                    type: object
-                    required:
-                      - productId
-                      - batchId
-                      - quantity
-                    properties:
-                      productId:
-                        type: string
-                        description: 'Product being shipped'
-                        example: '60d5ec49f1b2c8b1f8e4e1a5'
-                      batchId:
-                        type: string
-                        description: 'CRITICAL: Specific finished batch (Kitchen Manager assigns using FEFO)'
-                        example: '60d5ec49f1b2c8b1f8e4e1a8'
-                      quantity:
-                        type: number
-                        minimum: 1
-                        example: 20
-                        description: 'Quantity from this batch'
-                  example:
-                    - productId: '60d5ec49f1b2c8b1f8e4e1a5'
-                      batchId: '60d5ec49f1b2c8b1f8e4e1a8'
-                      quantity: 20
+                    type: string
+                    description: 'Order ObjectId'
+                  example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
+            example:
+              orderIds: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
       responses:
         '201':
           description: Delivery trip created successfully
@@ -2213,19 +1910,66 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Delivery trip created successfully with 3 orders'
                   data:
-                    $ref: '#/components/schemas/DeliveryTrip'
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      orders:
+                        type: array
+                        description: 'Updated orders now in In_Transit status'
+                        items:
+                          $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input or insufficient batch quantity
+          description: Invalid input (e.g., orders not in "Approved" status, empty orderIds array)
         '404':
-          description: Order, store, or batch not found
+          description: One or more orders not found
+
+  /api/logistics/delivery-trips:
+    get:
+      tags:
+        - Logistics
+      summary: Get all delivery trips
+      description: |
+        Retrieve all delivery trips with optional filtering.
+        
+        **TRACEABILITY:** Each trip contains multiple orders that were grouped for delivery.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [In_Transit, Completed, Cancelled]
+          description: Filter by trip status
+      responses:
+        '200':
+          description: Successfully retrieved delivery trips
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeliveryTrip'
 
   /api/logistics/delivery-trips/{id}:
     get:
       tags:
         - Logistics
       summary: Get delivery trip by ID
-      description: Retrieve detailed delivery trip information with batch traceability
+      description: Retrieve detailed delivery trip information with all associated orders
       security:
         - BearerAuth: []
       parameters:
@@ -2234,6 +1978,7 @@ paths:
           required: true
           schema:
             type: string
+          description: Delivery Trip ID
       responses:
         '200':
           description: Successfully retrieved delivery trip
@@ -2248,28 +1993,6 @@ paths:
                     $ref: '#/components/schemas/DeliveryTrip'
         '404':
           description: Delivery trip not found
-
-  /api/logistics/delivery-trips/{id}/depart:
-    post:
-      tags:
-        - Logistics
-      summary: Mark trip as departed
-      description: Update trip status to InTransit and record actual departure time
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Trip marked as departed
-        '400':
-          description: Trip already departed or cancelled
-        '404':
-          description: Trip not found
 
   /api/logistics/invoices:
     get:
@@ -2704,10 +2427,6 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden - Admin access required
-
-  paths:
-  # Route cho Create User
-  /api/users:
     post:
       tags:
         - Users
@@ -2758,7 +2477,6 @@ paths:
         '403':
           description: Forbidden (Admin/Manager only)
 
-  # Route cho GetById, Update, Delete
   /api/users/{id}:
     parameters:
       - in: path
@@ -3244,70 +2962,31 @@ components:
     DeliveryTrip:
       type: object
       required:
-        - tripNumber
-        - orderId
-        - storeId
-        - departureDate
-        - estimatedArrival
-        - exportDetails
+        - orders
+        - status
       properties:
         _id:
           type: string
-        tripNumber:
-          type: string
-          example: 'TRIP-20260130-001'
-          description: 'Unique trip number (auto-uppercase)'
-        orderId:
-          type: string
-          description: 'Order being fulfilled by this trip'
-        storeId:
-          type: string
-          description: 'Destination store'
-        driverId:
-          type: string
-          description: 'Driver/coordinator assigned to trip'
-        exportDetails:
+          description: 'Trip ID'
+          example: '60d5ec49f1b2c8b1f8e4e1d1'
+        orders:
           type: array
-          description: 'CRITICAL: Items shipped with batch assignments. Kitchen Manager uses FEFO (First Expired, First Out) logic to select batches. This creates the traceability link from Finished Batch to Store Inventory.'
+          description: 'Array of Order IDs included in this delivery trip (CRITICAL: Multiple orders per trip)'
           items:
-            type: object
-            required:
-              - productId
-              - batchId
-              - quantity
-            properties:
-              productId:
-                type: string
-                description: 'Product being shipped'
-                example: '60d5ec49f1b2c8b1f8e4e1a5'
-              batchId:
-                type: string
-                description: 'CRITICAL: Traceability link to Finished Batch. This specific batch will be tracked to store inventory.'
-                example: '60d5ec49f1b2c8b1f8e4e1a8'
-              quantity:
-                type: number
-                minimum: 1
-                example: 20
-                description: 'Quantity from this specific batch'
-        departureDate:
-          type: string
-          format: date-time
-          example: '2026-01-30T08:00:00Z'
-          description: 'Scheduled/actual departure time'
-        estimatedArrival:
-          type: string
-          format: date-time
-          example: '2026-01-30T08:45:00Z'
-          description: 'Estimated arrival time'
-        actualArrival:
-          type: string
-          format: date-time
-          description: 'Actual arrival time (set when received)'
+            type: string
+            description: 'Order ObjectId'
+          example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Pending, InTransit, Completed, Cancelled]
-          default: Pending
+          enum: [In_Transit, Completed, Cancelled]
+          default: In_Transit
           description: 'Current trip status'
+        completedTime:
+          type: string
+          format: date-time
+          description: 'Completion timestamp (set when all orders are received)'
+          nullable: true
+          example: '2026-02-05T09:30:00Z'
         createdAt:
           type: string
           format: date-time

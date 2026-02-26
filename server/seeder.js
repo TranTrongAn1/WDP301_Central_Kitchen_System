@@ -955,31 +955,22 @@ const importData = async () => {
     // Create Delivery Trips for In_Transit orders
     console.log('\n--- Creating Delivery Trips for In_Transit Orders ---');
     const trip1 = await DeliveryTrip.create({
-      driverId: coordinatorUser._id,
-      vehicleNumber: '51A-12345',
       orders: [transitOrder1._id, transitOrder2._id],
       status: 'In_Transit',
-      departureTime: new Date('2026-02-04T08:00:00'),
     });
-    console.log(`✅ Delivery Trip created: ${trip1._id} (Driver: ${coordinatorUser.fullName}, 2 orders)`);
+    console.log(`✅ Delivery Trip created: ${trip1._id} (2 orders)`);
 
     const trip2 = await DeliveryTrip.create({
-      driverId: coordinatorUser._id,
-      vehicleNumber: '51B-67890',
       orders: [transitOrder3._id, transitOrder4._id],
       status: 'In_Transit',
-      departureTime: new Date('2026-02-05T08:30:00'),
     });
-    console.log(`✅ Delivery Trip created: ${trip2._id} (Driver: ${coordinatorUser.fullName}, 2 orders)`);
+    console.log(`✅ Delivery Trip created: ${trip2._id} (2 orders)`);
 
     const trip3 = await DeliveryTrip.create({
-      driverId: coordinatorUser._id,
-      vehicleNumber: '51C-11111',
       orders: [transitOrder5._id],
       status: 'In_Transit',
-      departureTime: new Date('2026-02-05T09:00:00'),
     });
-    console.log(`✅ Delivery Trip created: ${trip3._id} (Driver: ${coordinatorUser.fullName}, 1 order)`);
+    console.log(`✅ Delivery Trip created: ${trip3._id} (1 order)`);
 
     // === RECEIVED ORDERS (5) with Store Inventory ===
     console.log('\n--- Creating 5 RECEIVED Orders with Store Inventory ---');

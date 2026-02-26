@@ -25,16 +25,6 @@ const deliveryTripSchema = new mongoose.Schema(
       uppercase: true,
       default: generateTripCode,
     },
-    driverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Driver is required'],
-    },
-    vehicleNumber: {
-      type: String,
-      trim: true,
-      uppercase: true,
-    },
     orders: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -48,9 +38,6 @@ const deliveryTripSchema = new mongoose.Schema(
         message: '{VALUE} is not a valid status',
       },
       default: 'Pending',
-    },
-    departureTime: {
-      type: Date,
     },
     completedTime: {
       type: Date,
@@ -74,7 +61,6 @@ deliveryTripSchema.pre('save', function () {
 });
 
 // Indexes for faster queries
-deliveryTripSchema.index({ driverId: 1 });
 deliveryTripSchema.index({ status: 1 });
 // tripCode already has unique: true index
 
