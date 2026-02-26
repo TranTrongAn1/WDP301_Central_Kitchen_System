@@ -24,11 +24,19 @@ app.use(cors({
   origin: [
     'http://localhost:5173', // Vite (Frontend chính của bạn)
     'http://localhost:3000', // React thường (nếu có)
-    'http://localhost:8081'  // Mobile hoặc App khác (nếu có)
+    'http://localhost:8081', // Mobile hoặc App khác (nếu có)
+    'https://pay.payos.vn'   // PayOS production domain for webhooks
   ],
   credentials: true, // Cho phép gửi cookie/token
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept',
+    'x-api-key',      // PayOS API authentication header
+    'x-client-id'     // PayOS client identification header
+  ],
 }));
 
 // Load Swagger documentation
@@ -76,6 +84,7 @@ app.use('/api/docs', require('./routes/docsRoutes'));
 app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/logistics', require('./routes/logisticsRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 
 // 404 handler
 app.use((req, res, next) => {

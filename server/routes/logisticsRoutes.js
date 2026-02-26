@@ -11,6 +11,7 @@ const {
   getTrips,
   getTripById,
   aggregateDailyDemand,
+  recordPayment,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -75,5 +76,14 @@ router.get('/delivery-trips', getTrips);
 
 // Get single delivery trip by ID
 router.get('/delivery-trips/:id', getTripById);
+
+// ===== INVOICE ROUTES =====
+
+// Record payment for an invoice (Store Staff, Manager, Admin)
+router.post(
+  '/invoices/:id/payment',
+  authorize('StoreStaff', 'Manager', 'Admin'),
+  recordPayment
+);
 
 module.exports = router;

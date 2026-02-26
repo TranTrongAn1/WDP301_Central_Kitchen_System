@@ -1010,6 +1010,68 @@ const aggregateDailyDemand = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Record payment for an invoice
+ * @route   POST /api/logistics/invoices/:id/payment
+ * @access  Private (Store Staff, Manager, Admin)
+ */
+const recordPayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { amount, paymentDate, paymentMethod } = req.body;
+
+    // Validate amount
+    if (!amount || Number(amount) <= 0) {
+      res.status(400);
+      return next(new Error('Payment amount must be greater than 0'));
+    }
+
+    // Find invoice
+    const invoice = await Invoice.findById(id)
+      .populate('orderId', 'orderNumber totalAmount')
+      .populate('storeId', 'storeName storeCode');
+
+    if (!invoice) {
+      res.status(404);
+      return next(new Error('Invoice not found'));
+    }
+
+    // Check if already fully paid
+    if (invoice.paymentStatus === 'Paid') {
+      res.status(400);
+      return next(new Error('Invoice is already fully paid'));
+    }
+
+    // Record payment
+    invoice.paidAmount += Number(amount);
+    invoice.paymentDate = paymentDate ? new Date(paymentDate) : new Date();
+    
+    // Update payment method if provided
+    if (paymentMethod) {
+      invoice.paymentMethod = paymentMethod;
+    }
+
+    // Update payment status based on paid amount
+    if (invoice.paidAmount >= invoice.totalAmount) {
+      invoice.paymentStatus = 'Paid';
+      invoice.paidAmount = invoice.totalAmount; // Cap at total amount
+    } else if (invoice.paidAmount > 0) {
+      invoice.paymentStatus = 'Partial';
+    }
+
+    // Save invoice
+    await invoice.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment recorded successfully',
+      data: invoice,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrder,
   updateOrder,
@@ -1022,4 +1084,5 @@ module.exports = {
   getTrips,
   getTripById,
   aggregateDailyDemand,
+  recordPayment,
 };
