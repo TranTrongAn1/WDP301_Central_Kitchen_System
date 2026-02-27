@@ -1,5 +1,5 @@
 import  { useEffect, useState } from 'react';
-import { OrderApi, type Order as OrderType } from '../../../api/OrderApi.tsx';
+import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useNavigate } from 'react-router-dom';
 
