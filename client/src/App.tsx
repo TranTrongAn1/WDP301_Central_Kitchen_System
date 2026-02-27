@@ -41,7 +41,7 @@ import Shipment from './features/coordinator/pages/Shipment';
 import Inventory from './features/coordinator/pages/Inventory';
 import IssuseReport from './features/coordinator/pages/IssuseReport';
 import OrderDetail from './features/coordinator/pages/OrderDetail';
-
+import ShipmentDetail from './features/coordinator/pages/ShipmentDetail';
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && user) {
@@ -159,6 +159,7 @@ function App() {
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
               <Route path="/orders/:id" element={<OrderDetail />} />
+              <Route path="/shipments/:id" element={<ShipmentDetail />} />
             </Route>
           </Route>
 
