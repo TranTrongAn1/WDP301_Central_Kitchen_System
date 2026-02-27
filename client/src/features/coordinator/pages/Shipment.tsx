@@ -7,7 +7,7 @@ import {
     InboxStackIcon
 } from '@heroicons/react/24/outline';
 import DeliveryTripApi, { type ITrip } from '../../../api/DeliveryTripApi';
-import { OrderApi, type Order } from '../../../api/OrderApi.tsx';
+import { OrderApi, type Order } from '../../../api/OrderApi';
 import { toast } from 'react-toastify';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 
