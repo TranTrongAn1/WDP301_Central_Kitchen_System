@@ -21,9 +21,18 @@ app.use(express.urlencoded({ extended: true }));
 // CORS middleware - Cấu hình cho cả Development, Production và PayOS Webhook
 app.use(cors({
   origin: [
+    // Local Development
     'http://localhost:5173', // Vite (Frontend chính của bạn)
     'http://localhost:3000', // React thường (nếu có)
     'http://localhost:8081', // Mobile hoặc App khác (nếu có)
+    
+    // Production - Frontend (Vercel)
+    'https://wdp301-central-kitchen-system.vercel.app',
+    
+    // Production - Backend (Render)
+    'https://wdp301-central-kitchen-system.onrender.com',
+    
+    // PayOS Webhook
     'https://pay.payos.vn'   // PayOS production domain for webhooks
   ],
   credentials: true, // Cho phép gửi cookie/token
@@ -104,13 +113,18 @@ if (process.env.NODE_ENV !== 'test') {
     const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
     
     console.log(`🚀 Server is running on port ${PORT}`);
-    console.log(`📚 Swagger API documentation available at ${baseUrl}/api-docs`);
+    console.log(`📚 Swagger API documentation: ${baseUrl}/api-docs`);
     console.log(`🏥 Health check endpoint: ${baseUrl}/health`);
+    console.log(`📄 OpenAPI JSON spec: ${baseUrl}/swagger.json`);
     
     if (process.env.RENDER_EXTERNAL_URL) {
-      console.log(`🌐 Production URL: ${process.env.RENDER_EXTERNAL_URL}`);
+      console.log(`\n🌐 Production Mode (Render)`);
+      console.log(`   Backend URL: ${process.env.RENDER_EXTERNAL_URL}`);
+      console.log(`   Frontend URL: https://wdp301-central-kitchen-system.vercel.app`);
     } else {
-      console.log(`💻 Local development mode`);
+      console.log(`\n💻 Local Development Mode`);
+      console.log(`   Backend: http://localhost:${PORT}`);
+      console.log(`   Frontend: http://localhost:5173`);
     }
   });
 }
