@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
+import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
 import { productApi, type Product } from '../../../api/ProductApi'; 
 import { ingredientApi, type Ingredient, type IngredientBatch } from '../../../api/IngredientApi'; 
 import { useThemeStore } from '@/shared/zustand/themeStore';
@@ -249,7 +249,7 @@ const OrderDetail = () => {
                   </tr>
                 </thead>
                 <tbody className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {order.items.map((item, index) => {
+                  {order.items.map((item: any, index: number) => {
                     const productName = (item.productId as any)?.name || 'Sản phẩm ' + (index + 1);
                     const productPrice = (item.productId as any)?.price || item.price || 0;
                     const subtotal = productPrice * item.quantity;
