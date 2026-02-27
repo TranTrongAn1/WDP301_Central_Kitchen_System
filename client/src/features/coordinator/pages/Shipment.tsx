@@ -284,7 +284,7 @@ const Shipments = () => {
                                         className="flex-1 py-2 rounded-lg bg-orange-500 text-white font-bold text-[10px] uppercase tracking-wider hover:bg-orange-600 transition-colors flex justify-center items-center gap-1.5 shadow-md shadow-orange-500/20"
                                         title="Bắt đầu vận chuyển"
                                     >
-                                        <PaperAirplaneIcon className="w-4 h-4" /> Depart
+                                        <PaperAirplaneIcon className="w-4 h-4" /> Complete
                                     </button>
                                 </div>
                             )}
@@ -451,7 +451,7 @@ const Shipments = () => {
                         </div>
                         
                         <h3 className={`text-xl font-black uppercase tracking-tight mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                            Xác nhận khởi hành?
+                            Xác nhận complete?
                         </h3>
                         <p className={`text-sm mb-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             Chuyến xe này sẽ chuyển sang trạng thái <strong className={darkMode ? 'text-white' : 'text-black'}>In Transit</strong>. Các đơn hàng sẽ bắt đầu được giao. Bạn không thể thay đổi danh sách đơn hàng sau khi khởi hành.
