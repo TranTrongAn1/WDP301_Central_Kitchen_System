@@ -12,6 +12,9 @@ const {
   getTripById,
   aggregateDailyDemand,
   recordPayment,
+  addOrdersToTrip,
+  removeOrdersFromTrip,
+  finalizeDeliveryPlan,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -69,6 +72,27 @@ router.post(
   '/trips/create',
   authorize('Manager', 'Admin', 'Coordinator'),
   createDeliveryTrip
+);
+
+// Add orders to an existing trip (Coordinator, Manager, Admin)
+router.patch(
+  '/trips/:id/add-orders',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  addOrdersToTrip
+);
+
+// Remove orders from a trip (Coordinator, Manager, Admin)
+router.patch(
+  '/trips/:id/remove-orders',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  removeOrdersFromTrip
+);
+
+// Finalize delivery plan - start shipping (Coordinator, Manager, Admin)
+router.post(
+  '/trips/:id/finalize',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  finalizeDeliveryPlan
 );
 
 // Get all delivery trips

@@ -1996,6 +1996,203 @@ paths:
         '404':
           description: Delivery trip not found
 
+  /api/logistics/trips/{id}/add-orders:
+    patch:
+      tags:
+        - Logistics
+      summary: Add orders to delivery trip
+      description: |
+        Add multiple 'Approved' orders to an existing delivery trip (Planning phase).
+        
+        **Requirements:**
+        - Trip must be in 'Planning' status
+        - All orders must have 'Approved' status
+        - Duplicate order IDs are automatically prevented
+        
+        **Workflow:** Coordinator builds trip by adding approved orders one by one or in batches.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderIds
+              properties:
+                orderIds:
+                  type: array
+                  items:
+                    type: string
+                  description: 'Array of Order IDs to add to the trip'
+                  example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
+      responses:
+        '200':
+          description: Orders added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: 'Added 2 orders to delivery trip (1 duplicates skipped)'
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      ordersAdded:
+                        type: integer
+                        example: 2
+                      duplicatesSkipped:
+                        type: integer
+                        example: 1
+        '400':
+          description: Invalid input (e.g., trip not in Planning status, orders not Approved)
+        '404':
+          description: Delivery trip or orders not found
+
+  /api/logistics/trips/{id}/remove-orders:
+    patch:
+      tags:
+        - Logistics
+      summary: Remove orders from delivery trip
+      description: |
+        Remove specific orders from a delivery trip and set them back to 'Approved' status.
+        
+        **Requirements:**
+        - Trip must NOT be 'In_Transit' or 'Completed'
+        - Removed orders are set back to 'Approved' (not rejected)
+        
+        **Use Case:** Coordinator adjusts trip composition during planning phase.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderIds
+              properties:
+                orderIds:
+                  type: array
+                  items:
+                    type: string
+                  description: 'Array of Order IDs to remove from the trip'
+                  example: ['60d5ec49f1b2c8b1f8e4e1a9']
+      responses:
+        '200':
+          description: Orders removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: 'Removed 1 orders from delivery trip. Orders set back to Approved status for reassignment.'
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      ordersRemoved:
+                        type: integer
+                        example: 1
+                      ordersUpdated:
+                        type: integer
+                        example: 1
+                      remainingOrders:
+                        type: integer
+                        example: 2
+        '400':
+          description: Invalid operation (e.g., trip is In_Transit or Completed)
+        '404':
+          description: Delivery trip not found
+
+  /api/logistics/trips/{id}/finalize:
+    post:
+      tags:
+        - Logistics
+      summary: Finalize delivery plan and start shipping
+      description: |
+        Officially start the shipping process by finalizing the delivery trip.
+        
+        **Actions:**
+        - Updates trip status from 'Planning' to 'In_Transit'
+        - Updates all orders in trip to 'In_Transit' status
+        - Sets shippedDate timestamp for all orders
+        - Sets trip departureTime timestamp
+        
+        **Requirements:**
+        - Trip must have at least one order
+        - Trip must not already be finalized
+        
+        **Workflow:** Coordinator finalizes trip when ready to ship. After this, trip cannot be modified.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      responses:
+        '200':
+          description: Delivery plan finalized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: 'Delivery plan finalized successfully. 3 orders moved to In_Transit status.'
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      ordersUpdated:
+                        type: integer
+                        example: 3
+                      shippedDate:
+                        type: string
+                        format: date-time
+                        example: '2026-02-05T08:00:00Z'
+                      totalOrders:
+                        type: integer
+                        example: 3
+        '400':
+          description: Invalid operation (e.g., trip already finalized, no orders in trip)
+        '404':
+          description: Delivery trip not found
+
   /api/logistics/invoices:
     get:
       tags:
@@ -3157,9 +3354,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [In_Transit, Completed, Cancelled]
-          default: In_Transit
-          description: 'Current trip status'
+          enum: [Planning, Pending, In_Transit, Completed, Cancelled]
+          default: Planning
+          description: 'Current trip status. Planning → In_Transit (finalized) → Completed (received)'
         completedTime:
           type: string
           format: date-time

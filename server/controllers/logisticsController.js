@@ -1,29 +1,23 @@
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
-const DeliveryTrip = require('../models/DeliveryTrip');
-const Batch = require('../models/BatchModel');
-const StoreInventory = require('../models/StoreInventory');
 const Store = require('../models/Store');
 const Product = require('../models/Product');
+const Batch = require('../models/BatchModel');
+const DeliveryTrip = require('../models/DeliveryTrip');
 const Invoice = require('../models/Invoice');
+const SystemSetting = require('../models/SystemSetting');
+const StoreInventory = require('../models/StoreInventory');
 
 /**
- * @desc    Create a new order
+ * @desc    Create new order from store
  * @route   POST /api/logistics/orders
- * @access  Private (Store Staff, Manager)
+ * @access  Private (Store Manager, Admin)
  */
 const createOrder = async (req, res, next) => {
   try {
-    // STEP 0: Defensive Check - Prevent Crash on Empty Body
+    const { storeId, requestedDeliveryDate, items, notes } = req.body;
+
     // ========================================
-    if (!req.body || Object.keys(req.body).length === 0) {
-      console.error('❌ [createOrder] Request body is empty or missing');
-      res.status(400);
-      return next(new Error('Request body is required. Please ensure Content-Type: application/json header is set.'));
-    }
-
-    const { storeId, items, notes, requestedDeliveryDate } = req.body;
-
     // STEP 1: Validation - Basic Input
     // ========================================
     
@@ -45,6 +39,7 @@ const createOrder = async (req, res, next) => {
       return next(new Error('Requested delivery date is required'));
     }
 
+    // ========================================
     // STEP 2: Validate Store Existence & Status
     // ========================================
     const store = await Store.findById(storeId);
@@ -90,74 +85,75 @@ const createOrder = async (req, res, next) => {
     // STEP 5: Process Order Items - Fetch Prices & Calculate
     // ========================================
     const orderItems = [];
-    // Validate items
-    if (!items || items.length === 0) {
-      res.status(400);
-      return next(new Error('Order must have at least one item'));
-    }
-
-    // Process items: fetch real prices from Product collection
-    const enrichedItems = [];
     let totalAmount = 0;
 
     for (const item of items) {
       const { productId, quantityRequested } = item;
 
-      // Validate quantity
-      if (!quantityRequested || quantityRequested < 1) {
+      // Validate item fields
+      if (!productId) {
         res.status(400);
-        return next(
-          new Error(`Invalid quantity for product: ${productId}`)
-        );
+        return next(new Error('Each item must have productId'));
       }
 
-      // Fetch product to get real price
+      if (!quantityRequested || quantityRequested < 1) {
+        res.status(400);
+        return next(new Error('Each item must have quantityRequested of at least 1'));
+      }
+
+      // Fetch product to get current price (NEVER trust client-sent prices)
       const product = await Product.findById(productId);
       if (!product) {
-        res.status(400);
+        res.status(404);
         return next(new Error(`Product not found: ${productId}`));
       }
 
-      // Calculate pricing
-      const unitPrice = product.price || 0;
+      // Calculate subtotal using current product price
+      const unitPrice = product.price;
       const subtotal = unitPrice * quantityRequested;
 
-      // Accumulate total
-      totalAmount += subtotal;
-
-      // Build enriched item with pricing data
-      enrichedItems.push({
-        productId: product._id,
-        quantity: quantityRequested,
+      // Add to order items
+      // NOTE: batchId is NOT set at this stage - assigned during approval/shipment
+      orderItems.push({
+        productId,
+        quantityRequested,
+        quantity: quantityRequested, // Initially same as requested
         unitPrice,
         subtotal,
+        // batchId: will be assigned during fulfillment (approve/ship phase)
       });
+
+      // Add to total amount
+      totalAmount += subtotal;
     }
 
     // ========================================
     // STEP 6: Create Order Document
     // ========================================
     const order = await Order.create({
+      orderNumber,
       storeId,
-      createdBy: req.user._id,
-      requestedDeliveryDate: new Date(requestedDeliveryDate),
-      items: enrichedItems,
+      orderDate: new Date(),
+      requestedDeliveryDate: deliveryDate,
+      items: orderItems, // Note: using 'items' field name per model
       totalAmount,
+      status: 'Pending',
       notes: notes || '',
+      createdBy: req.user ? req.user._id : null, // Track who created the order
     });
 
     // ========================================
     // STEP 7: Populate and Return Response
     // ========================================
     await order.populate([
-      { path: 'storeId', select: 'storeName storeCode address' },
-      { path: 'createdBy', select: 'username fullName email' },
-      { path: 'items.productId', select: 'name sku price unit' },
+      { path: 'storeId', select: 'storeName storeCode address phone' },
+      { path: 'items.productId', select: 'name sku price unit categoryId' },
+      { path: 'createdBy', select: 'fullName email' },
     ]);
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: 'Order created successfully. Awaiting approval from Kitchen Manager.',
       data: order,
     });
   } catch (error) {
@@ -166,211 +162,537 @@ const createOrder = async (req, res, next) => {
 };
 
 /**
- * @desc    Approve order (assign batches, deduct inventory, create invoice)
+ * @desc    Approve order and deduct inventory
  * @route   POST /api/logistics/orders/:orderId/approve
- * @access  Private (Manager, Admin)
+ * @access  Private (Admin, Manager)
  */
-const approveOrder = async (req, res, next) => {
+const approveAndShipOrder = async (req, res, next) => {
+  // Start transaction for data consistency
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  let transactionAborted = false;
+
   try {
     const { orderId } = req.params;
-    const { items } = req.body;
+    const { items: batchAssignments } = req.body;
 
-    // Find order
-    const order = await Order.findById(orderId).session(session);
+    // ========================================
+    // STEP 1: Validation - Fetch Order
+    // ========================================
+    const order = await Order.findById(orderId)
+      .populate('storeId')
+      .populate('items.productId')
+      .session(session);
+
     if (!order) {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(404);
-      return next(new Error('Order not found'));
+      throw new Error('Order not found');
     }
 
-    // Check status
+    // Check if order is in Pending status
     if (order.status !== 'Pending') {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      return next(new Error('Can only approve orders with Pending status'));
+      throw new Error(`Order status is '${order.status}'. Only 'Pending' orders can be approved.`);
     }
 
-    // Validate and assign batches to items
-    if (!items || items.length !== order.items.length) {
+    // Validate batch assignments
+    if (!batchAssignments || !Array.isArray(batchAssignments)) {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      return next(new Error('Must provide batch assignments for all items'));
+      throw new Error('Batch assignments are required');
     }
 
-    // Process each item and deduct from batch
-    for (let i = 0; i < items.length; i++) {
-      const { batchId } = items[i];
+    // Ensure batch assignments match order items count
+    if (batchAssignments.length !== order.items.length) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(
+        `Batch assignments count (${batchAssignments.length}) must match order items count (${order.items.length})`
+      );
+    }
+
+    // ========================================
+    // STEP 2: Fetch System Settings
+    // ========================================
+    const shippingCostSetting = await SystemSetting.findOne({ 
+      key: 'SHIPPING_COST_BASE' 
+    }).session(session);
+
+    const shippingCost = shippingCostSetting 
+      ? parseFloat(shippingCostSetting.value) 
+      : 0;
+
+    const taxRateSetting = await SystemSetting.findOne({ 
+      key: 'TAX_RATE' 
+    }).session(session);
+
+    const taxRate = taxRateSetting 
+      ? parseFloat(taxRateSetting.value) * 100 // Convert 0.08 to 8
+      : 0;
+
+    // ========================================
+    // STEP 3: Process Items - Assign Batches & Deduct Inventory
+    // ========================================
+    const batchUpdates = [];
+
+    for (let i = 0; i < order.items.length; i++) {
       const orderItem = order.items[i];
+      const batchAssignment = batchAssignments[i];
+      const requiredQuantity = orderItem.quantity;
 
-      const batch = await Batch.findById(batchId).session(session);
-      if (!batch) {
+      // Validate batchId is provided
+      if (!batchAssignment.batchId) {
+        transactionAborted = true;
         await session.abortTransaction();
         res.status(400);
-        return next(new Error(`Batch not found: ${batchId}`));
+        throw new Error(`Batch ID is required for item ${i + 1}`);
       }
 
-      // Check if batch has enough quantity
-      if (orderItem.quantity > batch.currentQuantity) {
+      // Fetch the batch
+      const batch = await Batch.findById(batchAssignment.batchId).session(session);
+
+      if (!batch) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(404);
+        throw new Error(`Batch not found: ${batchAssignment.batchId}`);
+      }
+
+      // Verify batch has enough stock
+      if (batch.currentQuantity < requiredQuantity) {
+        transactionAborted = true;
         await session.abortTransaction();
         res.status(400);
-        return next(
-          new Error(
-            `Insufficient quantity for batch ${batch.batchCode}. Available: ${batch.currentQuantity}, Required: ${orderItem.quantity}`
-          )
+        throw new Error(
+          `Insufficient stock in batch ${batch.batchCode}. ` +
+          `Required: ${requiredQuantity}, Available: ${batch.currentQuantity}`
         );
       }
 
-      // Deduct from batch
-      batch.currentQuantity -= orderItem.quantity;
-      await batch.save({ session });
+      // Verify batch is for the correct product
+      if (batch.productId.toString() !== orderItem.productId._id.toString()) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(400);
+        throw new Error(
+          `Batch ${batch.batchCode} is for a different product than ordered`
+        );
+      }
+
+      // Check if batch is expired
+      if (batch.expDate < new Date()) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(400);
+        throw new Error(`Batch ${batch.batchCode} is expired`);
+      }
 
       // Assign batchId to order item
-      orderItem.batchId = batchId;
+      orderItem.batchId = batch._id;
+
+      // Prepare batch update (deduct inventory)
+      batchUpdates.push({
+        batchId: batch._id,
+        batchCode: batch.batchCode,
+        productName: orderItem.productId.name,
+        quantityDeducted: requiredQuantity,
+        newQuantity: batch.currentQuantity - requiredQuantity,
+      });
     }
 
-    // Update order status to Approved (NOT In_Transit)
+    // ========================================
+    // STEP 4: Update Batch Quantities
+    // ========================================
+    for (const update of batchUpdates) {
+      await Batch.findByIdAndUpdate(
+        update.batchId,
+        { currentQuantity: update.newQuantity },
+        { session }
+      );
+    }
+
+    // ========================================
+    // STEP 5: Update Order Status to Approved
+    // ========================================
     order.status = 'Approved';
-    order.approvedBy = req.user._id;
-    order.approvedDate = new Date();
+    order.approvedBy = req.user ? req.user._id : null;
+    order.approvedAt = new Date();
     await order.save({ session });
 
-    // Create invoice for the order
-    const invoiceNumber = `INV-${Date.now()}`;
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 14); // Due date: 14 days after creation
+    // ========================================
+    // STEP 6: Create Invoice
+    // ========================================
+    const invoiceNumber = `INV-${order.orderCode || order.orderNumber || order._id}`;
+    const invoiceDate = new Date();
+    const dueDate = new Date(invoiceDate);
+    dueDate.setDate(dueDate.getDate() + 30); // 30 days payment terms
+
+    // Include shipping cost in subtotal
+    const subtotal = order.totalAmount + shippingCost;
 
     const invoice = await Invoice.create(
       [
         {
-          invoiceNumber: invoiceNumber,
+          invoiceNumber,
           orderId: order._id,
-          storeId: order.storeId,
-          invoiceDate: new Date(), 
-          dueDate: dueDate,
-          subtotal: order.totalAmount, 
-          totalAmount: order.totalAmount,
-          items: order.items.map(item => ({
-            productId: item.productId,
-            batchId: item.batchId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
-          })),
-          paymentStatus: 'Pending', 
+          storeId: order.storeId._id,
+          invoiceDate,
+          dueDate,
+          subtotal,
+          taxRate,
+          paymentStatus: 'Pending',
+          paidAmount: 0,
         },
       ],
       { session }
     );
 
-    // Commit transaction
+    // ========================================
+    // STEP 7: Commit Transaction
+    // ========================================
     await session.commitTransaction();
 
-    // Populate and return
+    // Populate response data
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address' },
-      { path: 'createdBy', select: 'username fullName email' },
-      { path: 'approvedBy', select: 'username fullName email' },
-      { path: 'items.productId', select: 'name sku price' },
+      { path: 'items.productId', select: 'name sku' },
       { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
+      { path: 'approvedBy', select: 'fullName email' },
     ]);
 
     await invoice[0].populate([
-      { path: 'orderId', select: 'orderNumber totalAmount' },
-      { path: 'storeId', select: 'storeName storeCode' }
+      { path: 'orderId', select: 'orderCode orderNumber' },
+      { path: 'storeId', select: 'storeName storeCode' },
     ]);
 
     res.status(200).json({
       success: true,
-      message: 'Order approved successfully',
+      message: 'Order approved successfully. Inventory deducted and invoice created.',
       data: {
         order,
         invoice: invoice[0],
+        batchUpdates,
+        itemsProcessed: batchUpdates.length,
       },
     });
   } catch (error) {
-    if (session.inTransaction()) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
       await session.abortTransaction();
     }
     next(error);
   } finally {
+    // End session
     session.endSession();
   }
 };
 
 /**
- * @desc    Create delivery trip from multiple approved orders
- * @route   POST /api/logistics/trips/create
- * @access  Private (Manager, Admin, LogisticsStaff)
+ * @desc    Receive order at store and update inventory
+ * @route   POST /api/logistics/trips/:tripId/receive
+ * @access  Private (Store Staff, Store Manager, Admin)
  */
-const createDeliveryTrip = async (req, res, next) => {
+const receiveOrder = async (req, res, next) => {
+  // Start transaction for data consistency
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  try {
-    const { orderIds } = req.body;
+  let transactionAborted = false;
 
-    // Validate input
-    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+  try {
+    const { tripId } = req.params;
+
+    // ========================================
+    // STEP 1: Validation - Fetch DeliveryTrip
+    // ========================================
+    const deliveryTrip = await DeliveryTrip.findById(tripId)
+      .populate('orderId')
+      .populate('storeId')
+      .populate('exportDetails.productId')
+      .populate('exportDetails.batchId')
+      .session(session);
+
+    if (!deliveryTrip) {
+      transactionAborted = true;
       await session.abortTransaction();
-      res.status(400);
-      return next(new Error('orderIds must be a non-empty array'));
+      res.status(404);
+      throw new Error('Delivery trip not found');
     }
 
-    // Find all orders
-    const orders = await Order.find({ _id: { $in: orderIds } }).session(session);
+    // Check if delivery trip is In_Transit
+    if (deliveryTrip.status !== 'In_Transit') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(
+        `Delivery trip status is '${deliveryTrip.status}'. Only 'In_Transit' trips can be received.`
+      );
+    }
+
+    // ========================================
+    // STEP 2: Update Store Inventory
+    // ========================================
+    const inventoryUpdates = [];
+
+    for (const exportDetail of deliveryTrip.exportDetails) {
+      const { productId, batchId, quantity } = exportDetail;
+
+      // Find existing inventory record for this store + product + batch
+      const existingInventory = await StoreInventory.findOne({
+        storeId: deliveryTrip.storeId._id,
+        productId: productId._id,
+        batchId: batchId._id,
+      }).session(session);
+
+      if (existingInventory) {
+        // Update existing inventory (add quantity)
+        existingInventory.quantity += quantity;
+        existingInventory.lastUpdated = new Date();
+        await existingInventory.save({ session });
+
+        inventoryUpdates.push({
+          action: 'updated',
+          productId: productId._id,
+          productName: productId.name,
+          batchId: batchId._id,
+          batchCode: batchId.batchCode,
+          quantityAdded: quantity,
+          newQuantity: existingInventory.quantity,
+        });
+      } else {
+        // Insert new inventory record
+        const newInventory = await StoreInventory.create(
+          [
+            {
+              storeId: deliveryTrip.storeId._id,
+              productId: productId._id,
+              batchId: batchId._id,
+              quantity,
+              lastUpdated: new Date(),
+            },
+          ],
+          { session }
+        );
+
+        inventoryUpdates.push({
+          action: 'created',
+          productId: productId._id,
+          productName: productId.name,
+          batchId: batchId._id,
+          batchCode: batchId.batchCode,
+          quantityAdded: quantity,
+          newQuantity: quantity,
+        });
+      }
+    }
+
+    // ========================================
+    // STEP 3: Update DeliveryTrip Status
+    // ========================================
+    deliveryTrip.status = 'Completed';
+    deliveryTrip.actualArrival = new Date();
+    await deliveryTrip.save({ session });
+
+    // ========================================
+    // STEP 4: Update Order Status to Received
+    // ========================================
+    const order = await Order.findById(deliveryTrip.orderId._id).session(session);
+
+    if (!order) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(404);
+      throw new Error('Order not found');
+    }
+
+    order.status = 'Received';
+    await order.save({ session });
+
+    // ========================================
+    // STEP 5: Update Invoice Status
+    // ========================================
+    const invoice = await Invoice.findOne({ 
+      orderId: order._id 
+    }).session(session);
+
+    if (invoice) {
+      // Keep status as Pending (ready for payment)
+      // The invoice was already created with Pending status
+      // No need to change it, but we can add a note if needed
+      if (invoice.paymentStatus === 'Pending') {
+        // Already in correct status for payment
+      }
+      // Optionally save if any changes were made
+      await invoice.save({ session });
+    }
+
+    // ========================================
+    // STEP 6: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
+
+    // Populate response data
+    await deliveryTrip.populate([
+      { path: 'orderId', select: 'orderNumber orderDate totalAmount status' },
+      { path: 'storeId', select: 'storeName storeCode address' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order received successfully and inventory updated',
+      data: {
+        deliveryTrip: {
+          _id: deliveryTrip._id,
+          tripNumber: deliveryTrip.tripNumber,
+          status: deliveryTrip.status,
+          departureDate: deliveryTrip.departureDate,
+          actualArrival: deliveryTrip.actualArrival,
+        },
+        order: {
+          _id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+        },
+        invoice: invoice ? {
+          _id: invoice._id,
+          invoiceNumber: invoice.invoiceNumber,
+          paymentStatus: invoice.paymentStatus,
+          totalAmount: invoice.totalAmount,
+        } : null,
+        inventoryUpdates,
+        itemsReceived: inventoryUpdates.length,
+      },
+    });
+  } catch (error) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    // End session
+    session.endSession();
+  }
+};
+
+/**
+ * @desc    Add multiple approved orders to an existing delivery trip
+ * @route   PATCH /api/logistics/trips/:id/add-orders
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const addOrdersToTrip = async (req, res, next) => {
+  // Start transaction for data consistency
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let transactionAborted = false;
+
+  try {
+    const { id } = req.params;
+    const { orderIds } = req.body;
+
+    // ========================================
+    // STEP 1: Validation - Input
+    // ========================================
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('orderIds must be a non-empty array');
+    }
+
+    // ========================================
+    // STEP 2: Fetch Delivery Trip
+    // ========================================
+    const trip = await DeliveryTrip.findById(id).session(session);
+    if (!trip) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(404);
+      throw new Error('Delivery trip not found');
+    }
+
+    // Check trip status - can only add orders during Planning phase
+    if (trip.status !== 'Planning') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(
+        `Cannot add orders to trip with status '${trip.status}'. Only 'Planning' trips can be modified.`
+      );
+    }
+
+    // ========================================
+    // STEP 3: Validate Orders Existence & Status
+    // ========================================
+    const orders = await Order.find({ 
+      _id: { $in: orderIds } 
+    }).session(session);
 
     // Validate all orders exist
     if (orders.length !== orderIds.length) {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(404);
-      return next(new Error('One or more orders not found'));
+      throw new Error('One or more orders not found');
     }
 
     // Validate all orders have 'Approved' status
     const invalidOrders = orders.filter(order => order.status !== 'Approved');
     if (invalidOrders.length > 0) {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      const invalidOrderNumbers = invalidOrders.map(o => o.orderNumber || o._id).join(', ');
-      return next(
-        new Error(
-          `All orders must have 'Approved' status. Invalid orders: ${invalidOrderNumbers}`
-        )
+      const invalidOrderNumbers = invalidOrders
+        .map(o => o.orderNumber || o._id)
+        .join(', ');
+      throw new Error(
+        `All orders must have 'Approved' status. Invalid orders: ${invalidOrderNumbers}`
       );
     }
 
-    // Create delivery trip
-    const trip = await DeliveryTrip.create(
-      [
-        {
-          orders: orderIds,
-          status: 'In_Transit',
-        },
-      ],
-      { session }
+    // ========================================
+    // STEP 4: Use Set to Prevent Duplicate Order IDs
+    // ========================================
+    const existingOrderIds = new Set(
+      trip.orders.map(orderId => orderId.toString())
     );
+    
+    const newOrderIds = [];
+    let duplicateCount = 0;
 
-    // Update all orders to In_Transit status
-    const shippedDate = new Date();
-    await Order.updateMany(
-      { _id: { $in: orderIds } },
-      {
-        $set: {
-          status: 'In_Transit',
-          shippedDate: shippedDate,
-        },
-      },
-      { session }
-    );
+    for (const orderId of orderIds) {
+      const orderIdStr = orderId.toString();
+      if (!existingOrderIds.has(orderIdStr)) {
+        newOrderIds.push(orderId);
+        existingOrderIds.add(orderIdStr);
+      } else {
+        duplicateCount++;
+      }
+    }
 
-    // Commit transaction
+    // ========================================
+    // STEP 5: Add New Orders to Trip
+    // ========================================
+    if (newOrderIds.length > 0) {
+      trip.orders.push(...newOrderIds);
+      await trip.save({ session });
+    }
+
+    // ========================================
+    // STEP 6: Commit Transaction
+    // ========================================
     await session.commitTransaction();
 
-    // Populate trip
-    await trip[0].populate([
+    // Populate response data
+    await trip.populate([
       {
         path: 'orders',
         populate: [
@@ -380,232 +702,521 @@ const createDeliveryTrip = async (req, res, next) => {
       },
     ]);
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: `Delivery trip created successfully with ${orderIds.length} orders`,
-      data: trip[0]
+      message: `Added ${newOrderIds.length} orders to delivery trip${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`,
+      data: {
+        trip,
+        ordersAdded: newOrderIds.length,
+        duplicatesSkipped: duplicateCount,
+      },
     });
   } catch (error) {
-    if (session.inTransaction()) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
       await session.abortTransaction();
     }
     next(error);
   } finally {
+    // End session
     session.endSession();
   }
 };
 
+/**
+ * @desc    Remove specific orders from a delivery trip (set back to Approved)
+ * @route   PATCH /api/logistics/trips/:id/remove-orders
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const removeOrdersFromTrip = async (req, res, next) => {
+  // Start transaction for data consistency
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
+  let transactionAborted = false;
+
+  try {
+    const { id } = req.params;
+    const { orderIds } = req.body;
+
+    // ========================================
+    // STEP 1: Validation - Input
+    // ========================================
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('orderIds must be a non-empty array');
+    }
+
+    // ========================================
+    // STEP 2: Fetch Delivery Trip
+    // ========================================
+    const trip = await DeliveryTrip.findById(id).session(session);
+    if (!trip) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(404);
+      throw new Error('Delivery trip not found');
+    }
+
+    // Check trip status - cannot remove orders from active or completed trips
+    if (trip.status === 'In_Transit') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Cannot remove orders from an In_Transit trip');
+    }
+
+    if (trip.status === 'Completed') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Cannot remove orders from a Completed trip');
+    }
+
+    // ========================================
+    // STEP 3: Filter Out Orders to be Removed
+    // ========================================
+    const orderIdsToRemove = new Set(orderIds.map(id => id.toString()));
+
+    const remainingOrders = trip.orders.filter(
+      orderId => !orderIdsToRemove.has(orderId.toString())
+    );
+
+    // Check if any orders were actually removed
+    const removedCount = trip.orders.length - remainingOrders.length;
+    if (removedCount === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('None of the specified orders were found in this trip');
+    }
+
+    // ========================================
+    // STEP 4: Update Trip Orders Array
+    // ========================================
+    trip.orders = remainingOrders;
+    await trip.save({ session });
+
+    // ========================================
+    // STEP 5: Set Removed Orders Back to 'Approved' Status
+    // ========================================
+    // This is NOT a rejection - just removing from current trip
+    // Orders can be reassigned to another trip later
+    const updateResult = await Order.updateMany(
+      { _id: { $in: orderIds } },
+      {
+        $set: {
+          status: 'Approved',
+        },
+        $unset: {
+          shippedDate: 1, // Clear shipped date if it was set
+        },
+      },
+      { session }
+    );
+
+    // ========================================
+    // STEP 6: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
+
+    // Populate response data
+    await trip.populate([
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku' },
+        ],
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: `Removed ${removedCount} orders from delivery trip. Orders set back to 'Approved' status for reassignment.`,
+      data: {
+        trip,
+        ordersRemoved: removedCount,
+        ordersUpdated: updateResult.modifiedCount,
+        remainingOrders: trip.orders.length,
+      },
+    });
+  } catch (error) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    // End session
+    session.endSession();
+  }
+};
 
 /**
- * @desc    Reject/Cancel order with reason
+ * @desc    Finalize delivery plan - start shipping process
+ * @route   POST /api/logistics/trips/:id/finalize
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const finalizeDeliveryPlan = async (req, res, next) => {
+  // Start transaction for data consistency
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let transactionAborted = false;
+
+  try {
+    const { id } = req.params;
+
+    // ========================================
+    // STEP 1: Fetch Delivery Trip
+    // ========================================
+    const trip = await DeliveryTrip.findById(id).session(session);
+    if (!trip) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(404);
+      throw new Error('Delivery trip not found');
+    }
+
+    // ========================================
+    // STEP 2: Validate Trip Status
+    // ========================================
+    if (trip.status === 'In_Transit') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Trip is already In_Transit');
+    }
+
+    if (trip.status === 'Completed') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Trip is already Completed');
+    }
+
+    // ========================================
+    // STEP 3: Validate Trip Has Orders
+    // ========================================
+    if (!trip.orders || trip.orders.length === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Cannot finalize a trip with no orders');
+    }
+
+    // ========================================
+    // STEP 4: Update All Orders to 'In_Transit' Status
+    // ========================================
+    const shippedDate = new Date();
+    
+    const updateResult = await Order.updateMany(
+      { _id: { $in: trip.orders } },
+      {
+        $set: {
+          status: 'In_Transit',
+          shippedDate: shippedDate,
+        },
+      },
+      { session }
+    );
+
+    // ========================================
+    // STEP 5: Update Trip Status to 'In_Transit'
+    // ========================================
+    trip.status = 'In_Transit';
+    trip.departureTime = shippedDate;
+    await trip.save({ session });
+
+    // ========================================
+    // STEP 6: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
+
+    // Populate response data
+    await trip.populate([
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku' },
+          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
+        ],
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: `Delivery plan finalized successfully. ${updateResult.modifiedCount} orders moved to 'In_Transit' status.`,
+      data: {
+        trip,
+        ordersUpdated: updateResult.modifiedCount,
+        shippedDate,
+        totalOrders: trip.orders.length,
+      },
+    });
+  } catch (error) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    // End session
+    session.endSession();
+  }
+};
+
+/**
+ * @desc    Reject an order and reverse inventory if needed
  * @route   POST /api/logistics/orders/:orderId/reject
  * @access  Private (Manager, Admin)
  */
 const rejectOrder = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-    const { reason } = req.body;
-
-    // Validate reason
-    if (!reason || reason.trim() === '') {
-      res.status(400);
-      return next(new Error('Cancellation reason is required'));
-    }
-
-    // Find order
-    const order = await Order.findById(orderId);
-    if (!order) {
-      res.status(404);
-      return next(new Error('Order not found'));
-    }
-
-    // Check if order can be cancelled
-    if (order.status !== 'Pending') {
-      res.status(400);
-      return next(
-        new Error(
-          `Cannot cancel order with status: ${order.status}. Only Pending orders can be cancelled.`
-        )
-      );
-    }
-
-    // Update order status
-    order.status = 'Cancelled';
-    order.cancellationReason = reason.trim();
-    order.cancelledDate = new Date();
-    await order.save();
-
-    // Populate references
-    await order.populate([
-      { path: 'storeId', select: 'storeName storeCode address' },
-      { path: 'createdBy', select: 'username fullName email' },
-      { path: 'items.productId', select: 'name sku price' },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: 'Order cancelled successfully',
-      data: order,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Receive order (QR scan or manual confirmation)
- * @route   POST /api/logistics/orders/:orderId/receive
- * @access  Private (Store Staff, Manager)
- */
-const receiveOrder = async (req, res, next) => {
+  // Start transaction for data consistency
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  let transactionAborted = false;
+
   try {
     const { orderId } = req.params;
+    const { cancellationReason } = req.body;
 
-    // Find the order
-    const order = await Order.findById(orderId).session(session);
+    // ========================================
+    // STEP 1: Validation - Fetch Order
+    // ========================================
+    const order = await Order.findById(orderId)
+      .populate('storeId')
+      .populate('items.productId')
+      .session(session);
+
     if (!order) {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(404);
-      return next(new Error('Order not found'));
+      throw new Error('Order not found');
     }
 
-    // Check order status
-    if (order.status !== 'In_Transit') {
+    // Check if order can be rejected
+    if (order.status === 'Cancelled') {
+      transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      return next(
-        new Error(
-          `Cannot receive order with status: ${order.status}. Order must be In_Transit.`
-        )
-      );
+      throw new Error('Order is already cancelled');
     }
 
-    // Find the active delivery trip for this order
-    const trip = await DeliveryTrip.findOne({
-      orders: orderId,
-      status: 'In_Transit',
-    }).session(session);
-
-    if (!trip) {
+    if (order.status === 'Received') {
+      transactionAborted = true;
       await session.abortTransaction();
-      res.status(404);
-      return next(
-        new Error('No active delivery trip found for this order')
-      );
+      res.status(400);
+      throw new Error('Cannot reject a received order');
     }
 
-    // Verify store staff can only receive orders for their store
-    if (req.user.roleId?.roleName === 'StoreStaff') {
-      // Safely extract store IDs for comparison
-      const userStoreId = req.user.storeId?._id 
-        ? req.user.storeId._id.toString() 
-        : req.user.storeId?.toString();
-      
-      const orderStoreId = order.storeId?._id 
-        ? order.storeId._id.toString() 
-        : order.storeId?.toString();
-
-      console.log('🔍 Store ID Comparison (receiveOrder):');
-      console.log('  User Store ID:', userStoreId);
-      console.log('  Order Store ID:', orderStoreId);
-
-      if (!userStoreId || userStoreId !== orderStoreId) {
-        await session.abortTransaction();
-        res.status(403);
-        return next(
-          new Error('You can only receive orders for your assigned store')
-        );
-      }
+    // Validate cancellation reason
+    if (!cancellationReason || cancellationReason.trim() === '') {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('Cancellation reason is required');
     }
 
-    // Add items to store inventory
-    for (const item of order.items) {
-      if (!item.batchId) {
-        continue; // Skip items without batch assignment
-      }
+    // ========================================
+    // STEP 2: Inventory Reversal (if Approved or Shipped)
+    // ========================================
+    let batchesReversed = 0;
 
-      const batch = await Batch.findById(item.batchId).session(session);
-      if (!batch) {
-        continue;
-      }
+    if (order.status === 'Approved' || order.status === 'Shipped') {
+      // Loop through order items and add quantities back to batches
+      for (const item of order.items) {
+        if (item.batchId) {
+          // Find the batch
+          const batch = await Batch.findById(item.batchId).session(session);
 
-      // Check if store inventory entry exists
-      const existingInventory = await StoreInventory.findOne({
-        storeId: order.storeId,
-        batchId: item.batchId,
-      }).session(session);
-
-      if (existingInventory) {
-        existingInventory.quantity += item.quantity;
-        existingInventory.lastUpdated = new Date();
-        await existingInventory.save({ session });
-      } else {
-        await StoreInventory.create(
-          [
-            {
-              storeId: order.storeId,
-              productId: batch.productId,
-              batchId: item.batchId,
-              quantity: item.quantity,
-              lastUpdated: new Date(),
-            },
-          ],
-          { session }
-        );
+          if (batch) {
+            // Add quantity back to batch
+            batch.currentQuantity += item.quantity;
+            await batch.save({ session });
+            batchesReversed++;
+          } else {
+            // Log warning if batch not found, but continue
+            console.warn(
+              `Warning: Batch ${item.batchId} not found during inventory reversal for order ${order.orderNumber}`
+            );
+          }
+        }
       }
     }
 
-    // Update order status
-    order.status = 'Received';
-    order.receivedDate = new Date();
+    // ========================================
+    // STEP 3: Update Order Status to Cancelled
+    // ========================================
+    order.status = 'Cancelled';
+    order.cancellationReason = cancellationReason;
+    order.cancelledBy = req.user ? req.user._id : null;
+    order.cancelledAt = new Date();
     await order.save({ session });
 
-    // Check if all orders in the trip are received
-    const allOrders = await Order.find({
-      _id: { $in: trip.orders },
-    }).session(session);
+    // ========================================
+    // STEP 4: Update Invoice Status (if exists)
+    // ========================================
+    const invoice = await Invoice.findOne({ orderId: order._id }).session(session);
 
-    const allReceived = allOrders.every((o) => o.status === 'Received');
-
-    if (allReceived) {
-      trip.status = 'Completed';
-      trip.completedTime = new Date();
-      await trip.save({ session });
+    if (invoice && invoice.paymentStatus === 'Pending') {
+      invoice.paymentStatus = 'Cancelled';
+      await invoice.save({ session });
     }
 
+    // ========================================
+    // STEP 5: Commit Transaction
+    // ========================================
     await session.commitTransaction();
 
-    // Populate and return
+    // Populate response data
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address' },
-      { path: 'createdBy', select: 'username fullName email' },
-      { path: 'items.productId', select: 'name sku price' },
-      { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
-    ]);
-
-    await trip.populate([
-      { path: 'orders', select: 'orderCode status' },
+      { path: 'items.productId', select: 'name sku' },
+      { path: 'cancelledBy', select: 'fullName email' },
     ]);
 
     res.status(200).json({
       success: true,
-      message: 'Order received successfully',
+      message: `Order rejected successfully${batchesReversed > 0 ? `. ${batchesReversed} batches reversed.` : ''}`,
       data: {
         order,
-        trip,
+        batchesReversed,
+        inventoryReversed: batchesReversed > 0,
+        invoice: invoice ? {
+          _id: invoice._id,
+          invoiceNumber: invoice.invoiceNumber,
+          paymentStatus: invoice.paymentStatus,
+        } : null,
       },
     });
   } catch (error) {
-    if (session.inTransaction()) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
       await session.abortTransaction();
     }
     next(error);
   } finally {
+    // End session
     session.endSession();
+  }
+};
+
+/**
+ * @desc    Record payment for an invoice
+ * @route   POST /api/logistics/invoices/:invoiceId/record-payment
+ * @access  Private (Accountant, Manager, Admin)
+ */
+const recordPayment = async (req, res, next) => {
+  try {
+    const { invoiceId } = req.params;
+    const { amount, paymentMethod, paymentNotes } = req.body;
+
+    // ========================================
+    // STEP 1: Validation - Input
+    // ========================================
+    if (!amount || amount <= 0) {
+      res.status(400);
+      throw new Error('Payment amount must be greater than 0');
+    }
+
+    if (!paymentMethod) {
+      res.status(400);
+      throw new Error('Payment method is required');
+    }
+
+    // ========================================
+    // STEP 2: Fetch Invoice
+    // ========================================
+    const invoice = await Invoice.findById(invoiceId)
+      .populate('orderId', 'orderNumber')
+      .populate('storeId', 'storeName storeCode');
+
+    if (!invoice) {
+      res.status(404);
+      throw new Error('Invoice not found');
+    }
+
+    // Check if invoice is already paid
+    if (invoice.paymentStatus === 'Paid') {
+      res.status(400);
+      throw new Error('Invoice is already fully paid');
+    }
+
+    // Check if invoice is cancelled
+    if (invoice.paymentStatus === 'Cancelled') {
+      res.status(400);
+      throw new Error('Cannot record payment for a cancelled invoice');
+    }
+
+    // ========================================
+    // STEP 3: Update Payment Amount
+    // ========================================
+    const previousPaidAmount = invoice.paidAmount || 0;
+    const newPaidAmount = previousPaidAmount + amount;
+
+    // Prevent overpayment
+    if (newPaidAmount > invoice.totalAmount) {
+      res.status(400);
+      throw new Error(
+        `Payment amount exceeds invoice total. ` +
+        `Total: ${invoice.totalAmount}, Paid: ${previousPaidAmount}, ` +
+        `Attempting to add: ${amount}`
+      );
+    }
+
+    // Update invoice
+    invoice.paidAmount = newPaidAmount;
+    invoice.paymentDate = new Date();
+    invoice.paymentMethod = paymentMethod;
+
+    // Add payment notes if provided
+    if (paymentNotes) {
+      if (!invoice.paymentNotes) {
+        invoice.paymentNotes = [];
+      }
+      invoice.paymentNotes.push({
+        amount,
+        method: paymentMethod,
+        date: new Date(),
+        notes: paymentNotes,
+        recordedBy: req.user ? req.user._id : null,
+      });
+    }
+
+    // ========================================
+    // STEP 4: Determine Payment Status
+    // ========================================
+    if (newPaidAmount >= invoice.totalAmount) {
+      invoice.paymentStatus = 'Paid';
+    } else {
+      invoice.paymentStatus = 'Partial';
+    }
+
+    // ========================================
+    // STEP 5: Save Invoice
+    // ========================================
+    await invoice.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Payment of ${amount} recorded successfully. Invoice status: ${invoice.paymentStatus}`,
+      data: {
+        invoice,
+        amountPaid: amount,
+        totalPaid: newPaidAmount,
+        remainingBalance: invoice.totalAmount - newPaidAmount,
+        paymentStatus: invoice.paymentStatus,
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -616,90 +1227,33 @@ const receiveOrder = async (req, res, next) => {
  */
 const getOrders = async (req, res, next) => {
   try {
-    const { status, storeId } = req.query;
-    const filter = {};
-
-    if (status) {
-      filter.status = status;
-    }
-
-    if (storeId) {
-      filter.storeId = storeId;
-    }
-
-    // If user is store staff, only show orders for their store
-    if (req.user.roleId?.roleName === 'StoreStaff' && req.user.storeId) {
-      // Safely extract ID - handle both populated object and plain ObjectId
-      filter.storeId = req.user.storeId?._id || req.user.storeId;
-    }
-
-    const orders = await Order.find(filter)
-      .populate('storeId', 'storeName storeCode address')
-      .populate('createdBy', 'username fullName email')
-      .populate('approvedBy', 'username fullName email')
-      .populate('items.productId', 'name sku price')
-      .populate('items.batchId', 'batchCode mfgDate expDate')
+    const orders = await Order.find()
+      .populate('storeId', 'storeName storeCode')
+      .populate('items.productId', 'name sku')
+      .populate('createdBy', 'fullName email')
       .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: orders.length,
-      data: orders,
-    });
+    res.status(200).json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Get single order by ID
+ * @desc    Get order by ID
  * @route   GET /api/logistics/orders/:id
  * @access  Private
  */
 const getOrderById = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('storeId', 'storeName storeCode address phone')
-      .populate('createdBy', 'username fullName email')
-      .populate('approvedBy', 'username fullName email')
+      .populate('storeId', 'storeName storeCode address')
       .populate('items.productId', 'name sku price')
-      .populate('items.batchId', 'batchCode mfgDate expDate currentQuantity');
-
+      .populate('createdBy', 'fullName email');
     if (!order) {
       res.status(404);
       return next(new Error('Order not found'));
     }
-
-    // If user is store staff, verify they can only view their store's orders
-    if (req.user.roleId?.roleName === 'StoreStaff') {
-      // Safely extract store IDs for comparison
-      // Handle both populated objects (with _id) and unpopulated ObjectIds
-      const userStoreId = req.user.storeId?._id 
-        ? req.user.storeId._id.toString() 
-        : req.user.storeId?.toString();
-      
-      const orderStoreId = order.storeId?._id 
-        ? order.storeId._id.toString() 
-        : order.storeId?.toString();
-
-      // Debug logging
-      console.log('🔍 Store ID Comparison Debug:');
-      console.log('  User Store ID:', userStoreId);
-      console.log('  Order Store ID:', orderStoreId);
-      console.log('  Match:', userStoreId === orderStoreId);
-
-      if (!userStoreId || userStoreId !== orderStoreId) {
-        res.status(403);
-        return next(
-          new Error('You can only view orders for your assigned store')
-        );
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      data: order,
-    });
+    res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
   }
@@ -712,35 +1266,20 @@ const getOrderById = async (req, res, next) => {
  */
 const getTrips = async (req, res, next) => {
   try {
-    const { status } = req.query;
-    const filter = {};
-
-    if (status) {
-      filter.status = status;
-    }
-
-    const trips = await DeliveryTrip.find(filter)
+    const trips = await DeliveryTrip.find()
       .populate({
         path: 'orders',
-        populate: [
-          { path: 'storeId', select: 'storeName storeCode' },
-          { path: 'items.productId', select: 'name sku' },
-        ],
+        populate: { path: 'storeId', select: 'storeName storeCode' }
       })
       .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: trips.length,
-      data: trips,
-    });
+    res.status(200).json({ success: true, count: trips.length, data: trips });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Get single trip by ID
+ * @desc    Get delivery trip by ID
  * @route   GET /api/logistics/trips/:id
  * @access  Private
  */
@@ -750,111 +1289,157 @@ const getTripById = async (req, res, next) => {
       .populate({
         path: 'orders',
         populate: [
-          { path: 'storeId', select: 'storeName storeCode address phone' },
-          { path: 'items.productId', select: 'name sku price' },
-          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
-        ],
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku' }
+        ]
       });
-
     if (!trip) {
       res.status(404);
       return next(new Error('Delivery trip not found'));
     }
-
-    res.status(200).json({
-      success: true,
-      data: trip,
-    });
+    res.status(200).json({ success: true, data: trip });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Update order (edit requestedDeliveryDate, notes, or items)
- * @route   PUT /api/logistics/orders/:id
- * @access  Private (Store Staff, Manager, Admin)
+ * @desc    Create a new delivery trip with multiple orders
+ * @route   POST /api/logistics/trips/create
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const createDeliveryTrip = async (req, res, next) => {
+  // Start transaction for data consistency
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let transactionAborted = false;
+
+  try {
+    const { orderIds, notes } = req.body;
+
+    // ========================================
+    // STEP 1: Validation - Input
+    // ========================================
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('orderIds must be a non-empty array');
+    }
+
+    // ========================================
+    // STEP 2: Fetch and Validate Orders
+    // ========================================
+    const orders = await Order.find({ 
+      _id: { $in: orderIds } 
+    }).session(session);
+
+    // Validate all orders exist
+    if (orders.length !== orderIds.length) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(404);
+      throw new Error('One or more orders not found');
+    }
+
+    // Validate all orders have 'Approved' status
+    const invalidOrders = orders.filter(order => order.status !== 'Approved');
+    if (invalidOrders.length > 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      const invalidOrderCodes = invalidOrders
+        .map(o => o.orderCode || o.orderNumber || o._id)
+        .join(', ');
+      throw new Error(
+        `All orders must have 'Approved' status. Invalid orders: ${invalidOrderCodes}`
+      );
+    }
+
+    // ========================================
+    // STEP 3: Create Delivery Trip
+    // ========================================
+    const deliveryTrip = await DeliveryTrip.create(
+      [
+        {
+          orders: orderIds,
+          status: 'Planning',
+          notes: notes || '',
+        },
+      ],
+      { session }
+    );
+
+    // ========================================
+    // STEP 4: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
+
+    // Populate response data
+    await deliveryTrip[0].populate([
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku' },
+          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
+        ],
+      },
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: `Delivery trip created successfully with ${orderIds.length} orders in Planning status.`,
+      data: {
+        trip: deliveryTrip[0],
+        totalOrders: orderIds.length,
+      },
+    });
+  } catch (error) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    // End session
+    session.endSession();
+  }
+};
+
+/**
+ * @desc    Update an existing order
+ * @route   PATCH /api/logistics/orders/:orderId
+ * @access  Private (Manager, Admin)
  */
 const updateOrder = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { requestedDeliveryDate, notes, orderItems } = req.body;
+    const { orderId } = req.params;
+    const updates = req.body;
 
-    // Find order
-    const order = await Order.findById(id);
+    // Find and update order
+    const order = await Order.findById(orderId);
+
     if (!order) {
       res.status(404);
-      return next(new Error('Order not found'));
+      throw new Error('Order not found');
     }
 
-    // Check status - only Pending orders can be updated
-    if (order.status !== 'Pending') {
-      res.status(400);
-      return next(new Error('Only Pending orders can be updated'));
-    }
+    // Prevent updating certain fields
+    delete updates._id;
+    delete updates.createdBy;
+    delete updates.createdAt;
 
-    // Update requestedDeliveryDate if provided
-    if (requestedDeliveryDate) {
-      order.requestedDeliveryDate = new Date(requestedDeliveryDate);
-    }
-
-    // Update notes if provided
-    if (notes !== undefined) {
-      order.notes = notes;
-    }
-
-    // Update items if provided
-    if (orderItems && Array.isArray(orderItems)) {
-      const enrichedItems = [];
-      let totalAmount = 0;
-
-      for (const item of orderItems) {
-        const { productId, quantityRequested } = item;
-
-        // Validate quantity
-        if (!quantityRequested || quantityRequested < 1) {
-          res.status(400);
-          return next(
-            new Error(`Invalid quantity for product: ${productId}`)
-          );
-        }
-
-        // Fetch product to get real price
-        const product = await Product.findById(productId);
-        if (!product) {
-          res.status(400);
-          return next(new Error(`Product not found: ${productId}`));
-        }
-
-        // Calculate pricing
-        const unitPrice = product.price || 0;
-        const subtotal = unitPrice * quantityRequested;
-
-        // Accumulate total
-        totalAmount += subtotal;
-
-        // Build enriched item with pricing data
-        enrichedItems.push({
-          productId: product._id,
-          quantity: quantityRequested,
-          unitPrice,
-          subtotal,
-        });
-      }
-
-      // Replace order items and total amount
-      order.items = enrichedItems;
-      order.totalAmount = totalAmount;
-    }
-
-    // Save order
+    // Apply updates
+    Object.assign(order, updates);
     await order.save();
 
-    // Populate and return
+    // Populate response
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address' },
-      { path: 'createdBy', select: 'username fullName email' },
-      { path: 'items.productId', select: 'name sku price unit' },
+      { path: 'items.productId', select: 'name sku' },
+      { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
     ]);
 
     res.status(200).json({
@@ -868,204 +1453,72 @@ const updateOrder = async (req, res, next) => {
 };
 
 /**
- * @desc    Aggregate daily demand for production planning
- * @route   GET /api/logistics/orders/aggregate
+ * @desc    Aggregate daily demand across all stores
+ * @route   GET /api/logistics/demand/daily
  * @access  Private (Manager, Admin)
  */
 const aggregateDailyDemand = async (req, res, next) => {
   try {
-    const { requestedDeliveryDate, startDate, endDate } = req.query;
+    const { date } = req.query;
 
-    // Build match stage for filtering
-    const matchStage = {
-      status: { $in: ['Pending', 'Approved'] }, // Not yet shipped/completed
-    };
+    // Default to today if no date provided
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
 
-    // Optional: Filter by requested delivery date
-    if (requestedDeliveryDate) {
-      const targetDate = new Date(requestedDeliveryDate);
-      const nextDay = new Date(targetDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
 
-      matchStage.createdAt = {
-        $gte: targetDate,
-        $lt: nextDay,
-      };
-    } else if (startDate || endDate) {
-      // Alternative: filter by date range
-      matchStage.createdAt = {};
-      if (startDate) {
-        matchStage.createdAt.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        matchStage.createdAt.$lte = new Date(endDate);
-      }
-    } else {
-      // Default: today and tomorrow (next 48 hours)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const twoDaysLater = new Date(today);
-      twoDaysLater.setDate(twoDaysLater.getDate() + 2);
-
-      matchStage.createdAt = {
-        $gte: today,
-        $lt: twoDaysLater,
-      };
-    }
-
-    // MongoDB Aggregation Pipeline
-    const aggregationPipeline = [
-      // Stage 1: Filter orders by status and date
+    // Aggregate orders by requested delivery date
+    const demand = await Order.aggregate([
       {
-        $match: matchStage,
+        $match: {
+          requestedDeliveryDate: {
+            $gte: targetDate,
+            $lt: nextDay,
+          },
+          status: { $in: ['Pending', 'Approved', 'In_Transit'] },
+        },
       },
-
-      // Stage 2: Unwind the items array
       {
         $unwind: '$items',
       },
-
-      // Stage 3: Group by productId and sum quantities
       {
         $group: {
           _id: '$items.productId',
-          totalQuantityNeeded: { $sum: '$items.quantity' },
-          orderCount: { $sum: 1 }, // Count how many orders need this product
-          orders: {
-            $push: {
-              orderId: '$_id',
-              orderCode: '$orderCode',
-              storeId: '$storeId',
-              quantity: '$items.quantity',
-            },
-          },
+          totalQuantity: { $sum: '$items.quantity' },
+          orderCount: { $sum: 1 },
         },
       },
-
-      // Stage 4: Lookup product details
       {
         $lookup: {
-          from: 'products', // Collection name in MongoDB
+          from: 'products',
           localField: '_id',
           foreignField: '_id',
-          as: 'productDetails',
+          as: 'product',
         },
       },
-
-      // Stage 5: Unwind product details
       {
-        $unwind: {
-          path: '$productDetails',
-          preserveNullAndEmptyArrays: false,
-        },
+        $unwind: '$product',
       },
-
-      // Stage 6: Project final structure
       {
         $project: {
           _id: 1,
-          productId: '$_id',
-          productName: '$productDetails.name',
-          sku: '$productDetails.sku',
-          unit: '$productDetails.unit',
-          totalQuantityNeeded: 1,
+          productName: '$product.name',
+          productSku: '$product.sku',
+          totalQuantity: 1,
           orderCount: 1,
-          orders: 1,
         },
       },
-
-      // Stage 7: Sort by total quantity needed (descending)
       {
-        $sort: { totalQuantityNeeded: -1 },
+        $sort: { totalQuantity: -1 },
       },
-    ];
-
-    // Execute aggregation
-    const demandData = await Order.aggregate(aggregationPipeline);
-
-    // Calculate summary statistics
-    const summary = {
-      totalProducts: demandData.length,
-      totalQuantityAllProducts: demandData.reduce(
-        (sum, item) => sum + item.totalQuantityNeeded,
-        0
-      ),
-      totalOrders: await Order.countDocuments(matchStage),
-      dateRange: matchStage.createdAt
-        ? {
-            from: matchStage.createdAt.$gte || 'N/A',
-            to: matchStage.createdAt.$lt || matchStage.createdAt.$lte || 'N/A',
-          }
-        : 'All time',
-    };
+    ]);
 
     res.status(200).json({
       success: true,
-      summary,
-      count: demandData.length,
-      data: demandData,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Record payment for an invoice
- * @route   POST /api/logistics/invoices/:id/payment
- * @access  Private (Store Staff, Manager, Admin)
- */
-const recordPayment = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { amount, paymentDate, paymentMethod } = req.body;
-
-    // Validate amount
-    if (!amount || Number(amount) <= 0) {
-      res.status(400);
-      return next(new Error('Payment amount must be greater than 0'));
-    }
-
-    // Find invoice
-    const invoice = await Invoice.findById(id)
-      .populate('orderId', 'orderNumber totalAmount')
-      .populate('storeId', 'storeName storeCode');
-
-    if (!invoice) {
-      res.status(404);
-      return next(new Error('Invoice not found'));
-    }
-
-    // Check if already fully paid
-    if (invoice.paymentStatus === 'Paid') {
-      res.status(400);
-      return next(new Error('Invoice is already fully paid'));
-    }
-
-    // Record payment
-    invoice.paidAmount += Number(amount);
-    invoice.paymentDate = paymentDate ? new Date(paymentDate) : new Date();
-    
-    // Update payment method if provided
-    if (paymentMethod) {
-      invoice.paymentMethod = paymentMethod;
-    }
-
-    // Update payment status based on paid amount
-    if (invoice.paidAmount >= invoice.totalAmount) {
-      invoice.paymentStatus = 'Paid';
-      invoice.paidAmount = invoice.totalAmount; // Cap at total amount
-    } else if (invoice.paidAmount > 0) {
-      invoice.paymentStatus = 'Partial';
-    }
-
-    // Save invoice
-    await invoice.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Payment recorded successfully',
-      data: invoice,
+      date: targetDate,
+      count: demand.length,
+      data: demand,
     });
   } catch (error) {
     next(error);
@@ -1073,16 +1526,27 @@ const recordPayment = async (req, res, next) => {
 };
 
 module.exports = {
+  // Order Management
   createOrder,
-  updateOrder,
-  approveOrder,
-  createDeliveryTrip,
-  receiveOrder,
-  rejectOrder,
   getOrders,
   getOrderById,
+  updateOrder,
+  approveAndShipOrder,
+  approveOrder: approveAndShipOrder, // Map approveOrder to approveAndShipOrder for Swagger compatibility
+  rejectOrder,
+  
+  // Delivery Trip Management
+  createDeliveryTrip,
   getTrips,
   getTripById,
-  aggregateDailyDemand,
+  addOrdersToTrip,
+  removeOrdersFromTrip,
+  finalizeDeliveryPlan,
+  receiveOrder,
+  
+  // Invoice & Payment
   recordPayment,
+  
+  // Analytics
+  aggregateDailyDemand,
 };

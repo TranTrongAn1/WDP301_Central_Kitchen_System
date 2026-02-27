@@ -34,10 +34,10 @@ const deliveryTripSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Pending', 'In_Transit', 'Completed', 'Cancelled'],
+        values: ['Planning', 'Pending', 'In_Transit', 'Completed', 'Cancelled'],
         message: '{VALUE} is not a valid status',
       },
-      default: 'Pending',
+      default: 'Planning',
     },
     completedTime: {
       type: Date,
@@ -55,8 +55,9 @@ const deliveryTripSchema = new mongoose.Schema(
 
 // Validate that orders array is not empty
 deliveryTripSchema.pre('save', function () {
-  if (!this.orders || this.orders.length === 0) {
-    throw new Error('Delivery trip must have at least one order');
+  // Allow empty orders array only during Planning phase
+  if (this.status !== 'Planning' && (!this.orders || this.orders.length === 0)) {
+    throw new Error('Delivery trip must have at least one order before finalizing');
   }
 });
 
