@@ -60,7 +60,15 @@ export default function InventoryScreen() {
           return (
             <Pressable
               key={item._id}
-              onPress={() => router.push(`/ingredient/${item._id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/kitchen/ingredient-batches",
+                  params: {
+                    ingredientId: item._id,
+                    name: item.ingredientName ?? item.name,
+                  },
+                })
+              }
               style={[styles.card, isLow && styles.cardLow]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{item.ingredientName ?? '--'}</Text>
