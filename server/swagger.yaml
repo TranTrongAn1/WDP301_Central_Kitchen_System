@@ -22,7 +22,7 @@ info:
 servers:
   - url: http://localhost:5000
     description: Development server
-  - url: https://api.kendomooncake.com
+  - url: https://wdp301-central-kitchen-system.onrender.com/
     description: Production server
 
 tags:
