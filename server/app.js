@@ -27,7 +27,8 @@ app.use(cors({
     'http://localhost:8081', // Mobile hoặc App khác (nếu có)
     
     // Production - Frontend (Vercel)
-    'https://wdp301-central-kitchen-system.vercel.app',
+    
+    'https://wdp301-central-kitchen.vercel.app', 
     
     // Production - Backend (Render)
     'https://wdp301-central-kitchen-system.onrender.com',
@@ -120,7 +121,7 @@ if (process.env.NODE_ENV !== 'test') {
     if (process.env.RENDER_EXTERNAL_URL) {
       console.log(`\n🌐 Production Mode (Render)`);
       console.log(`   Backend URL: ${process.env.RENDER_EXTERNAL_URL}`);
-      console.log(`   Frontend URL: https://wdp301-central-kitchen-system.vercel.app`);
+      console.log(`   Frontend URL:  wdp301-central-kitchen.vercel.app`);
     } else {
       console.log(`\n💻 Local Development Mode`);
       console.log(`   Backend: http://localhost:${PORT}`);
