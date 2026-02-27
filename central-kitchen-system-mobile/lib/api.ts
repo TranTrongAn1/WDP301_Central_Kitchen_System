@@ -6,17 +6,23 @@ import type {
   IngredientResponse,
   IngredientsResponse,
 } from "@/lib/ingredients";
-import type {
-  CreateOrderPayload,
-  OrderResponse,
-  OrdersResponse,
-} from "@/lib/orders";
+import type { CreateOrderPayload, OrderResponse, OrdersResponse } from "@/lib/orders";
 import type { StoreInventoryResponse } from "@/lib/inventory";
 import type { Product, ProductsResponse } from "@/lib/products";
 import type {
   ProductionPlanResponse,
   ProductionPlansResponse,
 } from "@/lib/production-plans";
+import type {
+  InvoicesResponse,
+  InvoiceResponse,
+  PaymentLinkResponse,
+} from "@/lib/invoices";
+import type {
+  IngredientBatch,
+  IngredientBatchResponse,
+  IngredientBatchesResponse,
+} from "@/lib/ingredient-batches";
 import { getApiErrorHandlers } from "@/lib/api-error-handler";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
@@ -229,6 +235,55 @@ export const categoriesApi = {
     }),
 };
 
+export const ingredientBatchesApi = {
+  getForIngredient: (
+    ingredientId: string,
+    params?: { activeOnly?: boolean },
+    token?: string | null,
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.activeOnly != null) {
+      search.set("activeOnly", String(params.activeOnly));
+    }
+    const qs = search.toString();
+    return request<IngredientBatchesResponse>(
+      `/api/ingredients/${ingredientId}/batches${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) },
+    );
+  },
+  getById: (id: string, token?: string | null) =>
+    request<IngredientBatchResponse>(`/api/ingredient-batches/${id}`, {
+      headers: withAuth(token),
+    }),
+  createForIngredient: (
+    ingredientId: string,
+    payload: {
+      supplierId: string;
+      batchCode: string;
+      initialQuantity: number;
+      price: number;
+      expiryDate: string; // YYYY-MM-DD
+      receivedDate?: string; // YYYY-MM-DD
+    },
+    token?: string | null,
+  ) =>
+    request<IngredientBatchResponse>(`/api/ingredients/${ingredientId}/batches`, {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+  update: (
+    id: string,
+    payload: Partial<Pick<IngredientBatch, "currentQuantity" | "price" | "isActive">>,
+    token?: string | null,
+  ) =>
+    request<IngredientBatchResponse>(`/api/ingredient-batches/${id}`, {
+      method: "PUT",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+};
+
 export const logisticsOrdersApi = {
   getAll: (params?: { storeId?: string; status?: string }, token?: string | null) => {
     const search = new URLSearchParams();
@@ -256,3 +311,29 @@ export const logisticsOrdersApi = {
       headers: withAuth(token),
     }),
 };
+
+export const invoicesApi = {
+  getByOrder: (orderId: string, token?: string | null) => {
+    const search = new URLSearchParams();
+    search.set("orderId", orderId);
+    const qs = search.toString();
+    return request<InvoicesResponse>(
+      `/api/logistics/invoices${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) },
+    );
+  },
+  getById: (id: string, token?: string | null) =>
+    request<InvoiceResponse>(`/api/logistics/invoices/${id}`, {
+      headers: withAuth(token),
+    }),
+};
+
+export const paymentApi = {
+  createLink: (invoiceId: string, token?: string | null) =>
+    request<PaymentLinkResponse>("/api/payment/create-link", {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify({ invoiceId }),
+    }),
+};
+

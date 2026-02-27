@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,9 +14,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { useNotification } from "@/context/notification-context";
-import { logisticsOrdersApi } from "@/lib/api";
+import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import type { Order, OrderItem } from "@/lib/orders";
+import type { Invoice } from "@/lib/invoices";
 
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
@@ -44,6 +46,8 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [receiving, setReceiving] = useState(false);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !token) return;
@@ -51,10 +55,23 @@ export default function OrderDetailScreen() {
     setError(null);
     try {
       const res = await logisticsOrdersApi.getById(id, token);
-      setOrder(res.data ?? null);
+      const nextOrder = res.data ?? null;
+      setOrder(nextOrder);
+      if (nextOrder?._id) {
+        try {
+          const invRes = await invoicesApi.getByOrder(nextOrder._id, token);
+          const first = invRes.data?.[0] ?? null;
+          setInvoice(first);
+        } catch {
+          setInvoice(null);
+        }
+      } else {
+        setInvoice(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được đơn hàng.");
       setOrder(null);
+      setInvoice(null);
     } finally {
       setLoading(false);
     }
@@ -65,6 +82,11 @@ export default function OrderDetailScreen() {
   }, [load]);
 
   const canReceive = order?.status === "Shipped" && id && token;
+  const canPayOnline =
+    invoice &&
+    invoice.totalAmount > 0 &&
+    invoice.paymentStatus !== "Paid";
+
   const handleReceive = () => {
     if (!canReceive || !id || !token) return;
     Alert.alert(
@@ -97,6 +119,29 @@ export default function OrderDetailScreen() {
         },
       ]
     );
+  };
+
+  const handlePayOnline = async () => {
+    if (!invoice || !token) return;
+    setPaying(true);
+    try {
+      const res = await paymentApi.createLink(invoice._id, token);
+      const url = res.data?.checkoutUrl;
+      if (!url) {
+        showToast("Không tạo được link thanh toán.", "error");
+        return;
+      }
+      showToast("Đang mở trang thanh toán...");
+      await WebBrowser.openBrowserAsync(url);
+      // Sau khi user quay lại, refetch invoice để cập nhật trạng thái thanh toán (nếu webhook đã xử lý)
+      await load();
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Không tạo được link thanh toán.";
+      showToast(msg, "error");
+    } finally {
+      setPaying(false);
+    }
   };
 
   if (loading) {
@@ -147,6 +192,41 @@ export default function OrderDetailScreen() {
         ) : null}
       </View>
 
+      {invoice ? (
+        <View style={[styles.card, cardShadowSmall]}>
+          <Text style={styles.invoiceTitle}>Hoá đơn</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Số hoá đơn</Text>
+            <Text style={styles.value}>{invoice.invoiceNumber}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Ngày hoá đơn</Text>
+            <Text style={styles.value}>{invoice.invoiceDate}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Hạn thanh toán</Text>
+            <Text style={styles.value}>{invoice.dueDate}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Trạng thái thanh toán</Text>
+            <Text style={styles.value}>{invoice.paymentStatus}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Tổng thanh toán</Text>
+            <Text style={styles.value}>
+              {invoice.totalAmount.toLocaleString("vi-VN")} đ
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.card, cardShadowSmall]}>
+          <Text style={styles.invoiceTitle}>Hoá đơn</Text>
+          <Text style={styles.value}>
+            Đơn hàng đang chờ duyệt hoặc chưa tạo hoá đơn.
+          </Text>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>Sản phẩm</Text>
       {(order.items ?? []).map((item, index) => (
         <View key={index} style={[styles.itemRow, cardShadowSmall]}>
@@ -168,6 +248,20 @@ export default function OrderDetailScreen() {
             : "—"}
         </Text>
       </View>
+
+      {canPayOnline && (
+        <Pressable
+          style={[styles.payBtn, paying && styles.payBtnDisabled]}
+          onPress={handlePayOnline}
+          disabled={paying}
+        >
+          {paying ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.payBtnText}>Thanh toán online</Text>
+          )}
+        </Pressable>
+      )}
 
       {canReceive && (
         <Pressable
@@ -304,6 +398,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#9B0F0F",
   },
+  invoiceTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2A2A2A",
+    marginBottom: 8,
+  },
   receiveBtn: {
     marginTop: 16,
     backgroundColor: "#2E7D32",
@@ -313,4 +413,13 @@ const styles = StyleSheet.create({
   },
   receiveBtnDisabled: { opacity: 0.7 },
   receiveBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  payBtn: {
+    marginTop: 12,
+    backgroundColor: "#1565C0",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  payBtnDisabled: { opacity: 0.7 },
+  payBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });
