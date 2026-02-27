@@ -18,24 +18,24 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware
+// CORS middleware - Cấu hình cho cả Development, Production và PayOS Webhook
 app.use(cors({
   origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8081',
-    'https://pay.payos.vn',
-    'https://wdp301-central-kitchen-system.onrender.com' // THÊM LINK NÀY
+    'http://localhost:5173',  // Vite dev server (React/Vue)
+    'http://localhost:3000',  // React dev server
+    'http://localhost:8081',  // React Native / Expo dev
+    'https://pay.payos.vn',   // PayOS payment gateway
+    'https://wdp301-central-kitchen-system.onrender.com' // Production Render URL
   ],
-  credentials: true,
+  credentials: true,  // Cho phép gửi cookies và authorization headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
-    'Accept',
-    'x-api-key',
-    'x-client-id'
+    'Content-Type',      // Required cho JSON requests
+    'Authorization',     // Required cho JWT authentication
+    'X-Requested-With',  // Standard AJAX header
+    'Accept',            // Content negotiation
+    'x-api-key',         // PayOS webhook authentication
+    'x-client-id'        // PayOS client identification
   ],
 }));
 
@@ -101,8 +101,18 @@ const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Swagger API documentation available at http://localhost:${PORT}/api-docs`);
+    // Tự động nhận diện URL dựa trên môi trường
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📚 Swagger API documentation available at ${baseUrl}/api-docs`);
+    console.log(`🏥 Health check endpoint: ${baseUrl}/health`);
+    
+    if (process.env.RENDER_EXTERNAL_URL) {
+      console.log(`🌐 Production URL: ${process.env.RENDER_EXTERNAL_URL}`);
+    } else {
+      console.log(`💻 Local development mode`);
+    }
   });
 }
 
