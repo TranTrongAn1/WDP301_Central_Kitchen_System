@@ -20,22 +20,22 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS middleware
 app.use(cors({
-  // Liệt kê tất cả các domain frontend được phép gọi API
   origin: [
-    'http://localhost:5173', // Vite (Frontend chính của bạn)
-    'http://localhost:3000', // React thường (nếu có)
-    'http://localhost:8081', // Mobile hoặc App khác (nếu có)
-    'https://pay.payos.vn'   // PayOS production domain for webhooks
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8081',
+    'https://pay.payos.vn',
+    'https://wdp301-central-kitchen-system.onrender.com' // THÊM LINK NÀY
   ],
-  credentials: true, // Cho phép gửi cookie/token
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
     'X-Requested-With', 
     'Accept',
-    'x-api-key',      // PayOS API authentication header
-    'x-client-id'     // PayOS client identification header
+    'x-api-key',
+    'x-client-id'
   ],
 }));
 
