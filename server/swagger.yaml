@@ -56,6 +56,8 @@ tags:
     description: Order management and delivery operations
   - name: Feedback
     description: Order feedback and rating management
+  - name: Payment
+    description: Payment gateway integration using PayOS
 
 paths:
   /health:
@@ -2119,6 +2121,183 @@ paths:
           description: Invalid amount or invoice already paid
         '404':
           description: Invoice not found
+
+  # ============================================================
+  # PAYMENT GATEWAY (PayOS Integration)
+  # ============================================================
+  /api/payment/create-link:
+    post:
+      tags:
+        - Payment
+      summary: Create PayOS payment link for an invoice
+      description: |
+        Generate a payment link using PayOS gateway for a specific invoice.
+        Returns a checkout URL and QR code that can be used for payment.
+        
+        **Security:** Requires authentication to prevent unauthorized payment link creation.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invoiceId
+              properties:
+                invoiceId:
+                  type: string
+                  description: Invoice ID to create payment link for
+                  example: '60d5ec49f1b2c8b1f8e4e1a9'
+      responses:
+        '200':
+          description: Payment link created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Payment link created successfully'
+                  data:
+                    type: object
+                    properties:
+                      checkoutUrl:
+                        type: string
+                        description: PayOS checkout URL for payment
+                        example: 'https://pay.payos.vn/web/aGlzdG9yeS8...'
+                      qrCode:
+                        type: string
+                        description: QR code image URL for payment
+                        example: 'https://img.vietqr.io/image/...'
+                      orderCode:
+                        type: number
+                        description: Unique numeric order code for PayOS
+                        example: 123456789
+                      amount:
+                        type: number
+                        description: Total payment amount
+                        example: 3240000
+                      invoiceNumber:
+                        type: string
+                        description: Invoice number reference
+                        example: 'INV-20260130-001'
+        '400':
+          description: Invalid request or invoice already paid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Invoice is already paid'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Invoice not found'
+
+  /api/payment/webhook:
+    post:
+      tags:
+        - Payment
+      summary: PayOS webhook for payment status updates
+      description: |
+        Public endpoint for PayOS to send payment confirmation webhooks.
+        This endpoint verifies the webhook signature and updates invoice payment status.
+        
+        **IMPORTANT:** This endpoint is PUBLIC (no authentication required) as it is called by PayOS servers.
+        The webhook data is verified using PayOS checksum validation before processing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: PayOS webhook data payload
+              properties:
+                code:
+                  type: string
+                  example: '00'
+                  description: Payment status code ('00' indicates successful payment)
+                data:
+                  type: object
+                  properties:
+                    orderCode:
+                      type: number
+                      example: 123456789
+                      description: Order code that links to invoice
+                    amount:
+                      type: number
+                      example: 3240000
+                      description: Payment amount
+                    description:
+                      type: string
+                      example: 'Payment for Invoice INV-20260130-001'
+                    transactionDateTime:
+                      type: string
+                      example: '2026-01-30T14:30:00Z'
+                    reference:
+                      type: string
+                      example: 'FT21348901234'
+                signature:
+                  type: string
+                  description: PayOS signature for webhook verification
+                  example: 'a1b2c3d4e5f6...'
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook data or signature verification failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Invalid webhook signature'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Internal server error'
 
   # ============================================================
   # FEATURE 5: STORE INVENTORY & OPERATIONS

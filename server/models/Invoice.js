@@ -13,6 +13,12 @@ const invoiceSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    payosOrderCode: {
+      type: Number,
+      required: false,
+      unique: true,
+      sparse: true,
+    },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
