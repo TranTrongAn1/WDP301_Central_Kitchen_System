@@ -1,5 +1,5 @@
 import  { useEffect, useState } from 'react';
-import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
+import { OrderApi, type Order as OrderType } from '../../../api/OrderApi.tsx';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,7 +22,7 @@ const Order = () => {
         setLoading(true);
         const data = await OrderApi.getAllOrders();
         // Sort mới nhất lên đầu
-        const sortedData = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sortedData = data.sort((a: OrderType, b: OrderType) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setOrders(sortedData);
       } catch (err) {
         setError('Không thể tải danh sách đơn hàng');
