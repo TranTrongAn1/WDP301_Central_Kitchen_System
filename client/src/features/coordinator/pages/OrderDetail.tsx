@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
+import { OrderApi, type Order as OrderType } from '../../../api/OrderApi.tsx';
 import { productApi, type Product } from '../../../api/ProductApi'; 
 import { ingredientApi, type Ingredient, type IngredientBatch } from '../../../api/IngredientApi'; 
 import { useThemeStore } from '@/shared/zustand/themeStore';
