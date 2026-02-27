@@ -21,21 +21,20 @@ app.use(express.urlencoded({ extended: true }));
 // CORS middleware - Cấu hình cho cả Development, Production và PayOS Webhook
 app.use(cors({
   origin: [
-    'http://localhost:5173',  // Vite dev server (React/Vue)
-    'http://localhost:3000',  // React dev server
-    'http://localhost:8081',  // React Native / Expo dev
-    'https://pay.payos.vn',   // PayOS payment gateway
-    'https://wdp301-central-kitchen-system.onrender.com' // Production Render URL
+    'http://localhost:5173', // Vite (Frontend chính của bạn)
+    'http://localhost:3000', // React thường (nếu có)
+    'http://localhost:8081', // Mobile hoặc App khác (nếu có)
+    'https://pay.payos.vn'   // PayOS production domain for webhooks
   ],
-  credentials: true,  // Cho phép gửi cookies và authorization headers
+  credentials: true, // Cho phép gửi cookie/token
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
-    'Content-Type',      // Required cho JSON requests
-    'Authorization',     // Required cho JWT authentication
-    'X-Requested-With',  // Standard AJAX header
-    'Accept',            // Content negotiation
-    'x-api-key',         // PayOS webhook authentication
-    'x-client-id'        // PayOS client identification
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept',
+    'x-api-key',      // PayOS API authentication header
+    'x-client-id'     // PayOS client identification header
   ],
 }));
 
