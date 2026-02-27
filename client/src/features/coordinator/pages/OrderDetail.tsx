@@ -249,7 +249,7 @@ const OrderDetail = () => {
                   </tr>
                 </thead>
                 <tbody className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {order.items.map((item, index) => {
+                  {order.items.map((item: any, index: number) => {
                     const productName = (item.productId as any)?.name || 'Sản phẩm ' + (index + 1);
                     const productPrice = (item.productId as any)?.price || item.price || 0;
                     const subtotal = productPrice * item.quantity;

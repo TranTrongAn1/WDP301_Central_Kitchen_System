@@ -22,7 +22,7 @@ const Order = () => {
         setLoading(true);
         const data = await OrderApi.getAllOrders();
         // Sort mới nhất lên đầu
-        const sortedData = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sortedData = data.sort((a: OrderType, b: OrderType) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setOrders(sortedData);
       } catch (err) {
         setError('Không thể tải danh sách đơn hàng');
