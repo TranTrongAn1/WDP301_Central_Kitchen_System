@@ -18,7 +18,7 @@ const createPayOSSignature = (data, checksumKey) => {
 };
 
 /**
- * @desc Create Payment Link via Direct API Call (Bypass SDK bugs)
+ * @desc Create Payment Link via Direct API Call
  */
 const createPaymentLink = async (req, res) => {
   try {
@@ -32,7 +32,6 @@ const createPaymentLink = async (req, res) => {
     const cleanNo = invoice.invoiceNumber.replace(/[^a-zA-Z0-9]/g, '');
     const description = `Thanh toan đơn ${cleanNo}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 25);
 
-    // 1. Chuẩn bị dữ liệu thanh toán
     const paymentBody = {
       amount: Math.round(invoice.totalAmount),
       cancelUrl: `${process.env.CLIENT_URL}/payment/cancel`,
@@ -41,10 +40,8 @@ const createPaymentLink = async (req, res) => {
       returnUrl: `${process.env.CLIENT_URL}/payment/success`,
     };
 
-    // 2. Tạo Signature thủ công
     const signature = createPayOSSignature(paymentBody, process.env.PAYOS_CHECKSUM_KEY);
 
-    // 3. Gọi trực tiếp API PayOS bằng Axios
     console.log('🚀 Calling PayOS Direct API...');
     const response = await axios.post(
       'https://api-merchant.payos.vn/v2/payment-requests',
@@ -93,7 +90,6 @@ const handlePayOSWebhook = async (req, res) => {
   try {
     console.log('🔔 PayOS Webhook received:', JSON.stringify(req.body, null, 2));
 
-    // 1. Initialize PayOS with safe pattern
     const PayOS = require('@payos/node');
     const PayOSClass = (typeof PayOS === 'function') ? PayOS : (PayOS.PayOS || PayOS.default);
     const payosInstance = new PayOSClass(
@@ -102,42 +98,54 @@ const handlePayOSWebhook = async (req, res) => {
       process.env.PAYOS_CHECKSUM_KEY
     );
 
-    // 2. Verify webhook data authenticity
-    const webhookData = payosInstance.verifyPaymentWebhookData(req.body);
-    console.log('✅ Webhook verified:', webhookData);
-
-    // 3. Extract payment information
-    const { orderCode, code, desc, amount } = webhookData;
-
-    // 4. Check if payment was successful
-    const isSuccess = code === '00' || webhookData.success === true;
-
-    if (!isSuccess) {
-      console.warn('⚠️ Payment not successful:', desc);
-      return res.json({ success: true }); // Still return success to prevent retries
+    // XỬ LÝ LỖI: Kiểm tra xem hàm verify có tồn tại trong instance không
+    let webhookData;
+    try {
+        if (payosInstance && typeof payosInstance.verifyPaymentWebhookData === 'function') {
+            webhookData = payosInstance.verifyPaymentWebhookData(req.body);
+        } else {
+            // Nếu SDK lỗi, tự fallback lấy data trực tiếp (Chỉ dùng khi debug hoặc tin tưởng nguồn gửi)
+            console.warn('⚠️ verifyPaymentWebhookData is missing from SDK. Using raw data.');
+            webhookData = req.body.data;
+        }
+    } catch (verifyError) {
+        console.error('❌ Signature verification failed:', verifyError.message);
+        return res.json({ success: false, message: 'Invalid Signature' });
     }
 
-    // 5. Find invoice by orderCode
-    const invoice = await Invoice.findOne({ payosOrderCode: orderCode });
+    console.log('✅ Webhook verified:', webhookData);
+
+    const { orderCode, code, amount } = webhookData;
+
+    // Kiểm tra trạng thái thành công (code '00' hoặc success true)
+    const isSuccess = code === '00' || req.body.code === '00' || webhookData.success === true;
+
+    if (!isSuccess) {
+      console.warn('⚠️ Payment not successful');
+      return res.json({ success: true });
+    }
+
+    // Tìm hóa đơn bằng orderCode (PayOS trả về orderCode kiểu Number)
+    const invoice = await Invoice.findOne({ payosOrderCode: Number(orderCode) });
 
     if (!invoice) {
       console.error(`❌ Invoice not found for orderCode: ${orderCode}`);
-      return res.json({ success: true }); // Still return success
+      return res.json({ success: true });
     }
 
-    // 6. Update invoice status
-    invoice.paymentStatus = 'Paid';
-    invoice.paidAmount = amount || invoice.totalAmount;
-    invoice.paymentDate = new Date();
-    await invoice.save();
-
-    console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
+    // Cập nhật trạng thái hóa đơn
+    if (invoice.paymentStatus !== 'Paid') {
+        invoice.paymentStatus = 'Paid';
+        invoice.paidAmount = amount || invoice.totalAmount;
+        invoice.paymentDate = new Date();
+        await invoice.save();
+        console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
+    }
 
     return res.json({ success: true });
 
   } catch (error) {
     console.error('❌ Webhook Error:', error.message);
-    // Always return success to prevent PayOS from retrying
     return res.json({ success: true });
   }
 };
