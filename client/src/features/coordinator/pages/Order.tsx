@@ -1,5 +1,5 @@
-import  { useEffect, useState } from 'react';
-import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
+import { useEffect, useState } from 'react';
+import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,7 +23,7 @@ const Order = () => {
         const data = await OrderApi.getAllOrders();
         // Sort mới nhất lên đầu
         const sortedData = data.sort((a: OrderType, b: OrderType) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setOrders(sortedData);
+        setOrders(Array.isArray(sortedData) ? sortedData : []);
       } catch (err) {
         setError('Không thể tải danh sách đơn hàng');
       } finally {
@@ -123,7 +123,7 @@ const Order = () => {
             <option value="All">Tất cả trạng thái</option>
             <option value="Pending">Chờ duyệt (Pending)</option>
             <option value="Approved">Đã duyệt (Approved)</option>
-            <option value="In_Transit">Đãgiao bếp (In_Transit)</option>
+            <option value="In_Transit">Đang giao (In_Transit)</option>
             <option value="Received">Đã nhận (Received)</option>
             <option value="Cancelled">Đã hủy (Cancelled)</option>
           </select>
@@ -158,7 +158,11 @@ const Order = () => {
                 <div className="flex items-center justify-between text-sm">
                   <div className={`flex items-center gap-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}><span className="material-symbols-outlined text-[18px]">store</span>Cửa hàng:</div>
                   <span className={`font-medium truncate max-w-[150px] ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    {typeof order.storeId === 'string' ? order.storeId.slice(-6).toUpperCase() : (order.storeId as any)?._id ? (order.storeId as any)._id.toString().slice(-6).toUpperCase() : 'N/A'}
+                    {typeof order.storeId === 'object' && order.storeId?.storeName
+                      ? order.storeId.storeName
+                      : typeof order.storeId === 'string'
+                        ? order.storeId.slice(-6).toUpperCase()
+                        : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -175,7 +179,7 @@ const Order = () => {
                   <span className="text-lg font-bold text-amber-500">{formatCurrency(order.totalAmount)}</span>
                 </div>
                 <button 
-                  onClick={() => navigate(`/orders/${order._id}`)}
+                  onClick={() => navigate(`/coordinator/orders/${order._id}`)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${darkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white' : 'bg-gray-50 text-gray-400 hover:bg-amber-50 hover:text-amber-600'}`}
                 >
                   <span className="material-symbols-outlined text-[20px]">arrow_forward</span>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { OrderApi, type Order as OrderType } from '../../../api/OrderApi';
-import { productApi, type Product } from '../../../api/ProductApi'; 
-import { ingredientApi, type Ingredient, type IngredientBatch } from '../../../api/IngredientApi'; 
+import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
+import { productApi, type Product } from '@/api/ProductApi';
+import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 
 // Interface cho bảng tính toán tồn kho
@@ -146,6 +146,7 @@ const OrderDetail = () => {
     switch (status) {
       case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
       case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
+      case 'In_Transit': return 'bg-purple-500/10 text-purple-600 border-purple-200';
       case 'Shipped': return 'bg-purple-500/10 text-purple-600 border-purple-200';
       case 'Received': return 'bg-green-500/10 text-green-600 border-green-200';
       case 'Cancelled': return 'bg-red-500/10 text-red-600 border-red-200';
@@ -249,10 +250,10 @@ const OrderDetail = () => {
                   </tr>
                 </thead>
                 <tbody className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {order.items.map((item: any, index: number) => {
-                    const productName = (item.productId as any)?.name || 'Sản phẩm ' + (index + 1);
-                    const productPrice = (item.productId as any)?.price || item.price || 0;
-                    const subtotal = productPrice * item.quantity;
+                  {order.items.map((item: OrderType['items'][0], index: number) => {
+                    const productName = (typeof item.productId === 'object' && item.productId?.name) ? item.productId.name : 'Sản phẩm ' + (index + 1);
+                    const productPrice = (typeof item.productId === 'object' && item.productId?.price) ? item.productId.price : (item.unitPrice ?? (item.quantity ? item.subtotal / item.quantity : 0));
+                    const subtotal = item.subtotal ?? productPrice * item.quantity;
 
                     return (
                       <tr key={index} className={`border-b last:border-0 ${darkMode ? 'border-gray-800' : 'border-gray-50'}`}>

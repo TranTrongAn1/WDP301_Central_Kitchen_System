@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
-    PlusIcon,
-    TruckIcon,
-    CheckCircleIcon,
-    XMarkIcon,
-    InboxStackIcon,
-    PencilSquareIcon,
-    PaperAirplaneIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
-    ExclamationTriangleIcon // Icon cảnh báo cho Modal Confirm
-} from '@heroicons/react/24/outline';
-import DeliveryTripApi, { type ITrip } from '../../../api/DeliveryTripApi';
-import { OrderApi, type Order } from '../../../api/OrderApi';
-import { toast } from 'react-toastify';
+    Plus,
+    Truck,
+    CheckCircle,
+    X,
+    Inbox,
+    PenSquare,
+    Send,
+    ChevronLeft,
+    ChevronRight,
+    AlertTriangle
+} from 'lucide-react';
+import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
+import { OrderApi, type Order } from '@/api/OrderApi';
+import toast from 'react-hot-toast';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,12 +27,11 @@ const Shipments = () => {
     const [allOrders, setAllOrders] = useState<Order[]>([]);
 
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+    const [tripNotes, setTripNotes] = useState('');
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [editingTrip, setEditingTrip] = useState<ITrip | null>(null);
-
-    // State cho Modal Xác nhận Khởi hành (Lưu ID của chuyến xe đang chuẩn bị khởi hành)
     const [tripToFinalize, setTripToFinalize] = useState<string | null>(null);
 
     // State Phân trang
@@ -46,15 +45,13 @@ const Shipments = () => {
                 OrderApi.getAllOrders()
             ]);
 
-            if (tripRes.success) {
-                const sortedTrips = tripRes.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                setTrips(sortedTrips);
-            }
-            setAllOrders(ordersData || []);
+            const tripList = Array.isArray(tripRes?.data) ? tripRes.data : [];
+            setTrips(tripList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+            setAllOrders(Array.isArray(ordersData) ? ordersData : []);
 
         } catch (err) {
             console.error(err);
-            toast.error("Lỗi đồng bộ dữ liệu vận chuyển");
+            toast.error('Lỗi đồng bộ dữ liệu vận chuyển');
         } finally {
             setLoading(false);
         }
@@ -117,6 +114,7 @@ const Shipments = () => {
     const openCreateModal = () => {
         setEditingTrip(null);
         setSelectedOrderIds([]);
+        setTripNotes('');
         setShowModal(true);
     };
 
@@ -128,7 +126,7 @@ const Shipments = () => {
     };
 
     const handleSaveTrip = async () => {
-        if (selectedOrderIds.length === 0) return toast.warn("Vui lòng chọn ít nhất 1 đơn hàng");
+        if (selectedOrderIds.length === 0) return toast.error('Vui lòng chọn ít nhất 1 đơn hàng');
 
         try {
             setIsCreating(true);
@@ -144,11 +142,11 @@ const Shipments = () => {
                 if (removedOrders.length > 0) {
                     await DeliveryTripApi.removeOrdersFromDeliveryTrip(editingTrip._id, removedOrders);
                 }
-                toast.success("Cập nhật chuyến hàng thành công!");
+                toast.success('Cập nhật chuyến hàng thành công!');
 
             } else {
-                const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds);
-                if (res.success) toast.success("Tạo chuyến hàng thành công!");
+                const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds, tripNotes || undefined);
+                if (res?.success) toast.success(res?.message ?? 'Tạo chuyến hàng thành công!');
             }
 
             setShowModal(false);
@@ -157,7 +155,7 @@ const Shipments = () => {
             fetchData();
         } catch (err) {
             console.error(err);
-            toast.error("Đã xảy ra lỗi khi lưu chuyến hàng");
+            toast.error('Đã xảy ra lỗi khi lưu chuyến hàng');
         } finally {
             setIsCreating(false);
         }
@@ -169,12 +167,12 @@ const Shipments = () => {
 
         try {
             await DeliveryTripApi.finalizeTrip(tripToFinalize);
-            toast.success("Chuyến hàng đã bắt đầu khởi hành!");
+            toast.success('Chuyến hàng đã bắt đầu khởi hành!');
             setTripToFinalize(null); // Đóng modal
             fetchData();
         } catch (error) {
             console.error(error);
-            toast.error("Lỗi khi khởi hành chuyến hàng");
+            toast.error('Lỗi khi khởi hành chuyến hàng');
         }
     };
 
@@ -202,7 +200,7 @@ const Shipments = () => {
                     onClick={openCreateModal}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-orange-500/20"
                 >
-                    <PlusIcon className="w-5 h-5" /> New Trip
+                    <Plus className="w-5 h-5" /> New Trip
                 </button>
             </div>
 
@@ -210,7 +208,7 @@ const Shipments = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {currentTrips.length === 0 ? (
                     <div className={`col-span-full py-24 rounded-[32px] border-2 border-dashed flex flex-col items-center justify-center transition-colors ${darkMode ? 'border-gray-700/50 bg-[#25252A]/30' : 'bg-gray-50/50 border-gray-300'}`}>
-                        <InboxStackIcon className={`w-16 h-16 mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                        <Inbox className={`w-16 h-16 mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
                         <p className={`font-bold uppercase text-sm tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             Chưa có chuyến hàng nào được tạo
                         </p>
@@ -229,7 +227,7 @@ const Shipments = () => {
 
                             <div className="flex justify-between items-start mb-5 relative z-10">
                                 <div className={`p-3 rounded-xl border border-orange-500/20 text-orange-500 flex items-center justify-center ${darkMode ? 'bg-[#2a2a30]' : 'bg-orange-50'}`}>
-                                    <TruckIcon className="w-6 h-6" />
+                                    <Truck className="w-6 h-6" />
                                 </div>
 
                                 <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
@@ -243,7 +241,7 @@ const Shipments = () => {
                             </div>
 
                             <button
-                                onClick={() => navigate(`/shipments/${trip._id}`)}
+                                onClick={() => navigate(`/coordinator/shipments/${trip._id}`)}
                                 className={`w-full py-2.5 mb-5 rounded-xl font-black text-[11px] uppercase tracking-[0.15em] transition-all relative z-10 ${
                                     darkMode
                                         ? 'bg-[#2a2a30] text-orange-500 hover:bg-[#323238] hover:text-orange-400'
@@ -255,7 +253,7 @@ const Shipments = () => {
 
                             <div className="space-y-1 mb-5 relative z-10 flex-1">
                                 <h3 className={`text-xl font-black tracking-tighter uppercase flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                    Trip ID: {trip._id.slice(-6).toUpperCase()}
+                                    {trip.tripCode ?? `TRIP-${trip._id.slice(-6).toUpperCase()}`}
                                 </h3>
                                 <p className={`text-xs font-bold uppercase tracking-widest ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                     Số lượng: {trip.orders?.length || 0} đơn hàng
@@ -276,7 +274,7 @@ const Shipments = () => {
                                         className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex justify-center items-center gap-1.5 ${darkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                         title="Chỉnh sửa chuyến xe"
                                     >
-                                        <PencilSquareIcon className="w-4 h-4" /> Edit
+                                        <PenSquare className="w-4 h-4" /> Edit
                                     </button>
 
                                     <button
@@ -284,7 +282,7 @@ const Shipments = () => {
                                         className="flex-1 py-2 rounded-lg bg-orange-500 text-white font-bold text-[10px] uppercase tracking-wider hover:bg-orange-600 transition-colors flex justify-center items-center gap-1.5 shadow-md shadow-orange-500/20"
                                         title="Bắt đầu vận chuyển"
                                     >
-                                        <PaperAirplaneIcon className="w-4 h-4" /> Complete
+                                        <Send className="w-4 h-4" /> Complete
                                     </button>
                                 </div>
                             )}
@@ -303,7 +301,7 @@ const Shipments = () => {
                             darkMode ? 'text-indigo-400 hover:text-indigo-300 hover:bg-white/5' : 'text-indigo-600 hover:bg-indigo-50'
                         }`}
                     >
-                        <ChevronLeftIcon className="w-4 h-4" />
+                        <ChevronLeft className="w-4 h-4" />
                         Back
                     </button>
 
@@ -340,7 +338,7 @@ const Shipments = () => {
                         }`}
                     >
                         Next
-                        <ChevronRightIcon className="w-4 h-4" />
+                        <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>
             )}
@@ -362,10 +360,25 @@ const Shipments = () => {
                                 onClick={() => setShowModal(false)}
                                 className={`p-2 rounded-xl transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
                             >
-                                <XMarkIcon className="w-6 h-6" />
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
+                        {!editingTrip && (
+                            <div className={`px-6 pb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1">Ghi chú chuyến (tùy chọn, tối đa 500 ký tự)</label>
+                                <input
+                                    type="text"
+                                    maxLength={500}
+                                    placeholder="VD: Giao trước 10h sáng"
+                                    value={tripNotes}
+                                    onChange={(e) => setTripNotes(e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg border text-sm outline-none ${
+                                        darkMode ? 'bg-[#1C1C21] border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
+                                    }`}
+                                />
+                            </div>
+                        )}
                         <div className="p-6 overflow-y-auto space-y-3 custom-scrollbar max-h-[50vh]">
                             {availableOrders.length === 0 ? (
                                 <div className="text-center py-10">
@@ -398,7 +411,7 @@ const Shipments = () => {
                                                     ? 'bg-orange-500 border-orange-500'
                                                     : darkMode ? 'border-gray-500' : 'border-gray-300'
                                             }`}>
-                                                {selectedOrderIds.includes(order._id) && <CheckCircleIcon className="w-4 h-4 text-white" />}
+                                                {selectedOrderIds.includes(order._id) && <CheckCircle className="w-4 h-4 text-white" />}
                                             </div>
                                             <div>
                                                 <p className={`font-black text-sm uppercase ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -447,7 +460,7 @@ const Shipments = () => {
                         darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'
                     }`}>
                         <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${darkMode ? 'bg-orange-500/10 text-orange-500' : 'bg-orange-50 text-orange-600'}`}>
-                            <ExclamationTriangleIcon className="w-8 h-8" />
+                            <AlertTriangle className="w-8 h-8" />
                         </div>
                         
                         <h3 className={`text-xl font-black uppercase tracking-tight mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -470,7 +483,7 @@ const Shipments = () => {
                                 onClick={executeFinalizeTrip}
                                 className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all shadow-lg shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-2"
                             >
-                                <PaperAirplaneIcon className="w-4 h-4" /> Khởi hành
+                                <Send className="w-4 h-4" /> Khởi hành
                             </button>
                         </div>
                     </div>

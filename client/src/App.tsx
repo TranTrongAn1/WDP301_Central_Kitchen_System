@@ -155,11 +155,11 @@ function App() {
             <Route element={<CoordinatorLayout/>}>
               <Route path="/coordinator/dashboard" element={<CoordinatorDashboard />} />
               <Route path="/coordinator/orders" element={<Order/>} />
+              <Route path="/coordinator/orders/:id" element={<OrderDetail />} />
               <Route path="/coordinator/shipments" element={<Shipment/>} />
+              <Route path="/coordinator/shipments/:id" element={<ShipmentDetail />} />
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
-              <Route path="/orders/:id" element={<OrderDetail />} />
-              <Route path="/shipments/:id" element={<ShipmentDetail />} />
             </Route>
           </Route>
 

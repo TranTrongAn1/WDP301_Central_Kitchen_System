@@ -1,28 +1,8 @@
 import apiClient from './Client';
+import type { LogisticsOrder, OrderStatus } from '@/shared/types/logistics';
 
-export interface OrderItem {
-  productId: string | { _id: string; name: string; price: number }; 
-  quantity: number;
-  price?: number; 
-  _id?: string;
-}
-
-export interface Order {
-  _id: string;
-  orderCode: string; 
-  storeId: string; 
-  createdBy: string; 
-  
-  status: 'Pending' | 'Approved' | 'Shipped' | 'Received' | 'Cancelled';
-  
-  items: OrderItem[];
-  totalAmount: number; 
-  notes?: string;      
-  
-  requestedDeliveryDate: string; 
-  createdAt: string;
-  updatedAt: string;
-}
+export type Order = LogisticsOrder;
+export type { OrderStatus };
 
 export interface OrderQueryParams {
   status?: string;
@@ -31,27 +11,27 @@ export interface OrderQueryParams {
 
 interface OrderListResponse {
   success: boolean;
-  data: Order[]; 
+  count?: number;
+  data: LogisticsOrder[];
+  message?: string;
+}
+
+interface OrderDetailResponse {
+  success: boolean;
+  data: LogisticsOrder;
   message?: string;
 }
 
 export const OrderApi = {
-  getAllOrders: async (params?: OrderQueryParams): Promise<Order[]> => {
-    try {
-      const response = await apiClient.get('/logistics/orders', {
-        params, 
-      }) as unknown as OrderListResponse;
-      
-      return response.data || []; 
-    } catch (error) {
-      console.error("Get All Orders Error:", error);
-      throw error;
-    }
+  getAllOrders: async (params?: OrderQueryParams): Promise<LogisticsOrder[]> => {
+    const res = (await apiClient.get('/logistics/orders', { params })) as OrderListResponse;
+    return res?.data ?? [];
   },
 
-
-  getOrderById: async (id: string): Promise<Order> => {
-    const response = await apiClient.get<any>(`/logistics/orders/${id}`);
-    return response.data;
-  }
+  getOrderById: async (id: string): Promise<LogisticsOrder> => {
+    const res = (await apiClient.get(`/logistics/orders/${id}`)) as OrderDetailResponse | LogisticsOrder;
+    if (res && typeof res === 'object' && 'data' in res && res.data) return res.data;
+    if (res && typeof res === 'object' && '_id' in res && 'orderCode' in res) return res as LogisticsOrder;
+    throw new Error('Order not found');
+  },
 };
