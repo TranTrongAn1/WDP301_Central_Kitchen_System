@@ -77,7 +77,7 @@ const Order = () => {
     switch (status) {
       case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
       case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-      case 'Transferred_To_Kitchen': return 'bg-purple-500/10 text-purple-600 border-purple-200';
+      case 'In_Transit': return 'bg-purple-500/10 text-purple-600 border-purple-200';
       case 'Received': return 'bg-green-500/10 text-green-600 border-green-200';
       case 'Cancelled': return 'bg-red-500/10 text-red-600 border-red-200';
       default: return 'bg-gray-100 text-gray-600 border-gray-200';
@@ -123,7 +123,7 @@ const Order = () => {
             <option value="All">Tất cả trạng thái</option>
             <option value="Pending">Chờ duyệt (Pending)</option>
             <option value="Approved">Đã duyệt (Approved)</option>
-            <option value="Transferred_To_Kitchen">Đã giao bếp (Transferred To Kitchen)</option>
+            <option value="In_Transit">Đã giao bếp (In_Transit)</option>
             <option value="Received">Đã nhận (Received)</option>
             <option value="Cancelled">Đã hủy (Cancelled)</option>
           </select>

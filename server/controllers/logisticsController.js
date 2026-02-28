@@ -426,13 +426,13 @@ const receiveOrder = async (req, res, next) => {
       throw new Error('Delivery trip not found');
     }
 
-    // Check if delivery trip is transferred to kitchen
-    if (deliveryTrip.status !== 'Transferred_To_Kitchen') {
+    // Check if delivery trip is In_Transit
+    if (deliveryTrip.status !== 'In_Transit') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
       throw new Error(
-        `Delivery trip status is '${deliveryTrip.status}'. Only 'Transferred_To_Kitchen' trips can be received.`
+        `Delivery trip status is '${deliveryTrip.status}'. Only 'In_Transit' trips can be received.`
       );
     }
 
@@ -761,11 +761,11 @@ const removeOrdersFromTrip = async (req, res, next) => {
     }
 
     // Check trip status - cannot remove orders from active or completed trips
-    if (trip.status === 'Transferred_To_Kitchen') {
+    if (trip.status === 'In_Transit') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      throw new Error('Cannot remove orders from a trip that has been transferred to kitchen');
+      throw new Error('Cannot remove orders from an In_Transit trip');
     }
 
     if (trip.status === 'Completed') {
@@ -884,11 +884,11 @@ const finalizeDeliveryPlan = async (req, res, next) => {
     // ========================================
     // STEP 2: Validate Trip Status
     // ========================================
-    if (trip.status === 'Transferred_To_Kitchen') {
+    if (trip.status === 'In_Transit') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      throw new Error('Trip is already transferred to kitchen');
+      throw new Error('Trip is already In_Transit');
     }
 
     if (trip.status === 'Completed') {
@@ -909,7 +909,7 @@ const finalizeDeliveryPlan = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 4: Update All Orders to 'Transferred_To_Kitchen' Status
+    // STEP 4: Update All Orders to 'In_Transit' Status
     // ========================================
     const shippedDate = new Date();
     
@@ -917,7 +917,7 @@ const finalizeDeliveryPlan = async (req, res, next) => {
       { _id: { $in: trip.orders } },
       {
         $set: {
-          status: 'Transferred_To_Kitchen',
+          status: 'In_Transit',
           shippedDate: shippedDate,
         },
       },
@@ -925,9 +925,9 @@ const finalizeDeliveryPlan = async (req, res, next) => {
     );
 
     // ========================================
-    // STEP 5: Update Trip Status to 'Transferred_To_Kitchen'
+    // STEP 5: Update Trip Status to 'In_Transit'
     // ========================================
-    trip.status = 'Transferred_To_Kitchen';
+    trip.status = 'In_Transit';
     trip.departureTime = shippedDate;
     await trip.save({ session });
 
@@ -950,7 +950,7 @@ const finalizeDeliveryPlan = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Trip finalized and transferred to kitchen for production. ${updateResult.modifiedCount} orders updated.`,
+      message: `Delivery plan finalized successfully. ${updateResult.modifiedCount} orders moved to 'In_Transit' status.`,
       data: {
         trip,
         ordersUpdated: updateResult.modifiedCount,
@@ -1476,7 +1476,7 @@ const aggregateDailyDemand = async (req, res, next) => {
             $gte: targetDate,
             $lt: nextDay,
           },
-          status: { $in: ['Pending', 'Approved', 'Transferred_To_Kitchen'] },
+          status: { $in: ['Pending', 'Approved', 'In_Transit'] },
         },
       },
       {

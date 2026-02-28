@@ -877,13 +877,13 @@ const importData = async () => {
     });
     console.log(`✅ Order ${approvedOrder5.orderCode}: Approved - Total: ${approvedOrder5.totalAmount.toLocaleString()} VND`);
 
-    // === TRANSFERRED_TO_KITCHEN ORDERS (5) with Delivery Trips ===
-    console.log('\n--- Creating 5 TRANSFERRED_TO_KITCHEN Orders with Delivery Trips ---');
+    // === IN_TRANSIT ORDERS (5) with Delivery Trips ===
+    console.log('\n--- Creating 5 IN_TRANSIT Orders with Delivery Trips ---');
     const transitOrder1 = await createOrderWithPricing({
       storeId: createdStores[0]._id,
       createdBy: storeUser._id,
       requestedDeliveryDate: new Date('2026-02-06'),
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
       items: [
         { productId: greenBeanMooncake._id, quantity: 10, batchId: finishedGreenBeanBatch._id },
         { productId: mixedNutsMooncake._id, quantity: 8, batchId: finishedMixedNutsBatch._id },
@@ -892,13 +892,13 @@ const importData = async () => {
       approvedDate: new Date('2026-01-30'),
       shippedDate: new Date('2026-02-04'),
     });
-    console.log(`✅ Order ${transitOrder1.orderCode}: Transferred_To_Kitchen - Total: ${transitOrder1.totalAmount.toLocaleString()} VND`);
+    console.log(`✅ Order ${transitOrder1.orderCode}: In_Transit - Total: ${transitOrder1.totalAmount.toLocaleString()} VND`);
 
     const transitOrder2 = await createOrderWithPricing({
       storeId: createdStores[1]._id,
       createdBy: managerUser._id,
       requestedDeliveryDate: new Date('2026-02-06'),
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
       items: [
         { productId: lotusSeedMooncake._id, quantity: 15, batchId: finishedLotusSeedBatch._id },
       ],
@@ -906,13 +906,13 @@ const importData = async () => {
       approvedDate: new Date('2026-01-31'),
       shippedDate: new Date('2026-02-04'),
     });
-    console.log(`✅ Order ${transitOrder2.orderCode}: Transferred_To_Kitchen - Total: ${transitOrder2.totalAmount.toLocaleString()} VND`);
+    console.log(`✅ Order ${transitOrder2.orderCode}: In_Transit - Total: ${transitOrder2.totalAmount.toLocaleString()} VND`);
 
     const transitOrder3 = await createOrderWithPricing({
       storeId: createdStores[2]._id,
       createdBy: managerUser._id,
       requestedDeliveryDate: new Date('2026-02-07'),
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
       items: [
         { productId: taroMooncake._id, quantity: 20, batchId: finishedTaroBatch._id },
         { productId: durianMooncake._id, quantity: 5, batchId: finishedDurianBatch._id },
@@ -921,13 +921,13 @@ const importData = async () => {
       approvedDate: new Date('2026-02-01'),
       shippedDate: new Date('2026-02-05'),
     });
-    console.log(`✅ Order ${transitOrder3.orderCode}: Transferred_To_Kitchen - Total: ${transitOrder3.totalAmount.toLocaleString()} VND`);
+    console.log(`✅ Order ${transitOrder3.orderCode}: In_Transit - Total: ${transitOrder3.totalAmount.toLocaleString()} VND`);
 
     const transitOrder4 = await createOrderWithPricing({
       storeId: createdStores[3]._id,
       createdBy: managerUser._id,
       requestedDeliveryDate: new Date('2026-02-07'),
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
       items: [
         { productId: greenBeanMooncake._id, quantity: 12, batchId: finishedGreenBeanBatch._id },
       ],
@@ -935,13 +935,13 @@ const importData = async () => {
       approvedDate: new Date('2026-02-01'),
       shippedDate: new Date('2026-02-05'),
     });
-    console.log(`✅ Order ${transitOrder4.orderCode}: Transferred_To_Kitchen - Total: ${transitOrder4.totalAmount.toLocaleString()} VND`);
+    console.log(`✅ Order ${transitOrder4.orderCode}: In_Transit - Total: ${transitOrder4.totalAmount.toLocaleString()} VND`);
 
     const transitOrder5 = await createOrderWithPricing({
       storeId: createdStores[4]._id,
       createdBy: managerUser._id,
       requestedDeliveryDate: new Date('2026-02-08'),
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
       items: [
         { productId: mixedNutsMooncake._id, quantity: 14, batchId: finishedMixedNutsBatch._id },
         { productId: lotusSeedMooncake._id, quantity: 10, batchId: finishedLotusSeedBatch._id },
@@ -950,25 +950,25 @@ const importData = async () => {
       approvedDate: new Date('2026-02-02'),
       shippedDate: new Date('2026-02-05'),
     });
-    console.log(`✅ Order ${transitOrder5.orderCode}: Transferred_To_Kitchen - Total: ${transitOrder5.totalAmount.toLocaleString()} VND`);
+    console.log(`✅ Order ${transitOrder5.orderCode}: In_Transit - Total: ${transitOrder5.totalAmount.toLocaleString()} VND`);
 
-    // Create Delivery Trips for Transferred_To_Kitchen orders
-    console.log('\n--- Creating Delivery Trips for Transferred_To_Kitchen Orders ---');
+    // Create Delivery Trips for In_Transit orders
+    console.log('\n--- Creating Delivery Trips for In_Transit Orders ---');
     const trip1 = await DeliveryTrip.create({
       orders: [transitOrder1._id, transitOrder2._id],
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
     });
     console.log(`✅ Delivery Trip created: ${trip1._id} (2 orders)`);
 
     const trip2 = await DeliveryTrip.create({
       orders: [transitOrder3._id, transitOrder4._id],
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
     });
     console.log(`✅ Delivery Trip created: ${trip2._id} (2 orders)`);
 
     const trip3 = await DeliveryTrip.create({
       orders: [transitOrder5._id],
-      status: 'Transferred_To_Kitchen',
+      status: 'In_Transit',
     });
     console.log(`✅ Delivery Trip created: ${trip3._id} (1 order)`);
 
@@ -1181,8 +1181,8 @@ const importData = async () => {
     console.log(`   Products: 5 (Green Bean, Mixed Nuts, Lotus Seed, Taro, Durian)`);
     console.log(`   Production Plans: 1`);
     console.log(`   Finished Batches: 5`);
-    console.log(`   Orders: 20 (5 Pending, 5 Approved, 5 Transferred_To_Kitchen, 5 Received)`);
-    console.log(`   Delivery Trips: 3 (for Transferred_To_Kitchen orders)`);
+    console.log(`   Orders: 20 (5 Pending, 5 Approved, 5 In_Transit, 5 Received)`);
+    console.log(`   Delivery Trips: 3 (for In_Transit orders)`);
     console.log(`   Feedback: 3 (for Received orders)`);
     console.log(`   Store Inventories: 9 (across 5 stores)`);
 
@@ -1199,10 +1199,10 @@ const importData = async () => {
     console.log('   Store → Order → Delivery Trip → Feedback');
 
     console.log('\n📦 ORDER STATUS BREAKDOWN:');
-    console.log('   5 Pending               - Ready for Kitchen Staff to approve');
-    console.log('   5 Approved              - Ready for shipping (aggregate endpoint test data)');
-    console.log('   5 Transferred_To_Kitchen - Active delivery trips (QR receive test data)');
-    console.log('   5 Received              - Completed orders (feedback test data)\n');
+    console.log('   5 Pending    - Ready for Kitchen Staff to approve');
+    console.log('   5 Approved   - Ready for shipping (aggregate endpoint test data)');
+    console.log('   5 In_Transit - Active delivery trips (QR receive test data)');
+    console.log('   5 Received   - Completed orders (feedback test data)\n');
 
     process.exit(0);
   } catch (error) {
