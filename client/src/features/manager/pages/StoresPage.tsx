@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store as StoreIcon, Plus, Search, Loader2, MapPin, Phone, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { Store as StoreIcon, Plus, Search, Loader2, MapPin, Phone, Edit, Eye, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
-import { Modal, ConfirmModal } from '../components/ui/Modal';
+import { Modal } from '../components/ui/Modal';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { storeApi } from '@/api/StoreApi';
@@ -20,7 +20,6 @@ const StoresPage = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedStore, setSelectedStore] = useState<Store | null>(null);
     const [formLoading, setFormLoading] = useState(false);
 
@@ -93,22 +92,6 @@ const StoresPage = () => {
         }
     };
 
-    const handleDeleteStore = async () => {
-        if (!selectedStore) return;
-        try {
-            setFormLoading(true);
-            await storeApi.delete(selectedStore._id);
-            setIsDeleteModalOpen(false);
-            setSelectedStore(null);
-            fetchStores();
-        } catch (err) {
-            console.error('Error deleting store:', err);
-            alert('Failed to delete store');
-        } finally {
-            setFormLoading(false);
-        }
-    };
-
     const openEditModal = (store: Store) => {
         setSelectedStore(store);
         setFormData({
@@ -124,11 +107,6 @@ const StoresPage = () => {
     const openDetailModal = (store: Store) => {
         setSelectedStore(store);
         setIsDetailModalOpen(true);
-    };
-
-    const openDeleteModal = (store: Store) => {
-        setSelectedStore(store);
-        setIsDeleteModalOpen(true);
     };
 
     const filteredStores = stores.filter(store =>
@@ -350,14 +328,6 @@ const StoresPage = () => {
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-red-500 hover:text-red-600"
-                                                onClick={() => openDeleteModal(store)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
                                         </div>
                                     </motion.div>
                                 );
@@ -414,17 +384,6 @@ const StoresPage = () => {
             >
                 <StoreForm />
             </Modal>
-
-            <ConfirmModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
-                onConfirm={handleDeleteStore}
-                title="Delete Store"
-                message={`Are you sure you want to delete "${selectedStore?.name || selectedStore?.storeName}"? This action cannot be undone.`}
-                confirmLabel="Delete"
-                variant="danger"
-                loading={formLoading}
-            />
 
             {/* Store Detail Modal */}
             <Modal

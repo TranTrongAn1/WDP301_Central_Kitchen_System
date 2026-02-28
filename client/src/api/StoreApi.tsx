@@ -46,7 +46,7 @@ export const storeApi = {
     apiClient.get<ApiResponse<Store[]>>('/stores'),
 
   getById: (id: string) =>
-    apiClient.get<ApiResponse<Store>>(`/stores/${id}`),
+    apiClient.get(`/stores/${id}`) as Promise<ApiResponse<Store>>,
 
   create: (data: CreateStoreRequest) =>
     apiClient.post<ApiResponse<Store>>('/stores', data),

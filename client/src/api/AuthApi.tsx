@@ -1,42 +1,22 @@
-import apiclient from './Client';
-
-export interface LoginFormData {
-  username: string;
-  password: string;
-}
-
-export interface RegisterFormData {
-  username: string;
-  password: string;
-  fullName: string;
-  email: string;
-  roleId: string;
-  storeId?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  token?: string;
-  user?: any; 
-}
-
+import apiClient from './Client';
+import type {
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  ApiResponse,
+  User,
+} from '@/shared/types/auth';
 
 export const authApi = {
-  login: (data: LoginFormData) => {
+  login: (data: LoginRequest) =>
+    apiClient.post('/auth/login', data) as Promise<LoginResponse>,
 
-    return apiclient.post('/auth/login', data) as Promise<AuthResponse>;
-  },
+  register: (data: RegisterRequest) =>
+    apiClient.post('/auth/register', data) as Promise<ApiResponse<User>>,
 
-  register: (data: RegisterFormData) => {
-    return apiclient.post('/auth/register', data) as Promise<AuthResponse>;
-  },
+  getCurrentUser: () =>
+    apiClient.get('/auth/me') as Promise<ApiResponse<User>>,
 
-  getProfile: () => {
-    return apiclient.get('/auth/profile') as Promise<AuthResponse>;
-  },
-
-  logout: () => {
-    return apiclient.post('/auth/logout') as Promise<AuthResponse>;
-  }
+  logout: () =>
+    apiClient.post('/auth/logout') as Promise<ApiResponse<null>>,
 };

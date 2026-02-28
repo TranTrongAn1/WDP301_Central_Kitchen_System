@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Package, AlertTriangle, TrendingUp, Loader2, Plus, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -12,6 +12,10 @@ import { batchApi } from '@/api/BatchApi';
 import type { Batch } from '@/api/BatchApi';
 import { productApi } from '@/api/ProductApi';
 import type { Product } from '@/api/ProductApi';
+import { supplierApi, type Supplier } from '@/api/SupplierApi';
+import { Modal } from '../components/ui/Modal';
+import { Input } from '../components/ui/Input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 
 const InventoryReportsPage = () => {
     const [activeTab, setActiveTab] = useState('materials');
@@ -21,6 +25,18 @@ const InventoryReportsPage = () => {
     const [selectedProduct, setSelectedProduct] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Import Stock modal (ingredient batches)
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [importLoading, setImportLoading] = useState(false);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [importIngredientId, setImportIngredientId] = useState('');
+    const [importSupplierId, setImportSupplierId] = useState('');
+    const [importBatchCode, setImportBatchCode] = useState('');
+    const [importReceivedDate, setImportReceivedDate] = useState(() => new Date().toISOString().slice(0, 10));
+    const [importExpiryDate, setImportExpiryDate] = useState('');
+    const [importInitialQty, setImportInitialQty] = useState<number>(1);
+    const [importPrice, setImportPrice] = useState<number>(0);
 
     const fetchData = async () => {
         try {
@@ -52,6 +68,56 @@ const InventoryReportsPage = () => {
     useEffect(() => {
         fetchData();
     }, [selectedProduct]);
+
+    const resetImportForm = () => {
+        setImportIngredientId('');
+        setImportSupplierId('');
+        setImportBatchCode('');
+        setImportReceivedDate(new Date().toISOString().slice(0, 10));
+        setImportExpiryDate('');
+        setImportInitialQty(1);
+        setImportPrice(0);
+    };
+
+    const openImportModal = async () => {
+        setIsImportOpen(true);
+        if (suppliers.length === 0) {
+            try {
+                const res = await supplierApi.getAll();
+                const data = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+                setSuppliers(Array.isArray(data) ? data : []);
+            } catch {
+                setSuppliers([]);
+            }
+        }
+    };
+
+    const closeImportModal = () => {
+        setIsImportOpen(false);
+        resetImportForm();
+    };
+
+    const handleImport = async () => {
+        if (!importIngredientId || !importSupplierId || !importBatchCode.trim() || !importExpiryDate || importInitialQty <= 0) return;
+        try {
+            setImportLoading(true);
+            await (ingredientApi as any).addBatch(importIngredientId, {
+                batchCode: importBatchCode.trim(),
+                supplierId: importSupplierId,
+                expiryDate: new Date(importExpiryDate).toISOString(),
+                receivedDate: new Date(importReceivedDate).toISOString(),
+                initialQuantity: Number(importInitialQty) || 0,
+                price: Number(importPrice) || 0,
+            });
+            closeImportModal();
+            fetchData();
+        } catch (e) {
+            console.error('Import stock failed', e);
+            setError('Import stock failed. Please check inputs and try again.');
+        } finally {
+            setImportLoading(false);
+        }
+    };
 
     // Stats
     const lowStockCount = ingredients.filter(i => i.isBelowThreshold).length;
@@ -109,7 +175,7 @@ const InventoryReportsPage = () => {
                 <div>
                 </div>
                 <div className="flex gap-2">
-                    <Button className="bg-gradient-to-r from-orange-600 to-amber-600">
+                    <Button className="bg-gradient-to-r from-orange-600 to-amber-600" onClick={openImportModal}>
                         <Plus className="w-4 h-4 mr-2" />
                         Import Stock
                     </Button>
@@ -386,6 +452,119 @@ const InventoryReportsPage = () => {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <Modal
+                isOpen={isImportOpen}
+                onClose={closeImportModal}
+                title="Import Stock"
+                description="Nhập kho nguyên liệu (tạo lô nguyên liệu mới)"
+                size="lg"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={closeImportModal} disabled={importLoading}>
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-gradient-to-r from-orange-600 to-amber-600"
+                            onClick={handleImport}
+                            isLoading={importLoading}
+                            disabled={
+                                importLoading ||
+                                !importIngredientId ||
+                                !importSupplierId ||
+                                !importBatchCode.trim() ||
+                                !importExpiryDate ||
+                                importInitialQty <= 0
+                            }
+                        >
+                            Import
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Nguyên liệu *</label>
+                            <Select value={importIngredientId} onValueChange={setImportIngredientId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn nguyên liệu" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ingredients.map((ing) => (
+                                        <SelectItem key={ing._id} value={ing._id}>
+                                            {ing.ingredientName} ({ing.unit})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Nhà cung cấp *</label>
+                            <Select value={importSupplierId} onValueChange={setImportSupplierId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn nhà cung cấp" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {suppliers.map((s) => (
+                                        <SelectItem key={s._id} value={s._id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Mã lô *</label>
+                            <Input
+                                placeholder="VD: ING-20260228-001"
+                                value={importBatchCode}
+                                onChange={(e) => setImportBatchCode(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Giá nhập</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={importPrice}
+                                onChange={(e) => setImportPrice(Number(e.target.value) || 0)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Ngày nhận</label>
+                            <Input
+                                type="date"
+                                value={importReceivedDate}
+                                onChange={(e) => setImportReceivedDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Hạn sử dụng *</label>
+                            <Input
+                                type="date"
+                                value={importExpiryDate}
+                                onChange={(e) => setImportExpiryDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Số lượng nhập *</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={importInitialQty}
+                                onChange={(e) => setImportInitialQty(Number(e.target.value) || 0)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

@@ -37,6 +37,16 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/manager/reports": { name: "Reports & Analytics", title: "Báo cáo & Phân tích" },
   "/manager/users": { name: "Users & Roles", title: "Quản lý người dùng" },
   "/manager/settings": { name: "Settings", title: "Cài đặt hệ thống" },
+  "/coordinator/dashboard": { name: "Logistics Dashboard", title: "Tổng quan vận chuyển & điều phối" },
+  "/coordinator/orders": { name: "Store Orders", title: "Đơn hàng từ cửa hàng" },
+  "/coordinator/orders/:id": { name: "Order Detail", title: "Chi tiết đơn hàng" },
+  "/coordinator/shipments": { name: "Shipments", title: "Lập lịch & theo dõi chuyến giao hàng" },
+  "/coordinator/shipments/:id": { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" },
+  "/coordinator/inventory": { name: "Finished Goods", title: "Kho thành phẩm sẵn sàng giao" },
+  "/coordinator/issues": { name: "Issues & Returns", title: "Xử lý sự cố & đổi trả" },
+  "/profile": { name: "Hồ sơ cá nhân", title: "Thông tin tài khoản và vai trò của bạn" },
+  "/settings": { name: "Cài đặt", title: "Giao diện, thông báo và cấu hình hệ thống" },
+  "/help": { name: "Trợ giúp", title: "Hướng dẫn sử dụng và kênh hỗ trợ" },
 };
 
 export const DashboardHeader = ({
@@ -50,10 +60,14 @@ export const DashboardHeader = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const pageName = PAGE_NAME[location.pathname] || {
-    name: "Dashboard",
-    title: "Tổng quan",
-  };
+  const path = location.pathname;
+  const pageName =
+    PAGE_NAME[path] ??
+    (path.startsWith("/coordinator/orders/")
+      ? { name: "Order Detail", title: "Chi tiết đơn hàng" }
+      : path.startsWith("/coordinator/shipments/")
+        ? { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" }
+        : { name: "Dashboard", title: "Tổng quan" });
 
   const notifications = [
     {
@@ -111,12 +125,12 @@ export const DashboardHeader = ({
         </button>
 
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tight text-foreground">
             {pageName?.name}
           </h1>
-          <h2 className="text-sm text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
             {pageName?.title}
-          </h2>
+          </p>
         </div>
       </div>
 
@@ -338,6 +352,11 @@ export const DashboardHeader = ({
               </div>
               <div className="p-2">
                 <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/profile');
+                  }}
                   className={cn(
                     "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-colors",
                     darkMode
@@ -349,6 +368,11 @@ export const DashboardHeader = ({
                   <span className="text-sm">Hồ sơ cá nhân</span>
                 </button>
                 <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/settings');
+                  }}
                   className={cn(
                     "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-colors",
                     darkMode
@@ -360,6 +384,11 @@ export const DashboardHeader = ({
                   <span className="text-sm">Cài đặt</span>
                 </button>
                 <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/help');
+                  }}
                   className={cn(
                     "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-colors",
                     darkMode

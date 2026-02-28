@@ -31,11 +31,13 @@ import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
+import ProfilePage from '@/features/dashboard/pages/ProfilePage';
+import DashboardSettingsPage from '@/features/dashboard/pages/SettingsPage';
+import HelpPage from '@/features/dashboard/pages/HelpPage';
 
 import './App.css';
 import { AccountManagement } from './features/admin/pages/AccountManagment';
 import StoreManagment from './features/admin/pages/StoreManagment';
-import { CoordinatorLayout } from './features/coordinator/CoordinatorLayout';
 import Order from './features/coordinator/pages/Order';
 import Shipment from './features/coordinator/pages/Shipment';
 import Inventory from './features/coordinator/pages/Inventory';
@@ -152,24 +154,35 @@ function App() {
               <ProtectedRoute allowedRoles={['Coordinator']} />
             }
           >
-            <Route element={<CoordinatorLayout/>}>
+            <Route element={<DashboardLayout />}>
               <Route path="/coordinator/dashboard" element={<CoordinatorDashboard />} />
               <Route path="/coordinator/orders" element={<Order/>} />
+              <Route path="/coordinator/orders/:id" element={<OrderDetail />} />
               <Route path="/coordinator/shipments" element={<Shipment/>} />
+              <Route path="/coordinator/shipments/:id" element={<ShipmentDetail />} />
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
-              <Route path="/orders/:id" element={<OrderDetail />} />
-              <Route path="/shipments/:id" element={<ShipmentDetail />} />
             </Route>
           </Route>
 
           <Route
             element={
-              <ProtectedRoute />
+              <ProtectedRoute
+                allowedRoles={[
+                  'Admin',
+                  'Manager',
+                  'KitchenStaff',
+                  'StoreStaff',
+                  'Coordinator',
+                ]}
+              />
             }
           >
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<DashboardSettingsPage />} />
+              <Route path="/help" element={<HelpPage />} />
             </Route>
           </Route>
 

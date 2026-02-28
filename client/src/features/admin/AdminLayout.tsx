@@ -132,9 +132,9 @@ export const AdminLayout = () => {
                                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                     </div>
                                     
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">person</span> Hồ sơ cá nhân</button>
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">settings</span> Cài đặt</button>
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">help</span> Trợ giúp</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/profile'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">person</span> Hồ sơ cá nhân</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/settings'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">settings</span> Cài đặt</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/help'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">help</span> Trợ giúp</button>
 
                                     <div className={`mt-1 pt-1 border-t ${darkMode ? 'border-gray-700/50' : 'border-orange-100'}`}>
                                         <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-red-500 ${darkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}>
