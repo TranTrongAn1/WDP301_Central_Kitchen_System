@@ -15,6 +15,8 @@ const {
   addOrdersToTrip,
   removeOrdersFromTrip,
   finalizeDeliveryPlan,
+  markTripAsReady,
+  startShipping,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -44,21 +46,21 @@ router.post('/orders', authorize('StoreStaff', 'Manager', 'Admin'), createOrder)
 // Update order (Store Staff, Manager, Admin)
 router.put('/orders/:id', authorize('StoreStaff', 'Manager', 'Admin'), updateOrder);
 
-// Approve order (assign batches, deduct inventory) (Kitchen Staff, Manager, Admin)
+// Approve order (assign batches, deduct inventory) (Coordinator, Manager, Admin)
 router.post(
   '/orders/:orderId/approve',
-  authorize('KitchenStaff', 'Manager', 'Admin'),
+  authorize('Coordinator', 'Manager', 'Admin'),
   approveOrder
 );
 
-// Reject/Cancel order (Kitchen Staff, Manager, Admin)
+// Reject/Cancel order (Coordinator, Manager, Admin)
 router.post(
   '/orders/:orderId/reject',
-  authorize('KitchenStaff', 'Manager', 'Admin'),
+  authorize('Coordinator', 'Manager', 'Admin'),
   rejectOrder
 );
 
-// Receive order (QR scan or manual confirmation) (Store Staff, Manager, Admin)
+// Receive order at store (Store Staff, Manager, Admin)
 router.post(
   '/orders/:orderId/receive',
   authorize('StoreStaff', 'Manager', 'Admin'),
@@ -88,18 +90,32 @@ router.patch(
   removeOrdersFromTrip
 );
 
-// Finalize delivery plan - start shipping (Coordinator, Manager, Admin)
+// Finalize delivery plan - transfer to kitchen (Coordinator, Manager, Admin)
 router.post(
   '/trips/:id/finalize',
   authorize('Coordinator', 'Manager', 'Admin'),
   finalizeDeliveryPlan
 );
 
+// Mark trip as ready for shipping (Kitchen Staff, Manager, Admin)
+router.post(
+  '/trips/:id/ready',
+  authorize('KitchenStaff', 'Manager', 'Admin'),
+  markTripAsReady
+);
+
+// Start shipping process (Coordinator, Manager, Admin)
+router.post(
+  '/trips/:id/start-shipping',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  startShipping
+);
+
 // Get all delivery trips
-router.get('/delivery-trips', getTrips);
+router.get('/trips', getTrips);
 
 // Get single delivery trip by ID
-router.get('/delivery-trips/:id', getTripById);
+router.get('/trips/:id', getTripById);
 
 // ===== INVOICE ROUTES =====
 

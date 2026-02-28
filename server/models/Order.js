@@ -38,7 +38,7 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Pending', 'Approved', 'In_Transit', 'Received', 'Cancelled'],
+        values: ['Pending', 'Approved', 'Transferred_To_Kitchen', 'Ready_For_Shipping', 'In_Transit', 'Received', 'Cancelled'],
         message: '{VALUE} is not a valid status',
       },
       default: 'Pending',
@@ -90,6 +90,13 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Cancellation reason cannot exceed 500 characters'],
     },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    cancelledAt: {
+      type: Date,
+    },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -101,9 +108,6 @@ const orderSchema = new mongoose.Schema(
       type: Date,
     },
     receivedDate: {
-      type: Date,
-    },
-    cancelledDate: {
       type: Date,
     },
   },

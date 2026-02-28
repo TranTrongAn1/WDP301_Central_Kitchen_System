@@ -70,7 +70,7 @@ const invoiceSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: {
-        values: ['Pending', 'Partial', 'Paid', 'Overdue', 'Cancelled'],
+        values: ['Pending', 'Partial', 'Paid', 'Overdue', 'Cancelled', 'Refunded'],
         message: '{VALUE} is not a valid payment status',
       },
       default: 'Pending',
@@ -87,7 +87,7 @@ const invoiceSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       enum: {
-        values: ['Cash', 'Bank_Transfer', 'Credit_Card', 'Check', 'Other'],
+        values: ['Cash', 'Bank_Transfer', 'Credit_Card', 'Check', 'Wallet', 'Other'],
         message: '{VALUE} is not a valid payment method',
       },
     },

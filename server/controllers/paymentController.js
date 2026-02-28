@@ -1,4 +1,7 @@
 const Invoice = require('../models/Invoice');
+const Wallet = require('../models/Wallet');
+const WalletTransaction = require('../models/WalletTransaction');
+const mongoose = require('mongoose');
 const crypto = require('crypto');
 const axios = require('axios');
 
@@ -150,4 +153,306 @@ const handlePayOSWebhook = async (req, res) => {
   }
 };
 
-module.exports = { createPaymentLink, handlePayOSWebhook };
+/**
+ * @desc Deposit money to a store's wallet
+ * @route POST /api/payment/deposit
+ * @access Private (Admin/Finance roles)
+ */
+const depositToWallet = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { storeId, amount } = req.body;
+
+    // Validation
+    if (!storeId || !amount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Store ID and amount are required',
+      });
+    }
+
+    if (amount <= 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Deposit amount must be positive',
+      });
+    }
+
+    // Find or create wallet for the store
+    let wallet = await Wallet.findOne({ storeId }).session(session);
+
+    if (!wallet) {
+      // Create new wallet if it doesn't exist
+      wallet = new Wallet({
+        storeId,
+        balance: 0,
+        status: 'Active',
+      });
+      await wallet.save({ session });
+    }
+
+    // Check if wallet is locked
+    if (wallet.status === 'Locked') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({
+        success: false,
+        message: 'Wallet is locked and cannot accept deposits',
+      });
+    }
+
+    // Update wallet balance
+    wallet.balance += amount;
+    await wallet.save({ session });
+
+    // Create transaction record
+    const transaction = new WalletTransaction({
+      walletId: wallet._id,
+      amount: amount,
+      type: 'Deposit',
+      description: `Deposit of ${amount} to wallet`,
+      timestamp: new Date(),
+    });
+    await transaction.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Deposit successful',
+      data: {
+        walletId: wallet._id,
+        storeId: wallet.storeId,
+        newBalance: wallet.balance,
+        transaction: {
+          id: transaction._id,
+          amount: transaction.amount,
+          type: transaction.type,
+          timestamp: transaction.timestamp,
+        },
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('❌ Deposit Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process deposit',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Pay invoice using store's wallet balance
+ * @route POST /api/payment/pay-with-wallet
+ * @access Private (Store staff/Admin)
+ */
+const payWithWallet = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { invoiceId } = req.body;
+
+    // Validation
+    if (!invoiceId) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID is required',
+      });
+    }
+
+    // Find invoice
+    const invoice = await Invoice.findById(invoiceId)
+      .populate('storeId')
+      .session(session);
+
+    if (!invoice) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    // Check if invoice is already paid
+    if (invoice.paymentStatus === 'Paid') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice is already paid',
+      });
+    }
+
+    // Find wallet for the store
+    const wallet = await Wallet.findOne({ storeId: invoice.storeId }).session(session);
+
+    if (!wallet) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found for this store',
+      });
+    }
+
+    // Check if wallet is locked
+    if (wallet.status === 'Locked') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({
+        success: false,
+        message: 'Wallet is locked and cannot be used for payments',
+      });
+    }
+
+    // Check if balance is sufficient
+    if (wallet.balance < invoice.totalAmount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient wallet balance. Available: ${wallet.balance}, Required: ${invoice.totalAmount}`,
+      });
+    }
+
+    // Deduct amount from wallet
+    wallet.balance -= invoice.totalAmount;
+    await wallet.save({ session });
+
+    // Update invoice status
+    invoice.paymentStatus = 'Paid';
+    invoice.paidAmount = invoice.totalAmount;
+    invoice.paymentDate = new Date();
+    await invoice.save({ session });
+
+    // Create wallet transaction record
+    const transaction = new WalletTransaction({
+      walletId: wallet._id,
+      orderId: invoice.orderId,
+      amount: invoice.totalAmount,
+      type: 'Payment',
+      description: `Payment for invoice ${invoice.invoiceNumber}`,
+      timestamp: new Date(),
+    });
+    await transaction.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment successful',
+      data: {
+        invoice: {
+          id: invoice._id,
+          invoiceNumber: invoice.invoiceNumber,
+          paymentStatus: invoice.paymentStatus,
+          paidAmount: invoice.paidAmount,
+          paymentDate: invoice.paymentDate,
+        },
+        wallet: {
+          id: wallet._id,
+          storeId: wallet.storeId,
+          newBalance: wallet.balance,
+        },
+        transaction: {
+          id: transaction._id,
+          amount: transaction.amount,
+          type: transaction.type,
+          timestamp: transaction.timestamp,
+        },
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('❌ Wallet Payment Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process wallet payment',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Get wallet balance and transaction history for a store
+ * @route GET /api/payment/wallet/:storeId
+ * @access Private (Store staff/Admin)
+ */
+const getWalletBalance = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    // Validation
+    if (!storeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Store ID is required',
+      });
+    }
+
+    // Find wallet for the store
+    const wallet = await Wallet.findOne({ storeId }).populate('storeId', 'storeName storeCode');
+
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found for this store',
+      });
+    }
+
+    // Get 10 most recent transactions
+    const transactions = await WalletTransaction.find({ walletId: wallet._id })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .populate('orderId', 'orderCode')
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        wallet: {
+          id: wallet._id,
+          storeId: wallet.storeId,
+          balance: wallet.balance,
+          status: wallet.status,
+          createdAt: wallet.createdAt,
+          updatedAt: wallet.updatedAt,
+        },
+        transactions: transactions,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Get Wallet Balance Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve wallet balance',
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { 
+  createPaymentLink, 
+  handlePayOSWebhook, 
+  depositToWallet,
+  payWithWallet,
+  getWalletBalance
+};

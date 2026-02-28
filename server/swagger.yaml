@@ -1579,7 +1579,11 @@ paths:
       description: |
         Create a new order from a store to the central kitchen.
         
-        **Client sends:** storeId, requestedDeliveryDate, items (with productId and quantityRequested)
+        **Payment Methods:**
+        - 'Wallet': Deduct from store's prepaid wallet balance (immediate payment)
+        - 'PayOS': Generate invoice for later payment via PayOS gateway
+        
+        **Client sends:** storeId, requestedDeliveryDate, items, paymentMethod (optional)
         
         **Backend automatically:**
         - Extracts userId from Bearer Token (authentication required)
@@ -1589,6 +1593,7 @@ paths:
         - Fetches unitPrice from Product collection
         - Calculates subtotal for each item (quantityRequested × unitPrice)
         - Calculates totalAmount (sum of all subtotals)
+        - If paymentMethod='Wallet': Validates balance and deducts payment atomically
         
         **Security:** This prevents clients from manipulating prices or order numbers.
       security:
@@ -1641,6 +1646,15 @@ paths:
                   type: string
                   description: 'Additional notes or special instructions'
                   example: 'Urgent order for weekend promotion'
+                paymentMethod:
+                  type: string
+                  enum: [Wallet, PayOS]
+                  default: PayOS
+                  description: |
+                    Payment method for this order:
+                    - 'Wallet': Immediately deduct from store wallet (requires sufficient balance)
+                    - 'PayOS': Invoice-based payment (default)
+                  example: 'Wallet'
       responses:
         '201':
           description: Order created successfully
@@ -1797,7 +1811,16 @@ paths:
       tags:
         - Logistics
       summary: Reject/Cancel order with reason
-      description: Cancel a pending order with a cancellation reason
+      description: |
+        Cancel an order with a cancellation reason.
+        
+        **Automatic Actions:**
+        - Reverses inventory for orders in Approved, Transferred_To_Kitchen, Ready_For_Shipping, or In_Transit status
+        - Automatically refunds payment to Store's Wallet if order was paid using Wallet payment method
+        - Sets order status to 'Cancelled'
+        
+        **Requirements:**
+        - Order must not already be in 'Received' or 'Cancelled' status
       security:
         - BearerAuth: []
       parameters:
@@ -2136,21 +2159,20 @@ paths:
     post:
       tags:
         - Logistics
-      summary: Finalize delivery plan and start shipping
+      summary: Finalize delivery plan and transfer to kitchen for production
       description: |
-        Officially start the shipping process by finalizing the delivery trip.
+        Finalize the delivery trip and transfer to Central Kitchen for production.
         
         **Actions:**
-        - Updates trip status from 'Planning' to 'In_Transit'
-        - Updates all orders in trip to 'In_Transit' status
-        - Sets shippedDate timestamp for all orders
-        - Sets trip departureTime timestamp
+        - Updates trip status from 'Planning' to 'Transferred_To_Kitchen'
+        - Updates all orders in trip to 'Transferred_To_Kitchen' status
+        - Signals to kitchen staff that production can begin
         
         **Requirements:**
         - Trip must have at least one order
-        - Trip must not already be finalized
+        - Trip must be in 'Planning' status
         
-        **Workflow:** Coordinator finalizes trip when ready to ship. After this, trip cannot be modified.
+        **Workflow:** Coordinator finalizes trip when planning is complete. After this, orders are queued for production.
       security:
         - BearerAuth: []
       parameters:
@@ -2162,7 +2184,7 @@ paths:
           description: Delivery Trip ID
       responses:
         '200':
-          description: Delivery plan finalized successfully
+          description: Delivery plan finalized successfully and transferred to kitchen
           content:
             application/json:
               schema:
@@ -2172,7 +2194,129 @@ paths:
                     type: boolean
                   message:
                     type: string
-                    example: 'Delivery plan finalized successfully. 3 orders moved to In_Transit status.'
+                    example: 'Delivery plan finalized successfully. 3 orders transferred to kitchen for production.'
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      ordersUpdated:
+                        type: integer
+                        example: 3
+                      transferDate:
+                        type: string
+                        format: date-time
+                        example: '2026-02-05T08:00:00Z'
+                      totalOrders:
+                        type: integer
+                        example: 3
+        '400':
+          description: Invalid operation (e.g., trip not in Planning status, no orders in trip)
+        '404':
+          description: Delivery trip not found
+
+  /api/logistics/trips/{id}/ready:
+    post:
+      tags:
+        - Logistics
+      summary: Mark trip as ready for shipping (Kitchen Done)
+      description: |
+        Mark a delivery trip as ready for shipping after Central Kitchen completes production.
+        This represents the Kitchen clicking 'Done' on their production tasks.
+        
+        **Actions:**
+        - Updates trip status from 'Transferred_To_Kitchen' to 'Ready_For_Shipping'
+        - Updates all orders in trip to 'Ready_For_Shipping' status
+        - Signals to coordinator that goods are ready for shipment
+        
+        **Requirements:**
+        - Trip must be in 'Transferred_To_Kitchen' status
+        - Trip must have at least one order
+        
+        **Workflow:** Kitchen staff marks trip as ready when all production is complete and goods are prepared for delivery.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      responses:
+        '200':
+          description: Trip marked as ready for shipping successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: "Trip marked as ready for shipping. 3 orders updated to 'Ready_For_Shipping' status."
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/DeliveryTrip'
+                      ordersUpdated:
+                        type: integer
+                        example: 3
+                      readyDate:
+                        type: string
+                        format: date-time
+                        example: '2026-02-05T10:00:00Z'
+                      totalOrders:
+                        type: integer
+                        example: 3
+        '400':
+          description: Invalid operation (e.g., trip not in Transferred_To_Kitchen status)
+        '404':
+          description: Delivery trip not found
+
+  /api/logistics/trips/{id}/start-shipping:
+    post:
+      tags:
+        - Logistics
+      summary: Start shipping process
+      description: |
+        Start the actual shipping process by moving ready goods to in-transit status.
+        
+        **Actions:**
+        - Updates trip status from 'Ready_For_Shipping' to 'In_Transit'
+        - Updates all orders in trip to 'In_Transit' status
+        - Sets shippedDate timestamp for all orders
+        - Sets trip departureTime timestamp
+        
+        **Requirements:**
+        - Trip must be in 'Ready_For_Shipping' status
+        - Trip must have at least one order
+        
+        **Workflow:** Coordinator starts shipping when goods are loaded and departure begins.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      responses:
+        '200':
+          description: Shipping started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: "Shipping started successfully. 3 orders moved to 'In_Transit' status."
                   data:
                     type: object
                     properties:
@@ -2184,12 +2328,12 @@ paths:
                       shippedDate:
                         type: string
                         format: date-time
-                        example: '2026-02-05T08:00:00Z'
+                        example: '2026-02-05T12:00:00Z'
                       totalOrders:
                         type: integer
                         example: 3
         '400':
-          description: Invalid operation (e.g., trip already finalized, no orders in trip)
+          description: Invalid operation (e.g., trip not in Ready_For_Shipping status)
         '404':
           description: Delivery trip not found
 
@@ -2322,6 +2466,207 @@ paths:
   # ============================================================
   # PAYMENT GATEWAY (PayOS Integration)
   # ============================================================
+  /api/payment/wallet/{storeId}:
+    get:
+      tags:
+        - Payment
+      summary: Get store wallet balance and transaction history
+      description: |
+        Retrieve the current wallet balance and transaction history for a specific store.
+        
+        **Returns:**
+        - Current balance
+        - Wallet status (Active/Locked)
+        - Complete transaction history with type, amount, and timestamps
+        
+        **Access:** Store staff can view their own store's wallet, Admin can view any wallet
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: storeId
+          required: true
+          schema:
+            type: string
+          description: Store ID
+      responses:
+        '200':
+          description: Successfully retrieved wallet information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      wallet:
+                        $ref: '#/components/schemas/Wallet'
+                      transactions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WalletTransaction'
+        '404':
+          description: Wallet not found for this store
+        '403':
+          description: Unauthorized - Cannot view other store's wallet
+
+  /api/payment/deposit:
+    post:
+      tags:
+        - Payment
+      summary: Deposit funds to store wallet
+      description: |
+        Add funds to a store's wallet for prepaid order payments.
+        This is a top-up operation that increases the wallet balance.
+        
+        **Requirements:**
+        - User must be Admin to deposit funds
+        - Wallet must be in Active status
+        - Amount must be positive
+        
+        **Transaction:** Uses Mongoose session for atomic balance update with transaction logging.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - storeId
+                - amount
+              properties:
+                storeId:
+                  type: string
+                  description: Store ID to deposit funds to
+                  example: '60d5ec49f1b2c8b1f8e4e1a7'
+                amount:
+                  type: number
+                  minimum: 0.01
+                  description: Amount to deposit in VND (must be positive)
+                  example: 5000000
+                description:
+                  type: string
+                  description: Optional memo for this deposit transaction
+                  example: 'Monthly wallet top-up'
+      responses:
+        '200':
+          description: Deposit successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Deposit successful'
+                  data:
+                    type: object
+                    properties:
+                      wallet:
+                        $ref: '#/components/schemas/Wallet'
+                      transaction:
+                        $ref: '#/components/schemas/WalletTransaction'
+        '400':
+          description: Invalid input (e.g., negative amount, locked wallet)
+        '403':
+          description: Unauthorized - Only Admin can deposit
+        '404':
+          description: Store or wallet not found
+
+  /api/payment/pay-with-wallet:
+    post:
+      tags:
+        - Payment
+      summary: Pay invoice using store wallet balance
+      description: |
+        Deduct funds from the store's wallet to pay an invoice.
+        This is an internal payment method that immediately settles the invoice.
+        
+        **Requirements:**
+        - Invoice must exist and not be paid
+        - Wallet must be Active (not Locked)
+        - Wallet balance must be sufficient to cover invoice amount
+        
+        **Actions:**
+        - Deducts invoice total from wallet balance
+        - Marks invoice as 'Paid'
+        - Creates WalletTransaction record with type 'Payment'
+        
+        **Transaction:** Uses Mongoose session for atomic operation ensuring data consistency.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invoiceId
+              properties:
+                invoiceId:
+                  type: string
+                  description: Invoice ID to pay with wallet
+                  example: '60d5ec49f1b2c8b1f8e4e1a9'
+      responses:
+        '200':
+          description: Payment successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Payment successful'
+                  data:
+                    type: object
+                    properties:
+                      invoice:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          invoiceNumber:
+                            type: string
+                          paymentStatus:
+                            type: string
+                            example: 'Paid'
+                          paidAmount:
+                            type: number
+                          paymentDate:
+                            type: string
+                            format: date-time
+                      wallet:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          storeId:
+                            type: string
+                          newBalance:
+                            type: number
+                      transaction:
+                        $ref: '#/components/schemas/WalletTransaction'
+        '400':
+          description: Invalid request (invoice already paid or insufficient balance)
+        '403':
+          description: Wallet is locked
+        '404':
+          description: Invoice or wallet not found
+
   /api/payment/create-link:
     post:
       tags:
@@ -2495,6 +2840,158 @@ paths:
                   message:
                     type: string
                     example: 'Internal server error'
+
+  # ============================================================
+  # FEEDBACK MANAGEMENT
+  # ============================================================
+  /api/feedback:
+    get:
+      tags:
+        - Feedback
+      summary: Get all feedbacks
+      description: |
+        Retrieve all order feedbacks with optional filtering.
+        
+        **Filters:** rating, storeId, date range
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: rating
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: Filter by rating (1-5)
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: Filter by store ID
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: Filter from this date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: Filter until this date
+      responses:
+        '200':
+          description: Successfully retrieved feedbacks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Feedback'
+
+  /api/feedback/{orderId}:
+    get:
+      tags:
+        - Feedback
+      summary: Get feedback for a specific order
+      description: Retrieve feedback submitted for a specific order
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      responses:
+        '200':
+          description: Successfully retrieved feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Feedback'
+        '404':
+          description: Feedback not found for this order
+    
+    post:
+      tags:
+        - Feedback
+      summary: Create feedback for an order
+      description: |
+        Submit feedback for a received order. Only allowed for orders in 'Received' status.
+        Store staff can rate their experience and provide comments.
+        
+        **Requirements:**
+        - Order must be in 'Received' status
+        - Only one feedback per order
+        - Rating must be between 1-5
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  description: Rating from 1 (poor) to 5 (excellent)
+                  example: 5
+                content:
+                  type: string
+                  description: Feedback comment/review
+                  example: 'Excellent quality and on-time delivery!'
+                images:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of image URLs
+                  example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+      responses:
+        '201':
+          description: Feedback created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: 'Feedback submitted successfully'
+                  data:
+                    $ref: '#/components/schemas/Feedback'
+        '400':
+          description: Invalid input (e.g., order not in Received status, feedback already exists)
+        '404':
+          description: Order not found
 
   # ============================================================
   # FEATURE 5: STORE INVENTORY & OPERATIONS
@@ -3315,9 +3812,9 @@ components:
           description: 'Total order amount in VND'
         status:
           type: string
-          enum: [Pending, Approved, Shipped, Received, Cancelled]
+          enum: [Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
           default: Pending
-          description: 'Current order status'
+          description: 'Current order status. Workflow: Pending -> Approved -> Transferred_To_Kitchen -> Ready_For_Shipping -> In_Transit -> Received'
         approvedBy:
           type: string
           description: 'User ID who approved the order'
@@ -3354,9 +3851,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Planning, Pending, In_Transit, Completed, Cancelled]
+          enum: [Planning, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Completed, Cancelled]
           default: Planning
-          description: 'Current trip status. Planning → In_Transit (finalized) → Completed (received)'
+          description: 'Current trip status. Workflow: Planning -> Transferred_To_Kitchen (finalized) -> Ready_For_Shipping (kitchen done) -> In_Transit (shipping started) -> Completed (all orders received)'
         completedTime:
           type: string
           format: date-time
@@ -3497,6 +3994,45 @@ components:
           type: string
           format: date-time
 
+    StoreInventory:
+      type: object
+      required:
+        - storeId
+        - productId
+        - batchId
+        - quantity
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1c1'
+        storeId:
+          type: string
+          description: 'Reference to Store'
+          example: '60d5ec49f1b2c8b1f8e4e1a7'
+        productId:
+          type: string
+          description: 'Reference to Product'
+          example: '60d5ec49f1b2c8b1f8e4e1a5'
+        batchId:
+          type: string
+          description: 'Reference to Batch (finished goods batch for traceability)'
+          example: '60d5ec49f1b2c8b1f8e4e1b5'
+        quantity:
+          type: number
+          minimum: 0
+          example: 50
+          description: 'Current quantity in stock at this store'
+        lastUpdated:
+          type: string
+          format: date-time
+          description: 'Last update timestamp'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
     Feedback:
       type: object
       required:
@@ -3536,6 +4072,78 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    Wallet:
+      type: object
+      required:
+        - storeId
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1b1'
+        storeId:
+          type: string
+          description: 'Reference to Store. Each store has one unique wallet.'
+          example: '60d5ec49f1b2c8b1f8e4e1a7'
+        balance:
+          type: number
+          default: 0
+          minimum: 0
+          example: 5000000
+          description: 'Current wallet balance in VND. Cannot be negative.'
+        status:
+          type: string
+          enum: [Active, Locked]
+          default: Active
+          description: 'Wallet status. Locked wallets cannot be used for payments.'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WalletTransaction:
+      type: object
+      required:
+        - walletId
+        - amount
+        - type
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1b2'
+        walletId:
+          type: string
+          description: 'Reference to Wallet'
+          example: '60d5ec49f1b2c8b1f8e4e1b1'
+        orderId:
+          type: string
+          description: 'Reference to Order (optional, for Payment and Refund types)'
+          example: '60d5ec49f1b2c8b1f8e4e1a9'
+        amount:
+          type: number
+          example: 500000
+          description: 'Transaction amount in VND. Positive for credits (Deposit, Refund), negative for debits treated as positive in display.'
+        type:
+          type: string
+          enum: [Deposit, Withdrawal, Refund, Payment]
+          description: |
+            Transaction type:
+            - Deposit: Add funds to wallet (positive amount)
+            - Withdrawal: Remove funds from wallet (amount treated as positive in logic)
+            - Refund: Return funds for rejected order (positive amount)
+            - Payment: Use wallet funds for order (amount treated as positive in logic)
+          example: 'Deposit'
+        description:
+          type: string
+          example: 'Admin deposit for Store Q1'
+          description: 'Transaction description or memo'
+        timestamp:
+          type: string
+          format: date-time
+          description: 'Transaction timestamp'
+          example: '2026-01-30T14:30:00.000Z'
 
     Error:
       type: object
