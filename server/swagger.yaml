@@ -1728,7 +1728,7 @@ paths:
       summary: Approve order and deduct inventory
       description: |
         Approve a pending order, assign batch inventory, deduct quantities, and create an invoice.
-        Transitions order status from "Pending" to "Approved" (NOT "In_Transit").
+        Transitions order status from "Pending" to "Approved" (NOT "Transferred_To_Kitchen").
         
         **Traceability:** Assigns specific batches to order items for full supply chain tracking.
       security:
@@ -1878,7 +1878,7 @@ paths:
         **NEW WORKFLOW:**
         1. Manager reviews multiple 'Approved' orders
         2. Groups them into a single delivery trip
-        3. All orders transition from 'Approved' to 'In_Transit'
+        3. All orders transition from 'Approved' to 'Transferred_To_Kitchen'
         
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
@@ -1923,7 +1923,7 @@ paths:
                         $ref: '#/components/schemas/DeliveryTrip'
                       orders:
                         type: array
-                        description: 'Updated orders now in In_Transit status'
+                        description: 'Updated orders now in Transferred_To_Kitchen status'
                         items:
                           $ref: '#/components/schemas/Order'
         '400':
@@ -1947,7 +1947,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [In_Transit, Completed, Cancelled]
+            enum: [Transferred_To_Kitchen, Completed, Cancelled]
           description: Filter by trip status
       responses:
         '200':
@@ -2072,7 +2072,7 @@ paths:
         Remove specific orders from a delivery trip and set them back to 'Approved' status.
         
         **Requirements:**
-        - Trip must NOT be 'In_Transit' or 'Completed'
+        - Trip must NOT be 'Transferred_To_Kitchen' or 'Completed'
         - Removed orders are set back to 'Approved' (not rejected)
         
         **Use Case:** Coordinator adjusts trip composition during planning phase.
@@ -2128,7 +2128,7 @@ paths:
                         type: integer
                         example: 2
         '400':
-          description: Invalid operation (e.g., trip is In_Transit or Completed)
+          description: Invalid operation (e.g., trip is Transferred_To_Kitchen or Completed)
         '404':
           description: Delivery trip not found
 
@@ -2136,13 +2136,13 @@ paths:
     post:
       tags:
         - Logistics
-      summary: Finalize delivery plan and start shipping
+      summary: Finalize the trip plan and transfer to central kitchen for fulfillment
       description: |
-        Officially start the shipping process by finalizing the delivery trip.
+        Finalize the delivery trip and transfer orders to the central kitchen for production and preparation.
         
         **Actions:**
-        - Updates trip status from 'Planning' to 'In_Transit'
-        - Updates all orders in trip to 'In_Transit' status
+        - Updates trip status from 'Planning' to 'Transferred_To_Kitchen'
+        - Updates all orders in trip to 'Transferred_To_Kitchen' status
         - Sets shippedDate timestamp for all orders
         - Sets trip departureTime timestamp
         
@@ -2150,7 +2150,7 @@ paths:
         - Trip must have at least one order
         - Trip must not already be finalized
         
-        **Workflow:** Coordinator finalizes trip when ready to ship. After this, trip cannot be modified.
+        **Workflow:** Coordinator finalizes trip when ready to transfer to kitchen. After this, trip cannot be modified.
       security:
         - BearerAuth: []
       parameters:
@@ -2172,7 +2172,7 @@ paths:
                     type: boolean
                   message:
                     type: string
-                    example: 'Delivery plan finalized successfully. 3 orders moved to In_Transit status.'
+                    example: 'Trip finalized and transferred to kitchen for production. 3 orders updated.'
                   data:
                     type: object
                     properties:
@@ -3354,9 +3354,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Planning, Pending, In_Transit, Completed, Cancelled]
+          enum: [Planning, Pending, Transferred_To_Kitchen, Completed, Cancelled]
           default: Planning
-          description: 'Current trip status. Planning → In_Transit (finalized) → Completed (received)'
+          description: 'Current trip status. Planning → Transferred_To_Kitchen (finalized) → Completed (received)'
         completedTime:
           type: string
           format: date-time

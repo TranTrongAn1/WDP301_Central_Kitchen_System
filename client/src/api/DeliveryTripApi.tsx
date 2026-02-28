@@ -34,7 +34,7 @@ export interface IOrder {
 export interface ITrip {
   _id: string;
   orders: string[]; 
-  status: 'Pending' | 'In_Transit' | 'Completed' | 'Cancelled';
+  status: 'Pending' | 'Transferred_To_Kitchen' | 'Completed' | 'Cancelled';
   completedTime: string | null;
   createdAt: string;
   updatedAt: string;

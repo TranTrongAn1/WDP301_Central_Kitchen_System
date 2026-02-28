@@ -34,7 +34,7 @@ const deliveryTripSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Planning', 'Pending', 'In_Transit', 'Completed', 'Cancelled'],
+        values: ['Planning', 'Pending', 'Transferred_To_Kitchen', 'Completed', 'Cancelled'],
         message: '{VALUE} is not a valid status',
       },
       default: 'Planning',

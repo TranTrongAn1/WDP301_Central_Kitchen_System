@@ -125,7 +125,7 @@ const Shipments = () => {
                                     <TruckIcon className="w-7 h-7" />
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                    trip.status === 'In_Transit' ? 'bg-blue-500/20 text-blue-500' : 
+                                    trip.status === 'Transferred_To_Kitchen' ? 'bg-blue-500/20 text-blue-500' : 
                                     trip.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-500' : 
                                     darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'
                                 }`}>
