@@ -34,7 +34,9 @@ export interface IOrder {
 export interface ITrip {
   _id: string;
   orders: string[]; 
-  status: 'Pending' | 'Transferred_To_Kitchen' | 'Completed' | 'Cancelled';
+
+  status: 'Planning' | 'In_Transit' | 'Completed' | 'Cancelled';
+
   completedTime: string | null;
   createdAt: string;
   updatedAt: string;
@@ -46,22 +48,34 @@ export interface CreateTripData {
 }
 
 const DeliveryTripApi = {
-
   getAllDeliveryTrips: async (): Promise<ApiResponse<ITrip[]>> => {
-    const response = await apiClient.get<ApiResponse<ITrip[]>>('/logistics/delivery-trips');
-    return response.data;
+    const response = await apiClient.get('/logistics/delivery-trips');
+    return response as any;
   },
 
   getDeliveryTripById: async (id: string): Promise<ApiResponse<ITrip>> => {
-    const response = await apiClient.get<ApiResponse<ITrip>>(`/logistics/delivery-trips/${id}`);
-    return response.data;
+    const response = await apiClient.get(`/logistics/delivery-trips/${id}`);
+    return response as any; 
   },
 
   createDeliveryTrip: async (orderIds: string[]): Promise<ApiResponse<CreateTripData>> => {
-    const response = await apiClient.post<ApiResponse<CreateTripData>>('/logistics/trips/create', {
-      orderIds
-    });
-    return response.data;
+    const response = await apiClient.post('/logistics/trips/create', { orderIds });
+    return response as any; 
+  },
+
+  addOrdersToDeliveryTrip: async (tripId: string, orderIds: string[]): Promise<ApiResponse<ITrip>> => {
+    const response = await apiClient.patch(`/logistics/trips/${tripId}/add-orders`, { orderIds });
+    return response as any; 
+  },
+
+  removeOrdersFromDeliveryTrip: async (tripId: string, orderIds: string[]): Promise<ApiResponse<ITrip>> => {
+    const response = await apiClient.patch(`/logistics/trips/${tripId}/remove-orders`, { orderIds });
+    return response as any; 
+  },
+
+  finalizeTrip: async (tripId: string): Promise<ApiResponse<ITrip>> => {
+    const response = await apiClient.post(`/logistics/trips/${tripId}/finalize`);
+    return response as any; 
   }
 };
 
