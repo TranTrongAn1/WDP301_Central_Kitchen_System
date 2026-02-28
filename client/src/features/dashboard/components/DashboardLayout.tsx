@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSideBar } from "./DashboardSideBar";
+import { CoordinatorSidebar } from "@/features/coordinator/components/CoordinatorSideBar";
 import { useThemeStore } from "@/shared/zustand/themeStore";
 import { cn } from "@/shared/lib/utils";
 
@@ -9,6 +10,14 @@ export const DashboardLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { darkMode } = useThemeStore();
+  const location = useLocation();
+  const isCoordinator = location.pathname.startsWith("/coordinator");
+
+  const SidebarComponent = isCoordinator ? CoordinatorSidebar : DashboardSideBar;
+  const sidebarProps = {
+    isCollapsed: isSidebarCollapsed,
+    onToggle: () => setIsSidebarCollapsed(!isSidebarCollapsed),
+  };
 
   return (
     <div
@@ -18,10 +27,7 @@ export const DashboardLayout = () => {
       )}
     >
       <div className="hidden lg:block">
-        <DashboardSideBar
-          isCollapsed={isSidebarCollapsed}
-          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
+        <SidebarComponent {...sidebarProps} />
       </div>
 
       {isMobileMenuOpen && (
@@ -31,7 +37,7 @@ export const DashboardLayout = () => {
             onClick={() => setIsMobileMenuOpen(false)}
           />
           <div className="absolute left-0 top-0 h-full">
-            <DashboardSideBar
+            <SidebarComponent
               isCollapsed={false}
               onToggle={() => setIsMobileMenuOpen(false)}
             />

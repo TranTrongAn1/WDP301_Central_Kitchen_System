@@ -170,29 +170,23 @@ const OrderDetail = () => {
   );
 
   return (
-    <div className={`min-h-screen p-6 animate-in fade-in duration-300 ${darkMode ? 'bg-[#1e1e24] text-gray-200' : 'bg-gray-50 text-gray-800'}`}>
+    <div className="min-h-screen p-6 animate-in fade-in duration-300">
       
-      {/* 1. TOP NAVIGATION & HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
-          <button 
+          <button
+            type="button"
             onClick={() => navigate(-1)}
-            className={`p-2 rounded-full transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-600'}`}
+            className="p-2 rounded-full transition-colors bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {order.orderCode}
-              </h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(order.status)}`}>
-                {order.status.toUpperCase()}
-              </span>
-            </div>
-            <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Ngày đặt: {formatDate(order.createdAt)}
-            </p>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold text-card-foreground font-mono">{order.orderCode}</span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(order.status)}`}>
+              {order.status}
+            </span>
+            <span className="text-sm text-muted-foreground">Ngày đặt: {formatDate(order.createdAt)}</span>
           </div>
         </div>
 

@@ -22,10 +22,36 @@ interface OrderDetailResponse {
   message?: string;
 }
 
+export interface OrderAggregateItem {
+  _id: string;
+  productName: string;
+  productSku: string;
+  totalQuantity: number;
+  orderCount: number;
+}
+
+export interface OrderAggregateResponse {
+  success: boolean;
+  date: string;
+  count: number;
+  data: OrderAggregateItem[];
+}
+
 export const OrderApi = {
   getAllOrders: async (params?: OrderQueryParams): Promise<LogisticsOrder[]> => {
     const res = (await apiClient.get('/logistics/orders', { params })) as OrderListResponse;
     return res?.data ?? [];
+  },
+
+  getListWithCount: async (params?: OrderQueryParams): Promise<{ count: number; data: LogisticsOrder[] }> => {
+    const res = (await apiClient.get('/logistics/orders', { params })) as OrderListResponse;
+    const data = res?.data ?? [];
+    return { count: res?.count ?? data.length, data };
+  },
+
+  getAggregate: async (date: string): Promise<OrderAggregateResponse> => {
+    const res = (await apiClient.get('/logistics/orders/aggregate', { params: { date } })) as OrderAggregateResponse;
+    return res ?? { success: true, date, count: 0, data: [] };
   },
 
   getOrderById: async (id: string): Promise<LogisticsOrder> => {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore';
-import { CoordinatorSidebar } from './components/CoordinatorSideBar'; 
+import { CoordinatorSidebar } from './components/CoordinatorSideBar';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
     "/coordinator": { name: "Logistics Dashboard", desc: "Tổng quan vận chuyển & điều phối" },
@@ -17,11 +17,10 @@ export const CoordinatorLayout = () => {
     const { darkMode, toggleDarkMode } = useThemeStore();
     const navigate = useNavigate();
     const location = useLocation();
-    
-    const { user, logout } = useAuthStore(); 
-    
+    const { user, logout } = useAuthStore();
     const roleName = user?.role || 'Coordinator';
 
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotiOpen, setIsNotiOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -57,8 +56,11 @@ export const CoordinatorLayout = () => {
         <div className={`flex h-screen w-full transition-colors duration-300 ${
             darkMode ? 'bg-[#1C1C21] text-foreground' : 'bg-gray-50 text-gray-900'
         }`}>
-            {/* Sidebar */}
-            <CoordinatorSidebar />
+            {/* Sidebar - same component used by DashboardLayout for Coordinator */}
+            <CoordinatorSidebar
+                isCollapsed={isSidebarCollapsed}
+                onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            />
 
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* HEADER - Đã đổi về màu Cam/Amber giống Admin */}
@@ -141,9 +143,9 @@ export const CoordinatorLayout = () => {
                                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                     </div>
                                     
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">person</span> Hồ sơ cá nhân</button>
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">settings</span> Cài đặt</button>
-                                    <button className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">help</span> Trợ giúp</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/profile'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">person</span> Hồ sơ cá nhân</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/settings'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">settings</span> Cài đặt</button>
+                                    <button type="button" onClick={() => { setIsProfileOpen(false); navigate('/help'); }} className={dropdownItemClass}><span className="material-symbols-outlined text-[20px]">help</span> Trợ giúp</button>
 
                                     <div className={`mt-1 pt-1 border-t ${darkMode ? 'border-gray-700/50' : 'border-orange-100'}`}>
                                         <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-red-500 ${darkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}>
