@@ -64,29 +64,31 @@ export interface ApiResponse<T> {
     data: T;
 }
 
+const BASE = '/production-plans';
+
 export const productionPlanApi = {
     getAll: (params?: ProductionPlanQueryParams) =>
-        apiClient.get<ApiResponse<ProductionPlan[]>>('/production', { params }),
+        apiClient.get<ApiResponse<ProductionPlan[]>>(BASE, { params }),
 
     getById: (id: string) =>
-        apiClient.get<ApiResponse<ProductionPlan>>(`/production/${id}`),
+        apiClient.get<ApiResponse<ProductionPlan>>(`${BASE}/${id}`),
 
     create: (data: CreateProductionPlanRequest) =>
-        apiClient.post<ApiResponse<ProductionPlan>>('/production', data),
+        apiClient.post<ApiResponse<ProductionPlan>>(BASE, data),
 
     update: (id: string, data: UpdateProductionPlanRequest) =>
-        apiClient.put<ApiResponse<ProductionPlan>>(`/production/${id}`, data),
+        apiClient.put<ApiResponse<ProductionPlan>>(`${BASE}/${id}`, data),
 
     delete: (id: string) =>
-        apiClient.delete<ApiResponse<null>>(`/production/${id}`),
+        apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`),
 
     completeItem: (planId: string, data: CompleteProductionItemRequest) =>
         apiClient.post<ApiResponse<{
             plan: ProductionPlan;
             batch: unknown;
             traceability: unknown;
-        }>>(`/production/${planId}/complete-item`, data),
+        }>>(`${BASE}/${planId}/complete-item`, data),
 
     updateStatus: (planId: string, data: UpdateProductionStatusRequest) =>
-        apiClient.patch<ApiResponse<ProductionPlan>>(`/production/${planId}/status`, data),
+        apiClient.patch<ApiResponse<ProductionPlan>>(`${BASE}/${planId}/status`, data),
 };

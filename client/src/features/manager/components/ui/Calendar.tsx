@@ -12,25 +12,33 @@ function Calendar({
     ...props
 }: CalendarProps) {
     return (
-        <div className="w-full overflow-x-auto p-1">
+        <div className="w-full min-w-0 overflow-x-auto p-1">
             <DayPicker
                 showOutsideDays={showOutsideDays}
-                className={cn("p-2 min-w-[260px] sm:min-w-[280px]", className)}
+                navLayout="around"
+                className={cn("p-2 min-w-[260px] sm:min-w-[280px] max-w-full", className)}
                 classNames={{
-                    months: "flex flex-col sm:flex-row gap-2 sm:gap-4",
-                    month: "flex flex-col gap-2 sm:gap-4",
-                    month_caption: "flex justify-center pt-1 relative items-center mb-2",
-                    caption_label: "text-xs sm:text-sm font-medium",
+                    months: "flex flex-col gap-2",
+                    // Grid: hàng 1 = [Prev][Caption][Next], hàng 2 = Grid — luôn trái-phải, responsive
+                    month: cn(
+                        "grid gap-2 grid-cols-[auto_1fr_auto] grid-rows-[auto_auto]",
+                        "[&>*:nth-child(1)]:col-start-1 [&>*:nth-child(1)]:row-start-1",
+                        "[&>*:nth-child(2)]:col-start-2 [&>*:nth-child(2)]:row-start-1",
+                        "[&>*:nth-child(3)]:col-start-3 [&>*:nth-child(3)]:row-start-1",
+                        "[&>*:nth-child(4)]:col-span-3 [&>*:nth-child(4)]:row-start-2 [&>*:nth-child(4)]:min-w-0"
+                    ),
+                    month_caption: "flex items-center justify-center pt-1 pb-1",
+                    caption_label: "text-xs sm:text-sm font-medium text-center truncate",
                     nav: "flex items-center gap-1",
                     button_previous: cn(
-                        "inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium",
-                        "h-6 w-6 sm:h-7 sm:w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                        "absolute left-1 sm:left-2 border border-input hover:bg-accent hover:text-accent-foreground"
+                        "shrink-0 inline-flex items-center justify-center rounded-full text-xs sm:text-sm",
+                        "h-7 w-7 sm:h-8 sm:w-8 bg-card/80 border border-border",
+                        "text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm"
                     ),
                     button_next: cn(
-                        "inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium",
-                        "h-6 w-6 sm:h-7 sm:w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                        "absolute right-1 sm:right-2 border border-input hover:bg-accent hover:text-accent-foreground"
+                        "shrink-0 inline-flex items-center justify-center rounded-full text-xs sm:text-sm",
+                        "h-7 w-7 sm:h-8 sm:w-8 bg-card/80 border border-border",
+                        "text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm"
                     ),
                     month_grid: "w-full border-collapse",
                     weekdays: "flex justify-between text-xs",
