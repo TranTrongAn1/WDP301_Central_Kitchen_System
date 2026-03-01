@@ -4,6 +4,7 @@ import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { toast } from 'react-toastify';
 
 // Interface cho bảng tính toán tồn kho
 interface InventoryCalculation {
@@ -20,21 +21,26 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { darkMode } = useThemeStore();
-  
+
   const [order, setOrder] = useState<OrderType | null>(null);
   const [inventoryCheck, setInventoryCheck] = useState<InventoryCalculation[]>([]);
   const [isEnoughStock, setIsEnoughStock] = useState<boolean>(true);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- STATE CHO CHỨC NĂNG TỪ CHỐI ĐƠN HÀNG ---
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchAllData = async () => {
       if (!id) return;
       try {
         setLoading(true);
-        // Bước 1: Gọi 3 API cơ bản trước
         const [orderData, productsRes, ingredientsRes] = await Promise.all([
           OrderApi.getOrderById(id),
           productApi.getAll(),
@@ -49,11 +55,10 @@ const OrderDetail = () => {
         if (orderData && orderData.items) {
           const requiredMap: Record<string, InventoryCalculation> = {};
 
-          // Bước 2: Tính tổng Nguyên liệu CẦN THIẾT
           orderData.items.forEach((orderItem: any) => {
             const prodId = typeof orderItem.productId === 'object' ? orderItem.productId._id : orderItem.productId;
             const product = products.find(p => p._id === prodId);
-            
+
             if (product && product.recipe) {
               product.recipe.forEach((rec: any) => {
                 const ingId = typeof rec.ingredientId === 'object' ? rec.ingredientId._id : rec.ingredientId;
@@ -65,7 +70,7 @@ const OrderDetail = () => {
                     ingredientId: ingId,
                     ingredientName: ingInfo ? ingInfo.ingredientName : 'N/A',
                     unit: ingInfo ? ingInfo.unit : '',
-                    currentStock: 0, 
+                    currentStock: 0,
                     requiredQty: 0,
                     remainingStock: 0,
                     isEnough: true
@@ -76,43 +81,32 @@ const OrderDetail = () => {
             }
           });
 
-          // Bước 3: ĐI CHỢ LẤY LÔ (Chỉ gọi API lấy Batches cho những nguyên liệu có trong requiredMap)
           const requiredIngredientIds = Object.keys(requiredMap);
-          
-          // Tạo mảng các request lấy lô song song
           const batchPromises = requiredIngredientIds.map(ingId => ingredientApi.getBatches(ingId));
           const batchResults = await Promise.all(batchPromises);
 
-          // Gom tất cả các lô thu được vào 1 mảng
           let allRelevantBatches: IngredientBatch[] = [];
           batchResults.forEach(res => {
-              const batches = (res as any).data || [];
-              allRelevantBatches = [...allRelevantBatches, ...batches];
+            const batches = (res as any).data || [];
+            allRelevantBatches = [...allRelevantBatches, ...batches];
           });
 
-          // Bước 4: Tính toán TỒN KHO THỰC TẾ từ các Lô hợp lệ
           let allEnough = true;
           const finalCalculations = Object.values(requiredMap).map(calc => {
-            
-            // Lọc ra các lô của nguyên liệu này (Active, chưa hết hạn, còn hàng)
             const validBatches = allRelevantBatches.filter(batch => {
-                const batchIngId = typeof batch.ingredientId === 'object' ? batch.ingredientId._id : batch.ingredientId;
-                const isNotExpired = new Date(batch.expiryDate).getTime() > new Date().getTime();
-                
-                return batchIngId === calc.ingredientId && batch.isActive && isNotExpired && batch.currentQuantity > 0;
+              const batchIngId = typeof batch.ingredientId === 'object' ? batch.ingredientId._id : batch.ingredientId;
+              const isNotExpired = new Date(batch.expiryDate).getTime() > new Date().getTime();
+              return batchIngId === calc.ingredientId && batch.isActive && isNotExpired && batch.currentQuantity > 0;
             });
 
-            // Cộng dồn currentQuantity của các lô hợp lệ
             const trueStock = validBatches.reduce((sum, batch) => sum + batch.currentQuantity, 0);
-
-            // Đối chiếu
             const remaining = trueStock - calc.requiredQty;
             const enough = remaining >= 0;
             if (!enough) allEnough = false;
-            
+
             return {
               ...calc,
-              currentStock: trueStock, 
+              currentStock: trueStock,
               remainingStock: remaining,
               isEnough: enough
             };
@@ -131,15 +125,42 @@ const OrderDetail = () => {
     };
 
     fetchAllData();
-  }, [id]);
+  }, [id, refreshTrigger]);
 
-  const formatCurrency = (amount: number) => 
+  const handleRejectOrder = async () => {
+    if (!id) return;
+    if (!rejectReason.trim()) {
+      toast.warning("Vui lòng nhập lý do từ chối!");
+      return;
+    }
+
+    try {
+      setIsRejecting(true);
+      const res = await OrderApi.rejectOrder(id, rejectReason);
+
+      if (res.success) {
+        toast.success("Đã từ chối đơn hàng thành công!");
+        setIsRejectModalOpen(false);
+        setRejectReason('');
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        toast.error(res.message || "Lỗi khi từ chối đơn hàng");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Không thể kết nối đến máy chủ");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-  const formatDate = (dateString: string) => 
-    new Date(dateString).toLocaleDateString('vi-VN', { 
-      day: '2-digit', month: '2-digit', year: 'numeric', 
-      hour: '2-digit', minute: '2-digit' 
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
 
   const getStatusStyle = (status: string) => {
@@ -154,8 +175,7 @@ const OrderDetail = () => {
     }
   };
 
-  // --- RENDER ---
-  if (loading) return (
+  if (loading && !order) return (
     <div className={`flex h-screen items-center justify-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
       <span className="material-symbols-outlined animate-spin text-3xl mr-2">progress_activity</span>
       Đang tải chi tiết & đối chiếu kho...
@@ -171,7 +191,7 @@ const OrderDetail = () => {
 
   return (
     <div className="min-h-screen p-6 animate-in fade-in duration-300">
-      
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <button
@@ -190,49 +210,48 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
-          {order.status === 'Pending' && (
-            <>
-              <button className="px-4 py-2 bg-red-500/10 text-red-600 hover:bg-red-500/20 rounded-lg font-medium text-sm transition-colors border border-red-200">
-                Từ chối
-              </button>
-              {/* Nút Duyệt: Bị khóa nếu thiếu nguyên liệu */}
-              <button 
-                disabled={!isEnoughStock}
-                title={!isEnoughStock ? 'Không đủ nguyên liệu trong kho để làm đơn này' : ''}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
-                  isEnoughStock 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30' 
-                    : 'bg-gray-400 text-gray-200 cursor-not-allowed grayscale'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  {isEnoughStock ? 'check' : 'block'}
-                </span> 
-                {isEnoughStock ? 'Duyệt đơn' : 'Thiếu nguyên liệu'}
-              </button>
-            </>
+
+          {(order.status === 'Pending' || order.status === 'Approved') && (
+            <button
+              onClick={() => setIsRejectModalOpen(true)}
+              className="px-4 py-2 bg-red-500/10 text-red-600 hover:bg-red-500/20 rounded-lg font-medium text-sm transition-colors border border-red-200"
+            >
+              Từ chối
+            </button>
           )}
-           <button className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border flex items-center gap-2 ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-             <span className="material-symbols-outlined text-[18px]">print</span> In phiếu
-           </button>
+          {order.status === 'Pending' && (
+            <button
+              disabled={!isEnoughStock}
+              title={!isEnoughStock ? 'Không đủ nguyên liệu trong kho để làm đơn này' : ''}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${isEnoughStock
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30'
+                  : 'bg-gray-400 text-gray-200 cursor-not-allowed grayscale'
+                }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {isEnoughStock ? 'check' : 'block'}
+              </span>
+              {isEnoughStock ? 'Duyệt đơn' : 'Thiếu nguyên liệu'}
+            </button>
+          )}
+
+          <button className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border flex items-center gap-2 ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+            <span className="material-symbols-outlined text-[18px]">print</span> In phiếu
+          </button>
         </div>
       </div>
 
-      {/* 2. MAIN GRID LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* LEFT COLUMN: PRODUCT & INVENTORY (Chiếm 2/3) */}
+
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* PRODUCT LIST */}
+
           <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
             <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="material-symbols-outlined text-amber-500">shopping_cart</span>
               Danh sách bánh yêu cầu
             </h3>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -270,7 +289,6 @@ const OrderDetail = () => {
             </div>
           </div>
 
-          {/* INVENTORY CHECK RESULT */}
           {inventoryCheck.length > 0 && (
             <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
               <div className="flex justify-between items-center mb-4">
@@ -284,7 +302,7 @@ const OrderDetail = () => {
                   </span>
                 )}
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -329,10 +347,8 @@ const OrderDetail = () => {
           )}
         </div>
 
-        {/* RIGHT COLUMN: INFO & SUMMARY (Chiếm 1/3) */}
         <div className="space-y-6">
-          
-          {/* STORE INFO CARD */}
+
           <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
             <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Thông tin cửa hàng
@@ -350,11 +366,11 @@ const OrderDetail = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className={`h-px w-full my-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}></div>
 
             <div className="space-y-3 text-sm">
-               <div className="flex justify-between">
+              <div className="flex justify-between">
                 <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Ngày giao dự kiến:</span>
                 <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                   {formatDate(order.requestedDeliveryDate)}
@@ -363,15 +379,14 @@ const OrderDetail = () => {
               <div className="flex justify-between">
                 <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Người tạo:</span>
                 <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                   {(order.createdBy as any)?.fullName || 'Hệ thống'}
+                  {(order.createdBy as any)?.fullName || 'Hệ thống'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* PAYMENT SUMMARY CARD */}
           <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-             <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Thanh toán
             </h3>
             <div className="space-y-3 mb-4">
@@ -384,7 +399,7 @@ const OrderDetail = () => {
                 <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>{formatCurrency(0)}</span>
               </div>
             </div>
-            
+
             <div className={`h-px w-full my-4 border-dashed ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
 
             <div className="flex justify-between items-end">
@@ -395,20 +410,94 @@ const OrderDetail = () => {
             </div>
           </div>
 
-          {/* NOTES CARD */}
+          {/* SỬA: DÙNG CANCELLATION REASON THAY CHO NOTES */}
+          {order.status === 'Cancelled' && (order as any).cancellationReason && (
+            <div className={`rounded-2xl border p-6 border-l-4 border-l-red-500 ${darkMode ? 'bg-red-500/10 border-y-gray-700 border-r-gray-700' : 'bg-red-50 border-y-red-100 border-r-red-100'}`}>
+              <h3 className={`text-sm font-bold uppercase tracking-wider mb-2 text-red-600 flex items-center gap-2`}>
+                <span className="material-symbols-outlined text-[18px]">error</span> Lý do hủy
+              </h3>
+              <p className={`text-sm font-medium ${darkMode ? 'text-red-200' : 'text-red-800'}`}>
+                {(order as any).cancellationReason}
+              </p>
+            </div>
+          )}
+
+          {/* VẪN GIỮ LẠI MỤC GHI CHÚ BÌNH THƯỜNG CHO CỬA HÀNG */}
           {order.notes && (
-             <div className={`rounded-2xl border p-6 border-l-4 border-l-amber-500 ${darkMode ? 'bg-[#25252A] border-y-gray-700 border-r-gray-700' : 'bg-amber-50 border-y-amber-100 border-r-amber-100'}`}>
-               <h3 className={`text-sm font-bold uppercase tracking-wider mb-2 text-amber-600`}>
-                Ghi chú
+            <div className={`rounded-2xl border p-6 border-l-4 border-l-amber-500 ${darkMode ? 'bg-[#25252A] border-y-gray-700 border-r-gray-700' : 'bg-amber-50 border-y-amber-100 border-r-amber-100'}`}>
+              <h3 className={`text-sm font-bold uppercase tracking-wider mb-2 text-amber-600`}>
+                Ghi chú đơn hàng
               </h3>
               <p className={`text-sm italic ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 "{order.notes}"
               </p>
-             </div>
+            </div>
           )}
 
         </div>
       </div>
+
+      {isRejectModalOpen && (
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
+          <div className={`w-full max-w-md rounded-[24px] border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            <div className={`p-6 border-b flex items-start gap-4 ${darkMode ? 'border-gray-700/50 bg-[#2A2A30]' : 'border-red-100 bg-red-50'}`}>
+              <div className="p-3 bg-red-500/20 text-red-500 rounded-2xl flex-shrink-0">
+                <span className="material-symbols-outlined text-2xl">warning</span>
+              </div>
+              <div>
+                <h3 className={`text-lg font-black uppercase tracking-tight ${darkMode ? 'text-white' : 'text-red-700'}`}>
+                  Từ chối đơn hàng?
+                </h3>
+                <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-gray-400' : 'text-red-600/80'}`}>
+                  Hành động này sẽ hủy đơn hàng và hoàn tiền (nếu có). Bạn không thể hoàn tác thao tác này.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <label className={`block text-sm font-bold mb-2 uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Nhập lý do... (Ví dụ: Hết nguyên liệu, Cửa hàng đặt sai số lượng...)"
+                className={`w-full p-4 rounded-xl border-2 focus:ring-4 outline-none transition-all resize-none h-28 text-sm ${darkMode
+                    ? 'bg-[#1A1A1A] border-gray-700 text-white focus:border-red-500/50 focus:ring-red-500/20 placeholder:text-gray-600'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-red-400 focus:ring-red-100 placeholder:text-gray-400'
+                  }`}
+              />
+            </div>
+
+            <div className={`p-5 border-t flex justify-end gap-3 ${darkMode ? 'border-gray-700/50 bg-[#2A2A30]' : 'bg-gray-50 border-gray-100'}`}>
+              <button
+                onClick={() => {
+                  setIsRejectModalOpen(false);
+                  setRejectReason('');
+                }}
+                className={`px-5 py-2.5 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  }`}
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                onClick={handleRejectOrder}
+                disabled={isRejecting || !rejectReason.trim()}
+                className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-50 disabled:grayscale shadow-lg shadow-red-500/30 active:scale-95 flex items-center gap-2"
+              >
+                {isRejecting ? (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">cancel</span>
+                )}
+                Chốt Từ Chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

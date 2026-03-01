@@ -60,4 +60,10 @@ export const OrderApi = {
     if (res && typeof res === 'object' && '_id' in res && 'orderCode' in res) return res as LogisticsOrder;
     throw new Error('Order not found');
   },
+  rejectOrder: async (orderId: string, reason: string): Promise<OrderDetailResponse> => {
+    const res = (await apiClient.post(`/logistics/orders/${orderId}/reject`, {
+      reason
+    })) as OrderDetailResponse;
+    return res;
+  }
 };
