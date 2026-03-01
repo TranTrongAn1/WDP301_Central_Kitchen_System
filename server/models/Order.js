@@ -47,6 +47,11 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       required: [true, 'Requested delivery date is required'],
     },
+    address: {
+      type: String,
+      required: [true, 'Delivery address is required'],
+      trim: true,
+    },
     items: [
       {
         productId: {

@@ -61,6 +61,9 @@
         return next(new Error(`Store is ${store.status}. Only Active stores can place orders.`));
       }
 
+      // Extract store address for historical record
+      const storeAddress = store.address;
+
       // ========================================
       // STEP 3: Validate Delivery Date
       // ========================================
@@ -143,6 +146,7 @@
         storeId,
         orderDate: new Date(),
         requestedDeliveryDate: deliveryDate,
+        address: storeAddress, // Store address at time of order creation
         items: orderItems, // Note: using 'items' field name per model
         totalAmount,
         status: 'Pending',
