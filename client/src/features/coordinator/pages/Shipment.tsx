@@ -62,7 +62,6 @@ const Shipments = () => {
         fetchData();
     }, []);
 
-    // --- LOGIC: PHÂN TRANG (PAGINATION) ---
     const totalPages = Math.ceil(trips.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentTrips = trips.slice(startIndex, startIndex + ITEMS_PER_PAGE);

@@ -37,12 +37,12 @@ export type ITrip = DeliveryTrip;
 
 const DeliveryTripApi = {
   getAllDeliveryTrips: async (): Promise<LogisticsApiResponse<DeliveryTrip[]>> => {
-    const res = await apiClient.get('/logistics/delivery-trips');
+    const res = await apiClient.get('/logistics/trips');
     return res as unknown as LogisticsApiResponse<DeliveryTrip[]>;
   },
 
   getDeliveryTripById: async (id: string): Promise<LogisticsApiResponse<DeliveryTrip>> => {
-    const res = await apiClient.get(`/logistics/delivery-trips/${id}`);
+    const res = await apiClient.get(`/logistics/trips/${id}`);
     return res as unknown as LogisticsApiResponse<DeliveryTrip>;
   },
 
