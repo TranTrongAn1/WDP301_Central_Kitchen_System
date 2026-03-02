@@ -1532,7 +1532,128 @@ paths:
           description: Batch updated successfully
         '404':
           description: Batch not found
+# VEHICLE TYPE MANAGEMENT
+  # ============================================================
+  /api/vehicle-types:
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get all vehicle types
+      description: Retrieve all vehicle types sorted by newest first.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VehicleType'
 
+    post:
+      tags:
+        - Vehicle Types
+      summary: Create new vehicle type
+      description: Create a new vehicle type for fleet management. (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeInput'
+      responses:
+        '201':
+          description: Vehicle type created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/vehicle-types/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Vehicle Type ID
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get vehicle type by ID
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Vehicle Types
+      summary: Update vehicle type
+      description: Update name, description or status. (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeUpdate'
+      responses:
+        '200':
+          description: Updated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Vehicle Types
+      summary: Delete vehicle type (Soft Delete)
+      description: Deactivates the vehicle type by setting isActive to false. (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deactivated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Vehicle type deactivated successfully
   # FEATURE 4: LOGISTICS & SUPPLY CHAIN
   # ============================================================
   /api/logistics/orders:
@@ -4218,3 +4339,145 @@ components:
           example: 'Error message description'
         error:
           type: string
+
+    VehicleType:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: '65e2f1a2b3c4d5e6f7a8b9c0'
+        name:
+          type: string
+          description: 'Tên loại xe'
+          example: 'Xe tải 5 tấn'
+        description:
+          type: string
+          description: 'Mô tả chi tiết về loại xe'
+          example: 'Chuyên chở hàng đông lạnh, tải trọng tối đa 5000kg'
+        isActive:
+          type: boolean
+          description: 'Trạng thái hoạt động (mặc định true)'
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VehicleTypeInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: 'Xe máy điện'
+        description:
+          type: string
+          example: 'Phương tiện di chuyển nội khu'
+
+    VehicleTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+          description: 'Dùng để kích hoạt lại hoặc tạm khóa loại xe'
+
+# SAU ĐÓ, BẠN CẦN QUAY LÊN PHẦN PATHS ĐỂ THÊM CÁC ENDPOINT NÀY:
+# (Dán đoạn này vào dưới mục paths:)
+paths:
+  /api/vehicle-types:
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get all vehicle types
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VehicleType'
+    post:
+      tags:
+        - Vehicle Types
+      summary: Create new vehicle type (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeInput'
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+
+  /api/vehicle-types/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get single vehicle type
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '404':
+          $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Vehicle Types
+      summary: Update vehicle type (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeUpdate'
+      responses:
+        '200':
+          description: Updated successfully
+    delete:
+      tags:
+        - Vehicle Types
+      summary: Delete vehicle type (Soft delete)
+      description: Set isActive to false
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deactivated successfully

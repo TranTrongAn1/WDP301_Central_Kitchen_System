@@ -1732,7 +1732,7 @@ const getOrderById = async (req, res, next) => {
  */
 const getTrips = async (req, res, next) => {
   try {
-    const trips = await DeliveryTrip.find()
+    const trips = await DeliveryTrip.find().populate('vehicleType')
       .populate({
         path: 'orders',
         populate: { path: 'storeId', select: 'storeName storeCode' }
@@ -1752,6 +1752,7 @@ const getTrips = async (req, res, next) => {
 const getTripById = async (req, res, next) => {
   try {
     const trip = await DeliveryTrip.findById(req.params.id)
+    .populate('vehicleType')
       .populate({
         path: 'orders',
         populate: [
@@ -1782,7 +1783,7 @@ const createDeliveryTrip = async (req, res, next) => {
   let transactionAborted = false;
 
   try {
-    const { orderIds, notes } = req.body;
+    const { orderIds, notes, vehicleTypeId } = req.body;
 
     // ========================================
     // STEP 1: Validation - Input
@@ -1830,6 +1831,7 @@ const createDeliveryTrip = async (req, res, next) => {
       [
         {
           orders: orderIds,
+          vehicleType: vehicleTypeId,
           status: 'Planning',
           notes: notes || '',
         },
