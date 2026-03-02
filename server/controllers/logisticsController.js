@@ -166,28 +166,23 @@ const createOrder = async (req, res, next) => {
         createdBy: req.user ? req.user._id : null,
       }], { session });
 
-    // ========================================
-    // STEP 7: Handle Wallet Payment (if specified)
-    // ========================================
-    let invoice = null;
-    let walletPaymentInfo = null;
-
-    if (paymentMethod === 'Wallet') {
-      // Fetch system settings BEFORE calculating full amount
-      const shippingCostSetting = await SystemSetting.findOne({
-        key: 'SHIPPING_COST_BASE'
+      // ========================================
+      // STEP 7: Fetch System Settings for Invoice Calculation
+      // ========================================
+      const shippingCostSetting = await SystemSetting.findOne({ 
+        key: 'SHIPPING_COST_BASE' 
       }).session(session);
 
-      const shippingCost = shippingCostSetting
-        ? parseFloat(shippingCostSetting.value)
+      const shippingCost = shippingCostSetting 
+        ? parseFloat(shippingCostSetting.value) 
         : 0;
 
-      const taxRateSetting = await SystemSetting.findOne({
-        key: 'TAX_RATE'
+      const taxRateSetting = await SystemSetting.findOne({ 
+        key: 'TAX_RATE' 
       }).session(session);
 
-      const taxRate = taxRateSetting
-        ? parseFloat(taxRateSetting.value) * 100
+      const taxRate = taxRateSetting 
+        ? parseFloat(taxRateSetting.value) * 100 
         : 0;
 
       // Calculate full invoice total (subtotal + shipping + tax)
@@ -195,8 +190,15 @@ const createOrder = async (req, res, next) => {
       const taxAmount = (subtotal * taxRate) / 100;
       const fullInvoiceTotal = subtotal + taxAmount;
 
-      // Find or create wallet for the store
-      let wallet = await Wallet.findOne({ storeId }).session(session);
+      // ========================================
+      // STEP 8: Handle Wallet Payment (if specified)
+      // ========================================
+      let invoice = null;
+      let walletPaymentInfo = null;
+
+      if (paymentMethod === 'Wallet') {
+        // Find or create wallet for the store
+        let wallet = await Wallet.findOne({ storeId }).session(session);
 
       if (!wallet) {
         // Create new wallet if it doesn't exist
@@ -241,7 +243,17 @@ const createOrder = async (req, res, next) => {
       });
       await transaction.save({ session });
 
-      // Create Invoice with 'Paid' status
+        walletPaymentInfo = {
+          walletId: wallet._id,
+          amountPaid: fullInvoiceTotal,
+          newBalance: wallet.balance,
+          transactionId: transaction._id,
+        };
+      }
+
+      // ========================================
+      // STEP 9: Create Invoice for All Payment Methods
+      // ========================================
       const invoiceNumber = `INV-${orderNumber}`;
       const invoiceDate = new Date();
       const dueDate = new Date(invoiceDate);
@@ -255,59 +267,51 @@ const createOrder = async (req, res, next) => {
         dueDate,
         subtotal: totalAmount + shippingCost, // Subtotal includes shipping
         taxRate,
-        paymentStatus: 'Paid',
-        paidAmount: fullInvoiceTotal, // Pay the FULL calculated amount
-        paymentDate: invoiceDate,
-        paymentMethod: 'Wallet',
+        paymentStatus: paymentMethod === 'Wallet' ? 'Paid' : 'Pending',
+        paidAmount: paymentMethod === 'Wallet' ? fullInvoiceTotal : 0,
+        paymentDate: paymentMethod === 'Wallet' ? invoiceDate : null,
+        paymentMethod: paymentMethod || 'Pending',
       }], { session });
 
-      walletPaymentInfo = {
-        walletId: wallet._id,
-        amountPaid: fullInvoiceTotal,
-        newBalance: wallet.balance,
-        transactionId: transaction._id,
+      // ========================================
+      // STEP 10: Commit Transaction
+      // ========================================
+      await session.commitTransaction();
+
+      // ========================================
+      // STEP 11: Populate and Return Response
+      // ========================================
+      await order[0].populate([
+        { path: 'storeId', select: 'storeName storeCode address phone' },
+        { path: 'items.productId', select: 'name sku price unit categoryId' },
+        { path: 'createdBy', select: 'fullName email' },
+      ]);
+
+      const responseData = {
+        order: order[0],
+        invoice: invoice[0], // Always return invoice for all payment methods
       };
+
+      if (walletPaymentInfo) {
+        responseData.walletPayment = walletPaymentInfo;
+      }
+
+      res.status(201).json({
+        success: true,
+        message: paymentMethod === 'Wallet' 
+          ? 'Order created and paid via Wallet successfully.' 
+          : 'Order created successfully. Invoice created with Pending status. Awaiting approval from Kitchen Manager.',
+        data: responseData,
+      });
+    } catch (error) {
+      if (!transactionAborted) {
+        await session.abortTransaction();
+      }
+      next(error);
+    } finally {
+      session.endSession();
     }
-
-    // ========================================
-    // STEP 8: Commit Transaction
-    // ========================================
-    await session.commitTransaction();
-
-    // ========================================
-    // STEP 9: Populate and Return Response
-    // ========================================
-    await order[0].populate([
-      { path: 'storeId', select: 'storeName storeCode address phone' },
-      { path: 'items.productId', select: 'name sku price unit categoryId' },
-      { path: 'createdBy', select: 'fullName email' },
-    ]);
-
-    const responseData = {
-      order: order[0],
-    };
-
-    if (walletPaymentInfo) {
-      responseData.walletPayment = walletPaymentInfo;
-      responseData.invoice = invoice[0];
-    }
-
-    res.status(201).json({
-      success: true,
-      message: paymentMethod === 'Wallet'
-        ? 'Order created and paid via Wallet successfully.'
-        : 'Order created successfully. Awaiting approval from Kitchen Manager.',
-      data: responseData,
-    });
-  } catch (error) {
-    if (!transactionAborted) {
-      await session.abortTransaction();
-    }
-    next(error);
-  } finally {
-    session.endSession();
-  }
-};
+  };
 
 /**
  * @desc    Approve order and deduct inventory
@@ -366,29 +370,10 @@ const approveAndShipOrder = async (req, res, next) => {
       );
     }
 
-    // ========================================
-    // STEP 2: Fetch System Settings
-    // ========================================
-    const shippingCostSetting = await SystemSetting.findOne({
-      key: 'SHIPPING_COST_BASE'
-    }).session(session);
-
-    const shippingCost = shippingCostSetting
-      ? parseFloat(shippingCostSetting.value)
-      : 0;
-
-    const taxRateSetting = await SystemSetting.findOne({
-      key: 'TAX_RATE'
-    }).session(session);
-
-    const taxRate = taxRateSetting
-      ? parseFloat(taxRateSetting.value) * 100 // Convert 0.08 to 8
-      : 0;
-
-    // ========================================
-    // STEP 3: Process Items - Assign Batches & Deduct Inventory
-    // ========================================
-    const batchUpdates = [];
+      // ========================================
+      // STEP 2: Process Items - Assign Batches & Deduct Inventory
+      // ========================================
+      const batchUpdates = [];
 
     for (let i = 0; i < order.items.length; i++) {
       const orderItem = order.items[i];
@@ -455,57 +440,45 @@ const approveAndShipOrder = async (req, res, next) => {
       });
     }
 
-    // ========================================
-    // STEP 4: Update Batch Quantities
-    // ========================================
-    for (const update of batchUpdates) {
-      await Batch.findByIdAndUpdate(
-        update.batchId,
-        { currentQuantity: update.newQuantity },
-        { session }
-      );
-    }
+      // ========================================
+      // STEP 3: Update Batch Quantities
+      // ========================================
+      for (const update of batchUpdates) {
+        await Batch.findByIdAndUpdate(
+          update.batchId,
+          { currentQuantity: update.newQuantity },
+          { session }
+        );
+      }
 
-    // ========================================
-    // STEP 5: Update Order Status to Approved
-    // ========================================
-    order.status = 'Approved';
-    order.approvedBy = req.user ? req.user._id : null;
-    order.approvedAt = new Date();
-    await order.save({ session });
+      // ========================================
+      // STEP 4: Update Order Status to Approved
+      // ========================================
+      order.status = 'Approved';
+      order.approvedBy = req.user ? req.user._id : null;
+      order.approvedAt = new Date();
+      await order.save({ session });
 
-    // ========================================
-    // STEP 6: Create Invoice
-    // ========================================
-    const invoiceNumber = `INV-${order.orderCode || order.orderNumber || order._id}`;
-    const invoiceDate = new Date();
-    const dueDate = new Date(invoiceDate);
-    dueDate.setDate(dueDate.getDate() + 30); // 30 days payment terms
+      // ========================================
+      // STEP 5: Find and Update Existing Invoice
+      // ========================================
+      const invoice = await Invoice.findOne({ 
+        orderId: order._id 
+      }).session(session);
 
-    // Include shipping cost in subtotal
-    const subtotal = order.totalAmount + shippingCost;
+      if (invoice) {
+        // Update invoice dueDate based on approval date
+        const approvalDate = new Date();
+        const dueDate = new Date(approvalDate);
+        dueDate.setDate(dueDate.getDate() + 30); // 30 days payment terms from approval
+        invoice.dueDate = dueDate;
+        await invoice.save({ session });
+      }
 
-    const invoice = await Invoice.create(
-      [
-        {
-          invoiceNumber,
-          orderId: order._id,
-          storeId: order.storeId._id,
-          invoiceDate,
-          dueDate,
-          subtotal,
-          taxRate,
-          paymentStatus: 'Pending',
-          paidAmount: 0,
-        },
-      ],
-      { session }
-    );
-
-    // ========================================
-    // STEP 7: Commit Transaction
-    // ========================================
-    await session.commitTransaction();
+      // ========================================
+      // STEP 6: Commit Transaction
+      // ========================================
+      await session.commitTransaction();
 
     // Populate response data
     await order.populate([
@@ -515,32 +488,34 @@ const approveAndShipOrder = async (req, res, next) => {
       { path: 'approvedBy', select: 'fullName email' },
     ]);
 
-    await invoice[0].populate([
-      { path: 'orderId', select: 'orderCode orderNumber' },
-      { path: 'storeId', select: 'storeName storeCode' },
-    ]);
+      if (invoice) {
+        await invoice.populate([
+          { path: 'orderId', select: 'orderCode orderNumber' },
+          { path: 'storeId', select: 'storeName storeCode' },
+        ]);
+      }
 
-    res.status(200).json({
-      success: true,
-      message: 'Order approved successfully. Inventory deducted and invoice created.',
-      data: {
-        order,
-        invoice: invoice[0],
-        batchUpdates,
-        itemsProcessed: batchUpdates.length,
-      },
-    });
-  } catch (error) {
-    // Abort transaction if not already aborted
-    if (!transactionAborted) {
-      await session.abortTransaction();
+      res.status(200).json({
+        success: true,
+        message: 'Order approved successfully. Inventory deducted and invoice updated.',
+        data: {
+          order,
+          invoice: invoice || null,
+          batchUpdates,
+          itemsProcessed: batchUpdates.length,
+        },
+      });
+    } catch (error) {
+      // Abort transaction if not already aborted
+      if (!transactionAborted) {
+        await session.abortTransaction();
+      }
+      next(error);
+    } finally {
+      // End session
+      session.endSession();
     }
-    next(error);
-  } finally {
-    // End session
-    session.endSession();
-  }
-};
+  };
 
 /**
  * @desc    Receive order at store and update inventory

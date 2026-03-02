@@ -6,7 +6,7 @@ import type {
   IngredientResponse,
   IngredientsResponse,
 } from "@/lib/ingredients";
-import type { CreateOrderPayload, OrderResponse, OrdersResponse } from "@/lib/orders";
+import type { CreateOrderPayload, OrderResponse, OrdersResponse, CreateOrderResponse } from "@/lib/orders";
 import type { StoreInventoryResponse } from "@/lib/inventory";
 import type { Product, ProductsResponse } from "@/lib/products";
 import type {
@@ -124,8 +124,8 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
 const withAuth = (token?: string | null): Record<string, string> =>
   token
     ? {
-        Authorization: `Bearer ${token}`,
-      }
+      Authorization: `Bearer ${token}`,
+    }
     : {};
 
 export const authApi = {
@@ -300,7 +300,7 @@ export const logisticsOrdersApi = {
       headers: withAuth(token),
     }),
   create: (payload: CreateOrderPayload, token?: string | null) =>
-    request<OrderResponse>("/api/logistics/orders", {
+    request<CreateOrderResponse>("/api/logistics/orders", {
       method: "POST",
       headers: withAuth(token),
       body: JSON.stringify(payload),
@@ -313,9 +313,14 @@ export const logisticsOrdersApi = {
 };
 
 export const invoicesApi = {
-  getByOrder: (orderId: string, token?: string | null) => {
+  getAll: (
+    params?: { orderId?: string; storeId?: string; paymentStatus?: string },
+    token?: string | null
+  ) => {
     const search = new URLSearchParams();
-    search.set("orderId", orderId);
+    if (params?.orderId) search.set("orderId", params.orderId);
+    if (params?.storeId) search.set("storeId", params.storeId);
+    if (params?.paymentStatus) search.set("paymentStatus", params.paymentStatus);
     const qs = search.toString();
     return request<InvoicesResponse>(
       `/api/logistics/invoices${qs ? `?${qs}` : ""}`,
