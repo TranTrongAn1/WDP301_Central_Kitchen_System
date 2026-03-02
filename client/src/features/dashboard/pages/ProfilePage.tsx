@@ -281,6 +281,20 @@ const ProfilePage = () => {
                       </span>
                     </div>
                   )}
+
+                  <div className="pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-primary/60 text-xs md:text-sm"
+                      onClick={() => navigate('/settings')}
+                    >
+                      <span className="underline-offset-4 hover:underline">
+                        Tinh chỉnh cài đặt cá nhân
+                      </span>
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -381,19 +395,6 @@ const ProfilePage = () => {
                       <p className="font-medium text-foreground">
                         {profile?.role || '—'}
                       </p>
-                    </div>
-                    <div className="pt-2 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-0 text-[11px] text-primary hover:text-primary/90"
-                        onClick={() => navigate('/settings')}
-                      >
-                        <span className="underline-offset-4 hover:underline">
-                          Tinh chỉnh cài đặt cá nhân
-                        </span>
-                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
