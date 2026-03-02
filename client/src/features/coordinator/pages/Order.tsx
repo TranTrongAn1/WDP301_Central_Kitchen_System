@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { useNavigate } from 'react-router-dom';
+
+import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { cn } from '@/shared/lib/utils';
+import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
 
 const ITEMS_PER_PAGE = 9;
 
 const Order = () => {
+  const { compactMode } = useUserSettingsStore();
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,12 +94,12 @@ const Order = () => {
     return new Date(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (loading) return <div className="flex h-64 items-center justify-center text-gray-500"><span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>Đang tải dữ liệu...</div>;
+  if (loading) return <div className="flex h-64 items-center justify-center text-gray-500 text-sm"><span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>Đang tải dữ liệu...</div>;
   if (error) return <div className="text-red-500 text-center p-10">{error}</div>;
 
   return (
-    <div className="animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className={cn("animate-in fade-in duration-500", compactMode ? "pb-6" : "pb-10")}>
+      <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4", compactMode ? "mb-4" : "mb-6")}>
         <span className="text-sm text-muted-foreground">
           {filteredOrders.length} đơn hàng
         </span>
@@ -129,12 +132,13 @@ const Order = () => {
           <p className="text-sm font-medium text-muted-foreground">Không có đơn hàng nào khớp với bộ lọc.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3", compactMode ? "gap-4 mb-6" : "gap-5 mb-8")}>
           {currentOrders.map((order) => (
             <div
               key={order._id}
               className={cn(
-                "group relative rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:shadow-md hover:border-primary/20"
+                "group relative rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-md hover:border-primary/20",
+                compactMode ? "p-4" : "p-5"
               )}
             >
               <div className="flex justify-between items-start mb-4">
