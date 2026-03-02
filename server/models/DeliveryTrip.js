@@ -34,7 +34,7 @@ const deliveryTripSchema = new mongoose.Schema(
     vehicleType: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'VehicleType',
-      required: [true, 'Vehicle type is required'],
+      required: false,
     },
     status: {
       type: String,
