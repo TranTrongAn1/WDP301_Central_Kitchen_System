@@ -4,7 +4,6 @@ import { useThemeStore } from "@/shared/zustand/themeStore";
 import { cn } from "@/shared/lib/utils";
 import {
   Bell,
-  Search,
   Sun,
   Moon,
   Menu,
@@ -131,22 +130,6 @@ export const DashboardHeader = ({
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
             {pageName?.title}
           </p>
-        </div>
-      </div>
-
-      <div className="hidden md:flex flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            className={cn(
-              "w-full pl-10 pr-4 py-2.5 rounded-full border transition-all duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20",
-              darkMode
-                ? "bg-secondary border-secondary hover:bg-secondary/80"
-                : "bg-orange-50 border-orange-200 hover:bg-orange-100"
-            )}
-          />
         </div>
       </div>
 
