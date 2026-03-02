@@ -1,8 +1,6 @@
 import apiClient from './Client';
 import type { DeliveryTrip, CreateTripRequest } from '@/shared/types/logistics';
-interface ExtendedCreateTripRequest extends CreateTripRequest {
-  vehicleTypeId: string;
-}
+
 export interface LogisticsApiResponse<T> {
   success: boolean;
   message?: string;
@@ -14,6 +12,7 @@ interface CreateTripResponseData {
   trip: DeliveryTrip;
   totalOrders: number;
 }
+
 interface AddOrdersResponseData {
   trip: DeliveryTrip;
   ordersAdded: number;
@@ -42,27 +41,29 @@ const DeliveryTripApi = {
     return res as unknown as LogisticsApiResponse<DeliveryTrip[]>;
   },
 
-  // THÊM: Tạo chuyến hàng với VehicleType
+
+  getDeliveryTripById: async (id: string): Promise<LogisticsApiResponse<DeliveryTrip>> => {
+    const res = await apiClient.get(`/logistics/trips/${id}`);
+    return res as unknown as LogisticsApiResponse<DeliveryTrip>;
+  },
+
   createDeliveryTrip: async (
     orderIds: string[],
     notes?: string,
-    vehicleTypeId?: string // Thêm tham số này
+    vehicleTypeId?: string
   ): Promise<LogisticsApiResponse<CreateTripResponseData>> => {
     const body: any = { orderIds };
     if (notes != null && notes.trim() !== '') body.notes = notes.trim().slice(0, 500);
-    if (vehicleTypeId) body.vehicleTypeId = vehicleTypeId; // Đính kèm vehicleTypeId vào body
-
+    if (vehicleTypeId) body.vehicleTypeId = vehicleTypeId;
     const res = await apiClient.post('/logistics/trips/create', body);
     return res as unknown as LogisticsApiResponse<CreateTripResponseData>;
   },
 
-  // THÊM: API Xóa Trip (Thường là DELETE /logistics/trips/:id)
   deleteDeliveryTrip: async (id: string): Promise<LogisticsApiResponse<null>> => {
     const res = await apiClient.delete(`/logistics/trips/${id}`);
     return res as unknown as LogisticsApiResponse<null>;
   },
 
-  // ... các hàm khác giữ nguyên ...
   addOrdersToDeliveryTrip: async (tripId: string, orderIds: string[]) => {
     const res = await apiClient.patch(`/logistics/trips/${tripId}/add-orders`, { orderIds });
     return res as unknown as LogisticsApiResponse<AddOrdersResponseData>;
