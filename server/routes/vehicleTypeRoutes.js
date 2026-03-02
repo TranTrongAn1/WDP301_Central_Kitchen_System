@@ -9,21 +9,22 @@ const {
   deleteVehicleType,
 } = require('../controllers/vehicleTypeController');
 
-const { protect, authorize } = require('../middlewares/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
+
+// Áp dụng protect cho tất cả các route trong file này
+router.use(protect);
 
 // ================================
-// Admin CRUD Routes
+// Routes
 // ================================
 
-router
-  .route('/')
-  .post(protect, authorize('Admin'), createVehicleType)
-  .get(protect, getVehicleTypes);
+// Lấy danh sách (ai đăng nhập cũng xem được) và Tạo mới (chỉ Admin/Manager)
+router.get('/', getVehicleTypes);
+router.post('/', authorize('Admin', 'Manager'), createVehicleType);
 
-router
-  .route('/:id')
-  .get(protect, getVehicleTypeById)
-  .put(protect, authorize('Admin'), updateVehicleType)
-  .delete(protect, authorize('Admin'), deleteVehicleType);
+// Thao tác trên từng ID cụ thể
+router.get('/:id', getVehicleTypeById);
+router.put('/:id', authorize('Admin', 'Manager'), updateVehicleType);
+router.delete('/:id', authorize('Admin', 'Manager'), deleteVehicleType);
 
 module.exports = router;
