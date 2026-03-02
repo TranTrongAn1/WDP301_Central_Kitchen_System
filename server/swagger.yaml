@@ -1540,24 +1540,7 @@ paths:
       tags:
         - Logistics
       summary: Get all orders
-      description: |
-        Retrieve all orders with optional filtering by status and store.
-        
-        **Traceability:** Order → DeliveryTrip → Store Inventory
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [Pending, Approved, Shipped, Received, Cancelled]
-          description: Filter by order status
-        - in: query
-          name: storeId
-          schema:
-            type: string
-          description: Filter by store ID
+      # ... (giữ nguyên phần get của bạn)
       responses:
         '200':
           description: Successfully retrieved orders
@@ -1572,7 +1555,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Order'
-    post:
+
+    post: # <--- QUAN TRỌNG: post phải thẳng hàng với get ở trên
       tags:
         - Logistics
       summary: Create new order
@@ -1580,22 +1564,8 @@ paths:
         Create a new order from a store to the central kitchen.
         
         **Payment Methods:**
-        - 'Wallet': Deduct from store's prepaid wallet balance (immediate payment)
-        - 'PayOS': Generate invoice for later payment via PayOS gateway
-        
-        **Client sends:** storeId, requestedDeliveryDate, items, paymentMethod (optional)
-        
-        **Backend automatically:**
-        - Extracts userId from Bearer Token (authentication required)
-        - Generates unique orderNumber (e.g., ORD-20260202-001)
-        - Sets status to 'Pending'
-        - Sets orderDate to current timestamp
-        - Fetches unitPrice from Product collection
-        - Calculates subtotal for each item (quantityRequested × unitPrice)
-        - Calculates totalAmount (sum of all subtotals)
-        - If paymentMethod='Wallet': Validates balance and deducts payment atomically
-        
-        **Security:** This prevents clients from manipulating prices or order numbers.
+        - 'Wallet': Deduct from store's prepaid wallet balance
+        - 'PayOS': Generate invoice for later payment
       security:
         - BearerAuth: []
       requestBody:
@@ -1607,20 +1577,29 @@ paths:
               required:
                 - storeId
                 - requestedDeliveryDate
+                - recipientName
+                - recipientPhone
                 - items
               properties:
                 storeId:
                   type: string
-                  description: 'Store placing the order'
                   example: '60d5ec49f1b2c8b1f8e4e1a7'
                 requestedDeliveryDate:
                   type: string
                   format: date
                   example: '2026-02-05'
-                  description: 'Requested delivery date'
+                recipientName:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                recipientPhone:
+                  type: string
+                  pattern: '^(0|\+84)[0-9]{9,10}$'
+                  example: '0912345678'
+                address:
+                  type: string
+                  example: '123 Lê Lợi, Quận 1, TP.HCM'
                 items:
                   type: array
-                  description: 'List of products to order'
                   minItems: 1
                   items:
                     type: object
@@ -1630,31 +1609,18 @@ paths:
                     properties:
                       productId:
                         type: string
-                        description: 'Product ID'
                         example: '60d5ec49f1b2c8b1f8e4e1a5'
                       quantityRequested:
                         type: number
                         minimum: 1
                         example: 20
-                        description: 'Quantity to order'
-                  example:
-                    - productId: '60d5ec49f1b2c8b1f8e4e1a5'
-                      quantityRequested: 20
-                    - productId: '60d5ec49f1b2c8b1f8e4e1a6'
-                      quantityRequested: 15
                 notes:
                   type: string
-                  description: 'Additional notes or special instructions'
-                  example: 'Urgent order for weekend promotion'
+                  maxLength: 500
                 paymentMethod:
                   type: string
                   enum: [Wallet, PayOS]
                   default: PayOS
-                  description: |
-                    Payment method for this order:
-                    - 'Wallet': Immediately deduct from store wallet (requires sufficient balance)
-                    - 'PayOS': Invoice-based payment (default)
-                  example: 'Wallet'
       responses:
         '201':
           description: Order created successfully
@@ -1665,10 +1631,16 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  message:
+                    type: string
                   data:
                     $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input or insufficient inventory
+          description: Invalid input
+        '403':
+          description: Wallet locked or unauthorized
+        '404':
+          description: Store or Product not found
 
   /api/logistics/orders/{id}:
     get:
@@ -3771,6 +3743,15 @@ components:
           format: date
           example: '2026-01-30'
           description: 'Requested delivery date'
+          recipientName:
+          type: string
+          example: "Nguyễn Văn A"
+        recipientPhone:
+          type: string
+          example: "0912345678"
+        address:
+          type: string
+          example: "123 Lê Lợi, Quận 1, TP.HCM"
         items:
           type: array
           description: 'Items in the order'
