@@ -31,6 +31,11 @@ const deliveryTripSchema = new mongoose.Schema(
         ref: 'Order',
       },
     ],
+    vehicleType: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VehicleType',
+      required: [true, 'Vehicle type is required'],
+    },
     status: {
       type: String,
       enum: {

@@ -1732,7 +1732,7 @@ const getOrderById = async (req, res, next) => {
  */
 const getTrips = async (req, res, next) => {
   try {
-    const trips = await DeliveryTrip.find()
+    const trips = await DeliveryTrip.find().populate('vehicleType')
       .populate({
         path: 'orders',
         populate: { path: 'storeId', select: 'storeName storeCode' }
