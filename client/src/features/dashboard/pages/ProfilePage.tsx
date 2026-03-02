@@ -193,7 +193,7 @@ const ProfilePage = () => {
   const isActive = profile?.isActive ?? false;
 
   return (
-    <div className="relative space-y-6">
+    <div className="relative space-y-6 max-w-6xl mx-auto">
       {/* Background 3D-ish orbs */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <motion.div
@@ -224,14 +224,14 @@ const ProfilePage = () => {
             }}
             transition={{ type: 'spring', stiffness: 200, damping: 18 }}
             className="relative rounded-3xl border border-orange-100/60 dark:border-border bg-gradient-to-br from-orange-50/80 via-white/90 to-amber-100/70 dark:from-orange-950/70 dark:via-slate-950/90 dark:to-amber-950/60 shadow-[0_24px_80px_rgba(15,23,42,0.35)] overflow-hidden"
-          >
+            >
             <div className="absolute inset-0 opacity-60 mix-blend-soft-light pointer-events-none">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_0_0,rgba(248,250,252,0.3),transparent_55%),radial-gradient(circle_at_100%_0,rgba(254,215,170,0.6),transparent_55%)]" />
             </div>
 
-            <div className="relative flex flex-col md:flex-row items-stretch gap-8 p-6 md:p-8">
+            <div className="relative flex flex-col xl:flex-row items-stretch gap-8 p-6 md:p-8">
               {/* Avatar + summary */}
-              <div className="flex items-center gap-5 md:gap-6">
+              <div className="flex flex-1 min-w-0 items-center gap-5 md:gap-6">
                 <div className="relative">
                   <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary/60 via-amber-400/60 to-rose-400/40 blur-xl opacity-70" />
                   <div className="relative flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-orange-500 text-primary-foreground shadow-xl shadow-orange-500/40">
@@ -285,7 +285,7 @@ const ProfilePage = () => {
               </div>
 
               {/* Status & quick stats */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
                 <Card className="border-none bg-white/60 dark:bg-black/20 backdrop-blur-sm shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
