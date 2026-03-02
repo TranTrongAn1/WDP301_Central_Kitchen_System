@@ -1,5 +1,5 @@
 import apiClient from './Client';
-import type { DeliveryTrip, CreateTripRequest } from '@/shared/types/logistics';
+import type { DeliveryTrip } from '@/shared/types/logistics';
 
 export interface LogisticsApiResponse<T> {
   success: boolean;
