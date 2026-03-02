@@ -17,6 +17,7 @@ const {
   finalizeDeliveryPlan,
   markTripAsReady,
   startShipping,
+  deleteDeliveryTrip,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -116,6 +117,13 @@ router.get('/trips', getTrips);
 
 // Get single delivery trip by ID
 router.get('/trips/:id', getTripById);
+
+// Delete delivery trip (only if status is Planning) (Coordinator, Manager, Admin)
+router.delete(
+  '/trips/:id',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  deleteDeliveryTrip
+);
 
 // ===== INVOICE ROUTES =====
 

@@ -1926,7 +1926,7 @@ paths:
         '404':
           description: One or more orders not found
 
-  /api/logistics/delivery-trips:
+  /api/logistics/trips:
     get:
       tags:
         - Logistics
@@ -1961,7 +1961,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/DeliveryTrip'
 
-  /api/logistics/delivery-trips/{id}:
+  /api/logistics/trips/{id}:
     get:
       tags:
         - Logistics
@@ -1990,6 +1990,87 @@ paths:
                     $ref: '#/components/schemas/DeliveryTrip'
         '404':
           description: Delivery trip not found
+    
+    delete:
+      tags:
+        - Logistics
+      summary: Hard delete delivery trip
+      description: |
+        **Hard Delete:** Completely removes the DeliveryTrip document from the database.
+        
+        **IMPORTANT - Order Preservation:**
+        - Associated orders are NOT modified and remain in their current status
+        - Orders remain in the database exactly as they were before deletion
+        - This only removes the trip grouping, not the orders themselves
+        
+        **Constraint:**
+        - Deletion is ONLY allowed if the trip status is 'Planning'
+        - If the trip has moved to 'Transferred_To_Kitchen' or any further status, deletion is blocked to prevent data inconsistency in the production flow
+        
+        **Use Case:** Remove a delivery trip during the planning phase if it was created in error or needs to be reorganized.
+        
+        **Access:** Coordinator, Manager, Admin only
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      responses:
+        '200':
+          description: Delivery trip deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Delivery trip deleted successfully. Associated orders remain unchanged.'
+                  data:
+                    type: object
+                    properties:
+                      deletedTripId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1a1'
+                      deletedTripNumber:
+                        type: string
+                        example: 'TRIP-1709337600000'
+                      orderCount:
+                        type: integer
+                        example: 3
+        '400':
+          description: Cannot delete - trip is not in Planning status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot delete delivery trip. Deletion is only allowed for trips in 'Planning' status. Current status: 'In_Transit'"
+        '404':
+          description: Delivery trip not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Delivery trip not found'
 
   /api/logistics/trips/{id}/add-orders:
     patch:

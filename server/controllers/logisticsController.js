@@ -1991,6 +1991,75 @@ const aggregateDailyDemand = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Hard delete a delivery trip (only if status is Planning)
+ * @route   DELETE /api/logistics/trips/:id
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const deleteDeliveryTrip = async (req, res, next) => {
+  // Start transaction for data consistency
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let transactionAborted = false;
+
+  try {
+    const { id } = req.params;
+
+    // ========================================
+    // STEP 1: Validation - Fetch Delivery Trip
+    // ========================================
+    const trip = await DeliveryTrip.findById(id).session(session);
+
+    if (!trip) {
+      res.status(404);
+      throw new Error('Delivery trip not found');
+    }
+
+    // ========================================
+    // STEP 2: Validate Trip Status (Only 'Planning' allowed)
+    // ========================================
+    if (trip.status !== 'Planning') {
+      res.status(400);
+      throw new Error(
+        `Cannot delete delivery trip. Deletion is only allowed for trips in 'Planning' status. Current status: '${trip.status}'`
+      );
+    }
+
+    // ========================================
+    // STEP 3: Hard Delete the DeliveryTrip Document
+    // ========================================
+    // Note: Orders associated with this trip are NOT modified
+    // They will remain in their current status in the database
+    await DeliveryTrip.findByIdAndDelete(id).session(session);
+
+    // ========================================
+    // STEP 4: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery trip deleted successfully. Associated orders remain unchanged.',
+      data: {
+        deletedTripId: id,
+        deletedTripNumber: trip.tripNumber,
+        orderCount: trip.orders ? trip.orders.length : 0,
+      },
+    });
+  } catch (error) {
+    // Abort transaction if not already aborted
+    if (!transactionAborted) {
+      await session.abortTransaction();
+      transactionAborted = true;
+    }
+    next(error);
+  } finally {
+    // End session
+    session.endSession();
+  }
+};
+
 module.exports = {
   // Order Management
   createOrder,
@@ -2011,6 +2080,7 @@ module.exports = {
   markTripAsReady,
   startShipping,
   receiveOrder,
+  deleteDeliveryTrip,
 
   // Invoice & Payment
   recordPayment,

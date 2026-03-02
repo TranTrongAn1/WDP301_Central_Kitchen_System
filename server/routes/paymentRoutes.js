@@ -28,7 +28,7 @@ router.post('/webhook', handlePayOSWebhook);
  * @desc    Deposit funds to a store's wallet
  * @access  Private (Admin/Manager only)
  */
-router.post('/deposit', protect, authorize('Admin', 'Manager'), depositToWallet);
+router.post('/deposit', protect, authorize('Admin', 'Manager','StoreStaff'), depositToWallet);
 
 /**
  * @route   POST /api/payments/pay-with-wallet
