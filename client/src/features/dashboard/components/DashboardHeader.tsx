@@ -1,6 +1,10 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import toast from "react-hot-toast";
+
 import { useAuthStore } from "@/shared/zustand/authStore";
 import { useThemeStore } from "@/shared/zustand/themeStore";
+import { useUserSettingsStore } from "@/shared/zustand/userSettingsStore";
 import { cn } from "@/shared/lib/utils";
 import {
   Bell,
@@ -13,8 +17,6 @@ import {
   Settings,
   HelpCircle,
 } from "lucide-react";
-import { useState } from "react";
-import toast from "react-hot-toast";
 
 interface DashboardHeaderProps {
   isSidebarCollapsed?: boolean;
@@ -54,6 +56,7 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
   const { darkMode, toggleDarkMode } = useThemeStore();
+   const { enableSystemNotifications, enableSoundEffects } = useUserSettingsStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -98,6 +101,41 @@ export const DashboardHeader = ({
     logout();
     toast.success("Đăng xuất thành công!");
     navigate("/login");
+  };
+
+  const playNotificationSound = () => {
+    if (typeof window === "undefined" || !enableSoundEffects) return;
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch {
+      // Ignore audio errors (browser restrictions, etc.)
+    }
+  };
+
+  const handleToggleNotifications = () => {
+    if (!enableSystemNotifications) {
+      toast("Bạn đã tắt thông báo trong phần Cài đặt.");
+      return;
+    }
+    const next = !showNotifications;
+    setShowNotifications(next);
+    setShowUserMenu(false);
+    if (next) {
+      playNotificationSound();
+    }
   };
 
   return (
@@ -153,10 +191,7 @@ export const DashboardHeader = ({
 
         <div className="relative">
           <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowUserMenu(false);
-            }}
+            onClick={handleToggleNotifications}
             className={cn(
               "relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
               darkMode
