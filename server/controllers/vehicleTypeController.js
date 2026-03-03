@@ -1,0 +1,165 @@
+const VehicleType = require('../models/VehicleType');
+
+/**
+ * @desc    Create new vehicle type
+ * @route   POST /api/vehicle-types
+ * @access  Admin
+ */
+exports.createVehicleType = async (req, res, next) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Vehicle type name is required',
+      });
+    }
+
+    const existing = await VehicleType.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vehicle type already exists',
+      });
+    }
+
+    const vehicleType = await VehicleType.create({
+      name: name.trim(),
+      description,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: vehicleType,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all vehicle types
+ * @route   GET /api/vehicle-types
+ * @access  Private (Admin / Manager)
+ */
+exports.getVehicleTypes = async (req, res, next) => {
+  try {
+    const vehicleTypes = await VehicleType.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: vehicleTypes.length,
+      data: vehicleTypes,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single vehicle type
+ * @route   GET /api/vehicle-types/:id
+ * @access  Private
+ */
+exports.getVehicleTypeById = async (req, res, next) => {
+  try {
+    const vehicleType = await VehicleType.findById(req.params.id);
+
+    if (!vehicleType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle type not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: vehicleType,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update vehicle type
+ * @route   PUT /api/vehicle-types/:id
+ * @access  Admin
+ */
+exports.updateVehicleType = async (req, res, next) => {
+  try {
+    const { name, description, isActive } = req.body;
+
+    const vehicleType = await VehicleType.findById(req.params.id);
+
+    if (!vehicleType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle type not found',
+      });
+    }
+
+    if (name) {
+      const duplicate = await VehicleType.findOne({
+        name: name.trim(),
+        _id: { $ne: req.params.id },
+      });
+
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vehicle type name already exists',
+        });
+      }
+
+      vehicleType.name = name.trim();
+    }
+
+    if (description !== undefined) {
+      vehicleType.description = description;
+    }
+
+    if (typeof isActive === 'boolean') {
+      vehicleType.isActive = isActive;
+    }
+
+    await vehicleType.save();
+
+    res.status(200).json({
+      success: true,
+      data: vehicleType,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete vehicle type (Soft delete)
+ * @route   DELETE /api/vehicle-types/:id
+ * @access  Admin
+ */
+exports.deleteVehicleType = async (req, res, next) => {
+  try {
+    const vehicleType = await VehicleType.findById(req.params.id);
+
+    if (!vehicleType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle type not found',
+      });
+    }
+
+    // Soft delete
+    vehicleType.isActive = false;
+    await vehicleType.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Vehicle type deactivated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

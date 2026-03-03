@@ -1,652 +1,461 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Truck, CheckCircle2, Clock, XCircle, Search, Loader2, Plus, Eye, Trash2, Package } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { Input } from '../components/ui/Input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import { Modal } from '../components/ui/Modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
-import { transferApi } from '@/api/TransferApi';
-import { storeApi } from '@/api/StoreApi';
-import { batchApi } from '@/api/BatchApi';
-import type { Transfer } from '@/api/TransferApi';
-import type { Store } from '@/api/StoreApi';
-import type { Batch } from '@/api/BatchApi';
+import { ClipboardList, Truck, CalendarClock, Loader2, ChevronDown } from 'lucide-react';
 
-interface TransferItem {
-    productId: string;
-    batchId: string;
-    quantity: number;
-    productName?: string;
-    batchCode?: string;
-}
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
+import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
+import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
+import { cn } from '@/shared/lib/utils';
+
+const ITEMS_PER_PAGE = 9;
 
 const OrdersShipmentsPage = () => {
-    const navigate = useNavigate();
-    const [transfers, setTransfers] = useState<Transfer[]>([]);
-    const [stores, setStores] = useState<Store[]>([]);
-    const [batches, setBatches] = useState<Batch[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('all');
-    const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { compactMode } = useUserSettingsStore();
 
-    // Create modal state
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [createLoading, setCreateLoading] = useState(false);
-    const [toStoreId, setToStoreId] = useState('');
-    const [note, setNote] = useState('');
-    const [transferItems, setTransferItems] = useState<TransferItem[]>([]);
-    const [selectedBatch, setSelectedBatch] = useState('');
-    const [selectedProduct, setSelectedProduct] = useState('');
-    const [quantity, setQuantity] = useState<number>(1);
+  const [orders, setOrders] = useState<OrderType[]>([]);
+  const [trips, setTrips] = useState<ITrip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'orders' | 'trips'>('orders');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [currentPage, setCurrentPage] = useState(1);
 
-    const fetchTransfers = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await transferApi.getAll();
-            const data = (response as any)?.data || response || [];
-            setTransfers(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Error fetching transfers:', err);
-            setError('Failed to load transfers');
-        } finally {
-            setLoading(false);
-        }
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [orderRes, tripRes] = await Promise.all([
+          OrderApi.getAllOrders().catch(() => []),
+          DeliveryTripApi.getAllDeliveryTrips().catch(() => ({ data: [] })),
+        ]);
+        const sortedOrders = Array.isArray(orderRes)
+          ? [...orderRes].sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+          : [];
+        setOrders(sortedOrders);
+
+        const tripData = Array.isArray((tripRes as { data?: ITrip[] })?.data)
+          ? (tripRes as { data: ITrip[] }).data
+          : [];
+        setTrips(tripData);
+      } catch {
+        setError('Không thể tải dữ liệu đơn hàng & chuyến giao');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const fetchStores = async () => {
-        try {
-            const response = await storeApi.getAll();
-            const data = (response as any)?.data || response || [];
-            setStores(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Error fetching stores:', err);
-        }
-    };
+    fetchAll();
+  }, []);
 
-    const fetchBatches = async () => {
-        try {
-            const response = await batchApi.getAll({ status: 'Active' });
-            const data = (response as any)?.data || response || [];
-            setBatches(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Error fetching batches:', err);
-        }
-    };
+  const filteredOrders =
+    filterStatus === 'All'
+      ? orders
+      : orders.filter((order) => order.status === filterStatus);
 
-    useEffect(() => {
-        fetchTransfers();
-        fetchStores();
-        fetchBatches();
-    }, []);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus]);
 
-    // Stats
-    const stats = {
-        pending: transfers.filter(t => t.status === 'Pending').length,
-        shipped: transfers.filter(t => t.status === 'Shipped').length,
-        received: transfers.filter(t => t.status === 'Received').length,
-        cancelled: transfers.filter(t => t.status === 'Cancelled').length,
-    };
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentOrders = filteredOrders.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'Pending':
-                return (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Pending
-                    </Badge>
-                );
-            case 'Shipped':
-                return (
-                    <Badge className="bg-blue-500 text-white">
-                        <Truck className="w-3 h-3 mr-1" />
-                        Shipped
-                    </Badge>
-                );
-            case 'Received':
-                return (
-                    <Badge variant="success" className="bg-green-500 text-white">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Received
-                    </Badge>
-                );
-            case 'Cancelled':
-                return (
-                    <Badge variant="destructive">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Cancelled
-                    </Badge>
-                );
-            default:
-                return <Badge variant="outline">{status}</Badge>;
-        }
-    };
+  const handlePageChange = (next: number) => {
+    if (next < 1 || next > totalPages) return;
+    setCurrentPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    const getStoreName = (transfer: Transfer) => {
-        if (typeof transfer.toStoreId === 'string') return 'Unknown Store';
-        return transfer.toStoreId?.storeName || 'Unknown Store';
-    };
-
-    const getStoreAddress = (transfer: Transfer) => {
-        if (typeof transfer.toStoreId === 'string') return '';
-        return transfer.toStoreId?.address || '';
-    };
-
-    const getCreatorName = (transfer: Transfer) => {
-        if (typeof transfer.createdBy === 'string') return 'Unknown';
-        return transfer.createdBy?.fullName || transfer.createdBy?.username || 'Unknown';
-    };
-
-    const getTotalItems = (transfer: Transfer) => {
-        return transfer.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-    };
-
-    const filterTransfers = (status: string) => {
-        let filtered = transfers;
-
-        // Filter by status
-        if (status !== 'all') {
-            filtered = filtered.filter(t => t.status === status);
-        }
-
-        // Filter by search query
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(t =>
-                t.transferCode?.toLowerCase().includes(query) ||
-                getStoreName(t).toLowerCase().includes(query)
-            );
-        }
-
-        return filtered;
-    };
-
-    const handleShip = async (id: string) => {
-        try {
-            await transferApi.updateStatus(id, { status: 'Shipped' });
-            fetchTransfers();
-        } catch (err) {
-            console.error('Error shipping transfer:', err);
-        }
-    };
-
-    const handleReceive = async (id: string) => {
-        try {
-            await transferApi.updateStatus(id, { status: 'Received' });
-            fetchTransfers();
-        } catch (err) {
-            console.error('Error receiving transfer:', err);
-        }
-    };
-
-    const handleCancel = async (id: string) => {
-        try {
-            await transferApi.updateStatus(id, { status: 'Cancelled' });
-            fetchTransfers();
-        } catch (err) {
-            console.error('Error cancelling transfer:', err);
-        }
-    };
-
-    // Transfer creation functions
-    const openCreateModal = () => {
-        setIsCreateModalOpen(true);
-        setToStoreId('');
-        setNote('');
-        setTransferItems([]);
-    };
-
-    const closeCreateModal = () => {
-        setIsCreateModalOpen(false);
-        setCreateLoading(false);
-        setToStoreId('');
-        setNote('');
-        setTransferItems([]);
-    };
-
-    const getSelectedBatchInfo = () => {
-        if (!selectedBatch) return null;
-        const batch = batches.find(b => b._id === selectedBatch);
-        if (!batch) return null;
-        const product = typeof batch.productId === 'object' ? batch.productId : null;
-        return {
-            batch,
-            productName: product?.name || 'Unknown Product',
-            batchCode: batch.batchCode,
-            availableQuantity: batch.currentQuantity
-        };
-    };
-
-    const addItemToTransfer = () => {
-        if (!selectedBatch || !selectedProduct || quantity <= 0) return;
-
-        const batchInfo = getSelectedBatchInfo();
-        if (!batchInfo) return;
-
-        // Check if batch already added
-        const existingIndex = transferItems.findIndex(item => item.batchId === selectedBatch);
-        if (existingIndex >= 0) {
-            const updatedItems = [...transferItems];
-            updatedItems[existingIndex].quantity += quantity;
-            setTransferItems(updatedItems);
-        } else {
-            setTransferItems([...transferItems, {
-                productId: selectedProduct,
-                batchId: selectedBatch,
-                quantity,
-                productName: batchInfo.productName,
-                batchCode: batchInfo.batchCode
-            }]);
-        }
-
-        setSelectedBatch('');
-        setSelectedProduct('');
-        setQuantity(1);
-    };
-
-    const removeItemFromTransfer = (index: number) => {
-        const updatedItems = [...transferItems];
-        updatedItems.splice(index, 1);
-        setTransferItems(updatedItems);
-    };
-
-    const handleCreateTransfer = async () => {
-        if (!toStoreId || transferItems.length === 0) {
-            alert('Please select a store and add at least one item');
-            return;
-        }
-
-        setCreateLoading(true);
-        try {
-            await transferApi.create({
-                toStoreId,
-                items: transferItems.map(item => ({
-                    productId: item.productId,
-                    batchId: item.batchId,
-                    quantity: item.quantity
-                })),
-                note
-            });
-            closeCreateModal();
-            fetchTransfers();
-        } catch (err) {
-            console.error('Error creating transfer:', err);
-            alert('Failed to create transfer');
-        } finally {
-            setCreateLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading transfers...</span>
-            </div>
-        );
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(
+        1,
+        '...',
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages
+      );
+    } else {
+      pages.push(
+        1,
+        '...',
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        '...',
+        totalPages
+      );
     }
+    return pages;
+  };
 
-    const renderTransferList = (filteredTransfers: Transfer[]) => (
-        <div className="space-y-4 mt-4">
-            {filteredTransfers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                    No transfers found
-                </div>
-            ) : (
-                filteredTransfers.map((transfer) => (
-                    <motion.div
-                        key={transfer._id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="font-semibold text-lg">{transfer.transferCode}</h3>
-                                    {getStatusBadge(transfer.status)}
-                                </div>
-                                <div className="space-y-1 text-sm text-muted-foreground">
-                                    <p><strong>To:</strong> {getStoreName(transfer)}</p>
-                                    {getStoreAddress(transfer) && (
-                                        <p className="text-xs">{getStoreAddress(transfer)}</p>
-                                    )}
-                                    <p><strong>Created by:</strong> {getCreatorName(transfer)}</p>
-                                    <p><strong>Items:</strong> {transfer.items?.length || 0} products ({getTotalItems(transfer)} units)</p>
-                                </div>
-                            </div>
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
 
-                            <div className="flex flex-col gap-2 text-sm">
-                                <div>
-                                    <p className="text-muted-foreground">Created</p>
-                                    <p className="font-medium">{new Date(transfer.createdAt).toLocaleDateString()}</p>
-                                </div>
-                                {transfer.shippedDate && (
-                                    <div>
-                                        <p className="text-muted-foreground">Shipped</p>
-                                        <p className="font-medium">{new Date(transfer.shippedDate).toLocaleDateString()}</p>
-                                    </div>
-                                )}
-                                {transfer.receivedDate && (
-                                    <div>
-                                        <p className="text-muted-foreground">Received</p>
-                                        <p className="font-medium">{new Date(transfer.receivedDate).toLocaleDateString()}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
 
-                        {/* Items preview */}
-                        {transfer.items && transfer.items.length > 0 && (
-                            <div className="mt-3 pt-3 border-t space-y-2">
-                                {transfer.items.slice(0, 2).map((item, idx) => {
-                                    const batch = typeof item.batchId === 'string' ? null : item.batchId;
-                                    const productName = batch?.productId?.name || 'Unknown Product';
-                                    const batchCode = batch?.batchCode || 'Unknown Batch';
-
-                                    return (
-                                        <div key={idx} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded-lg">
-                                            <div>
-                                                <span className="font-medium">{productName}</span>
-                                                <span className="text-muted-foreground ml-2">({batchCode})</span>
-                                            </div>
-                                            <span className="font-medium">{item.quantity} units</span>
-                                        </div>
-                                    );
-                                })}
-                                {transfer.items.length > 2 && (
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        +{transfer.items.length - 2} more items
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2 mt-4">
-                            <Button variant="outline" size="sm" onClick={() => navigate(`/manager/orders/${transfer._id}`)}>
-                                <Eye className="w-4 h-4 mr-1" />
-                                View Details
-                            </Button>
-                            {transfer.status === 'Pending' && (
-                                <>
-                                    <Button size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={() => handleShip(transfer._id)}>
-                                        <Truck className="w-4 h-4 mr-1" />
-                                        Ship
-                                    </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => handleCancel(transfer._id)}>
-                                        <XCircle className="w-4 h-4 mr-1" />
-                                        Cancel
-                                    </Button>
-                                </>
-                            )}
-                            {transfer.status === 'Shipped' && (
-                                <Button size="sm" className="bg-green-500 hover:bg-green-600" onClick={() => handleReceive(transfer._id)}>
-                                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                                    Receive
-                                </Button>
-                            )}
-                        </div>
-                    </motion.div>
-                ))
-            )}
-        </div>
-    );
-
+  if (loading) {
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                </div>
-                <div className="flex gap-2">
-                    <Button className="bg-gradient-to-r from-orange-600 to-amber-600" onClick={openCreateModal}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Transfer
-                    </Button>
-                </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-                                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Pending</p>
-                                <p className="text-2xl font-bold">{stats.pending}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                                <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Shipped</p>
-                                <p className="text-2xl font-bold">{stats.shipped}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Received</p>
-                                <p className="text-2xl font-bold text-green-600">{stats.received}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                                <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Cancelled</p>
-                                <p className="text-2xl font-bold">{stats.cancelled}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {error && (
-                <div className="text-center py-4 text-red-500">
-                    {error}
-                    <Button onClick={fetchTransfers} variant="link" className="ml-2">Retry</Button>
-                </div>
-            )}
-
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by transfer code or store..."
-                                className="pl-10"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
-                        <TabsList className="grid w-full grid-cols-5">
-                            <TabsTrigger value="all">All ({transfers.length})</TabsTrigger>
-                            <TabsTrigger value="Pending">Pending ({stats.pending})</TabsTrigger>
-                            <TabsTrigger value="Shipped">Shipped ({stats.shipped})</TabsTrigger>
-                            <TabsTrigger value="Received">Received ({stats.received})</TabsTrigger>
-                            <TabsTrigger value="Cancelled">Cancelled ({stats.cancelled})</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="all">
-                            {renderTransferList(filterTransfers('all'))}
-                        </TabsContent>
-                        <TabsContent value="Pending">
-                            {renderTransferList(filterTransfers('Pending'))}
-                        </TabsContent>
-                        <TabsContent value="Shipped">
-                            {renderTransferList(filterTransfers('Shipped'))}
-                        </TabsContent>
-                        <TabsContent value="Received">
-                            {renderTransferList(filterTransfers('Received'))}
-                        </TabsContent>
-                        <TabsContent value="Cancelled">
-                            {renderTransferList(filterTransfers('Cancelled'))}
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-            </Card>
-
-            {/* Create Transfer Modal */}
-            <Modal
-                isOpen={isCreateModalOpen}
-                onClose={closeCreateModal}
-                title="Create New Transfer"
-                size="lg"
-                footer={
-                    <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={closeCreateModal} disabled={createLoading}>
-                            Cancel
-                        </Button>
-                        <Button
-                            className="bg-gradient-to-r from-orange-600 to-amber-600"
-                            onClick={handleCreateTransfer}
-                            disabled={createLoading || !toStoreId || transferItems.length === 0}
-                        >
-                            {createLoading ? 'Creating...' : 'Create Transfer'}
-                        </Button>
-                    </div>
-                }
-            >
-                <div className="space-y-4">
-                    {/* Store Selection */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Destination Store</label>
-                        <Select value={toStoreId} onValueChange={setToStoreId}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Select Store" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {stores.map((store) => (
-                                    <SelectItem key={store._id} value={store._id}>
-                                        {store.storeName || store.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Add Items Section */}
-                    <div className="border-t pt-4">
-                        <h4 className="font-medium mb-2">Add Products</h4>
-                        <div className="flex gap-2 mb-4">
-                            <div className="flex-1">
-                                <Select value={selectedBatch} onValueChange={(value) => {
-                                    setSelectedBatch(value);
-                                    const batch = batches.find(b => b._id === value);
-                                    if (batch) {
-                                        setSelectedProduct(typeof batch.productId === 'object' ? batch.productId._id : '');
-                                    }
-                                }}>
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="Select Batch" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {batches.map((batch) => {
-                                            const product = typeof batch.productId === 'object' ? batch.productId : null;
-                                            return (
-                                                <SelectItem key={batch._id} value={batch._id}>
-                                                    {product?.name || 'Unknown'} - {batch.batchCode} ({batch.currentQuantity} available)
-                                                </SelectItem>
-                                            );
-                                        })}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Input
-                                type="number"
-                                min={1}
-                                className="w-24 h-10"
-                                placeholder="Qty"
-                                value={quantity}
-                                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addItemToTransfer}
-                                disabled={!selectedBatch || quantity <= 0}
-                            >
-                                <Plus className="w-4 h-4" />
-                            </Button>
-                        </div>
-
-                        {/* Selected Items List */}
-                        {transferItems.length > 0 ? (
-                            <div className="space-y-2">
-                                {transferItems.map((item, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                                    >
-                                        <div>
-                                            <p className="font-medium">{item.productName}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {item.batchCode} • {item.quantity} units
-                                            </p>
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-red-500 hover:text-red-600"
-                                            onClick={() => removeItemFromTransfer(index)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-4 text-muted-foreground text-sm">
-                                <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <p>No items added yet</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Note */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Note (Optional)</label>
-                        <Input
-                            placeholder="Add a note for this transfer..."
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </Modal>
-        </div>
+      <div className="flex h-[50vh] items-center justify-center text-muted-foreground text-sm">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin text-orange-500" />
+        Đang tải dữ liệu đơn hàng & chuyến giao...
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center text-center text-red-500 text-sm">
+        {error}
+      </div>
+    );
+  }
+
+  const totalOrders = orders.length;
+  const totalTrips = trips.length;
+
+  return (
+    <div className={cn('space-y-6', compactMode ? 'pb-6' : 'pb-10')}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">
+            Tổng quan đơn hàng & chuyến giao
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground max-w-xl">
+            Xem nhanh các đơn từ cửa hàng và các chuyến giao hàng đang được điều
+            phối.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
+          <Card className="border border-border/70 bg-card/80">
+            <CardContent className={cn('flex items-center gap-3', compactMode ? 'p-3' : 'p-4')}>
+              <div className="rounded-lg bg-blue-500/10 p-2 text-blue-600">
+                <ClipboardList className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Đơn hàng</p>
+                <p className="text-lg font-bold text-foreground">{totalOrders}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border border-border/70 bg-card/80">
+            <CardContent className={cn('flex items-center gap-3', compactMode ? 'p-3' : 'p-4')}>
+              <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600">
+                <Truck className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Chuyến giao</p>
+                <p className="text-lg font-bold text-foreground">{totalTrips}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'orders' | 'trips')}>
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                  {activeTab === 'orders' ? (
+                    <>
+                      <ClipboardList className="h-4 w-4 text-primary" />
+                      Đơn hàng từ cửa hàng
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="h-4 w-4 text-primary" />
+                      Chuyến giao hàng
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription className="mt-1 text-xs">
+                  {activeTab === 'orders'
+                    ? 'Danh sách đơn logistics được tạo từ các cửa hàng.'
+                    : 'Các chuyến giao hàng đã được gom đơn và điều phối.'}
+                </CardDescription>
+              </div>
+              <TabsList className="w-full md:w-auto">
+                <TabsTrigger value="orders" className="flex-1 md:flex-none">
+                  Đơn hàng
+                </TabsTrigger>
+                <TabsTrigger value="trips" className="flex-1 md:flex-none">
+                  Chuyến giao
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </CardHeader>
+
+          <CardContent className={cn('pt-4', compactMode && 'pt-3')}>
+            <TabsContent value="orders" className="mt-0 space-y-4">
+              <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", compactMode ? "mb-3" : "mb-4")}>
+                <span className="text-xs text-muted-foreground">
+                  {filteredOrders.length} đơn hàng
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Trạng thái:
+                  </span>
+                  <div className="relative">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className={cn(
+                        'h-9 min-w-[190px] cursor-pointer appearance-none rounded-xl border border-border bg-card px-3 pr-8 text-xs font-medium text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
+                        compactMode ? 'py-1' : 'py-2'
+                      )}
+                    >
+                      <option value="All">Tất cả trạng thái</option>
+                      <option value="Pending">Chờ duyệt (Pending)</option>
+                      <option value="Approved">Đã duyệt (Approved)</option>
+                      <option value="In_Transit">Đang giao (In_Transit)</option>
+                      <option value="Received">Đã nhận (Received)</option>
+                      <option value="Cancelled">Đã hủy (Cancelled)</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                </div>
+              </div>
+
+              {filteredOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 py-10 text-xs text-muted-foreground">
+                  <span className="material-symbols-outlined mb-2 text-4xl text-muted-foreground/70">
+                    search_off
+                  </span>
+                  Không có đơn hàng nào khớp với bộ lọc.
+                </div>
+              ) : (
+                <>
+                  <div className={cn("grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3", compactMode ? "gap-3" : "gap-4")}>
+                    {currentOrders.map((order) => (
+                      <motion.div
+                        key={order._id}
+                        whileHover={{ scale: 1.01, y: -2 }}
+                        className={cn(
+                          'group relative rounded-xl border border-border bg-card transition-all duration-200 hover:border-primary/30 hover:shadow-md',
+                          compactMode ? 'p-4' : 'p-5'
+                        )}
+                      >
+                        <div className="mb-3 flex items-start justify-between">
+                          <div className="flex flex-col">
+                            <span className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Mã đơn hàng
+                            </span>
+                            <span className="font-mono text-sm font-bold text-card-foreground">
+                              {order.orderCode}
+                            </span>
+                          </div>
+                          <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-500/5 border-blue-200">
+                            {order.status}
+                          </span>
+                        </div>
+
+                        <div className="my-3 h-px w-full bg-border" />
+
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <CalendarClock className="h-3.5 w-3.5" />
+                              Ngày giao
+                            </div>
+                            <span className="font-medium text-card-foreground">
+                              {formatDate(order.requestedDeliveryDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="material-symbols-outlined text-[16px]">
+                                store
+                              </span>
+                              Cửa hàng
+                            </div>
+                            <span className="max-w-[150px] truncate text-xs font-medium text-card-foreground">
+                              {typeof order.storeId === 'object' &&
+                              order.storeId?.storeName
+                                ? order.storeId.storeName
+                                : typeof order.storeId === 'string'
+                                ? order.storeId.slice(-6).toUpperCase()
+                                : 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="material-symbols-outlined text-[16px]">
+                                inventory_2
+                              </span>
+                              Số lượng mặt hàng
+                            </div>
+                            <span className="font-medium text-card-foreground">
+                              {order.items?.length || 0}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="my-3 h-px w-full bg-border" />
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] text-muted-foreground">
+                              Tổng giá trị
+                            </span>
+                            <span className="text-base font-bold text-primary">
+                              {formatCurrency(order.totalAmount)}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9 rounded-full"
+                            onClick={() => navigate(`/coordinator/orders/${order._id}`)}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              arrow_forward
+                            </span>
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="mt-4 flex select-none items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          chevron_left
+                        </span>
+                        Trước
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page, idx) =>
+                          page === '...' ? (
+                            <span
+                              key={`dots-${idx}`}
+                              className="px-2 text-xs text-muted-foreground"
+                            >
+                              ...
+                            </span>
+                          ) : (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handlePageChange(page as number)}
+                              className={cn(
+                                'h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all',
+                                currentPage === page
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                              )}
+                            >
+                              {page}
+                            </button>
+                          )
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        Sau
+                        <span className="material-symbols-outlined text-[18px]">
+                          chevron_right
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="trips" className="mt-0 space-y-4">
+              {trips.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 py-10 text-xs text-muted-foreground">
+                  <span className="material-symbols-outlined mb-2 text-4xl text-muted-foreground/70">
+                    local_shipping
+                  </span>
+                  Chưa có chuyến giao nào.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {trips.map((trip) => (
+                    <motion.div
+                      key={trip._id}
+                      whileHover={{ y: -1 }}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-xs',
+                        compactMode ? 'gap-3' : 'gap-4'
+                      )}
+                    >
+                      <div className="flex flex-1 items-center gap-3">
+                        <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                          <Truck className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-foreground">
+                            {trip.tripCode}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            {Array.isArray(trip.orders) ? trip.orders.length : 0} đơn •{' '}
+                            {trip.status}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => navigate(`/coordinator/shipments/${trip._id}`)}
+                      >
+                        Xem chi tiết
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </CardContent>
+        </Card>
+      </Tabs>
+    </div>
+  );
 };
 
 export default OrdersShipmentsPage;

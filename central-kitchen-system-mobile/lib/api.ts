@@ -300,7 +300,7 @@ export const logisticsOrdersApi = {
       headers: withAuth(token),
     }),
   create: (payload: CreateOrderPayload, token?: string | null) =>
-    request<OrderResponse>("/api/logistics/orders", {
+    request<CreateOrderResponse>("/api/logistics/orders", {
       method: "POST",
       headers: withAuth(token),
       body: JSON.stringify(payload),
@@ -313,9 +313,14 @@ export const logisticsOrdersApi = {
 };
 
 export const invoicesApi = {
-  getByOrder: (orderId: string, token?: string | null) => {
+  getAll: (
+    params?: { orderId?: string; storeId?: string; paymentStatus?: string },
+    token?: string | null
+  ) => {
     const search = new URLSearchParams();
-    search.set("orderId", orderId);
+    if (params?.orderId) search.set("orderId", params.orderId);
+    if (params?.storeId) search.set("storeId", params.storeId);
+    if (params?.paymentStatus) search.set("paymentStatus", params.paymentStatus);
     const qs = search.toString();
     return request<InvoicesResponse>(
       `/api/logistics/invoices${qs ? `?${qs}` : ""}`,

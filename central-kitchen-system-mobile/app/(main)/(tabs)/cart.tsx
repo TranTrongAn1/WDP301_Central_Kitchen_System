@@ -137,6 +137,11 @@ export default function CartTabScreen() {
         paymentMethod: paymentMethod,
       };
       const res = await logisticsOrdersApi.create(payload, token);
+      const creationData: CreateOrderData = res.data;
+      const orderObj: Order = creationData.order;
+      const currentOrderId = orderObj._id;
+      setOrderId(currentOrderId);
+      orderRef.current = currentOrderId;
       clearCart();
       setSubmitError(null);
 

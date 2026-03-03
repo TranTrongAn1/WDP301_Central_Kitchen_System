@@ -1532,7 +1532,128 @@ paths:
           description: Batch updated successfully
         '404':
           description: Batch not found
+# VEHICLE TYPE MANAGEMENT
+  # ============================================================
+  /api/vehicle-types:
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get all vehicle types
+      description: Retrieve all vehicle types sorted by newest first.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VehicleType'
 
+    post:
+      tags:
+        - Vehicle Types
+      summary: Create new vehicle type
+      description: Create a new vehicle type for fleet management. (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeInput'
+      responses:
+        '201':
+          description: Vehicle type created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/vehicle-types/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Vehicle Type ID
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get vehicle type by ID
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Vehicle Types
+      summary: Update vehicle type
+      description: Update name, description or status. (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeUpdate'
+      responses:
+        '200':
+          description: Updated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Vehicle Types
+      summary: Delete vehicle type (Soft Delete)
+      description: Deactivates the vehicle type by setting isActive to false. (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deactivated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Vehicle type deactivated successfully
   # FEATURE 4: LOGISTICS & SUPPLY CHAIN
   # ============================================================
   /api/logistics/orders:
@@ -1540,24 +1661,7 @@ paths:
       tags:
         - Logistics
       summary: Get all orders
-      description: |
-        Retrieve all orders with optional filtering by status and store.
-        
-        **Traceability:** Order → DeliveryTrip → Store Inventory
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [Pending, Approved, Shipped, Received, Cancelled]
-          description: Filter by order status
-        - in: query
-          name: storeId
-          schema:
-            type: string
-          description: Filter by store ID
+      # ... (giữ nguyên phần get của bạn)
       responses:
         '200':
           description: Successfully retrieved orders
@@ -1572,7 +1676,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Order'
-    post:
+
+    post: # <--- QUAN TRỌNG: post phải thẳng hàng với get ở trên
       tags:
         - Logistics
       summary: Create new order
@@ -1580,22 +1685,8 @@ paths:
         Create a new order from a store to the central kitchen.
         
         **Payment Methods:**
-        - 'Wallet': Deduct from store's prepaid wallet balance (immediate payment)
-        - 'PayOS': Generate invoice for later payment via PayOS gateway
-        
-        **Client sends:** storeId, requestedDeliveryDate, items, paymentMethod (optional)
-        
-        **Backend automatically:**
-        - Extracts userId from Bearer Token (authentication required)
-        - Generates unique orderNumber (e.g., ORD-20260202-001)
-        - Sets status to 'Pending'
-        - Sets orderDate to current timestamp
-        - Fetches unitPrice from Product collection
-        - Calculates subtotal for each item (quantityRequested × unitPrice)
-        - Calculates totalAmount (sum of all subtotals)
-        - If paymentMethod='Wallet': Validates balance and deducts payment atomically
-        
-        **Security:** This prevents clients from manipulating prices or order numbers.
+        - 'Wallet': Deduct from store's prepaid wallet balance
+        - 'PayOS': Generate invoice for later payment
       security:
         - BearerAuth: []
       requestBody:
@@ -1607,20 +1698,29 @@ paths:
               required:
                 - storeId
                 - requestedDeliveryDate
+                - recipientName
+                - recipientPhone
                 - items
               properties:
                 storeId:
                   type: string
-                  description: 'Store placing the order'
                   example: '60d5ec49f1b2c8b1f8e4e1a7'
                 requestedDeliveryDate:
                   type: string
                   format: date
                   example: '2026-02-05'
-                  description: 'Requested delivery date'
+                recipientName:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                recipientPhone:
+                  type: string
+                  pattern: '^(0|\+84)[0-9]{9,10}$'
+                  example: '0912345678'
+                address:
+                  type: string
+                  example: '123 Lê Lợi, Quận 1, TP.HCM'
                 items:
                   type: array
-                  description: 'List of products to order'
                   minItems: 1
                   items:
                     type: object
@@ -1630,31 +1730,18 @@ paths:
                     properties:
                       productId:
                         type: string
-                        description: 'Product ID'
                         example: '60d5ec49f1b2c8b1f8e4e1a5'
                       quantityRequested:
                         type: number
                         minimum: 1
                         example: 20
-                        description: 'Quantity to order'
-                  example:
-                    - productId: '60d5ec49f1b2c8b1f8e4e1a5'
-                      quantityRequested: 20
-                    - productId: '60d5ec49f1b2c8b1f8e4e1a6'
-                      quantityRequested: 15
                 notes:
                   type: string
-                  description: 'Additional notes or special instructions'
-                  example: 'Urgent order for weekend promotion'
+                  maxLength: 500
                 paymentMethod:
                   type: string
                   enum: [Wallet, PayOS]
                   default: PayOS
-                  description: |
-                    Payment method for this order:
-                    - 'Wallet': Immediately deduct from store wallet (requires sufficient balance)
-                    - 'PayOS': Invoice-based payment (default)
-                  example: 'Wallet'
       responses:
         '201':
           description: Order created successfully
@@ -1665,10 +1752,16 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  message:
+                    type: string
                   data:
                     $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input or insufficient inventory
+          description: Invalid input
+        '403':
+          description: Wallet locked or unauthorized
+        '404':
+          description: Store or Product not found
 
   /api/logistics/orders/{id}:
     get:
@@ -1954,7 +2047,7 @@ paths:
         '404':
           description: One or more orders not found
 
-  /api/logistics/delivery-trips:
+  /api/logistics/trips:
     get:
       tags:
         - Logistics
@@ -1989,7 +2082,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/DeliveryTrip'
 
-  /api/logistics/delivery-trips/{id}:
+  /api/logistics/trips/{id}:
     get:
       tags:
         - Logistics
@@ -2018,6 +2111,87 @@ paths:
                     $ref: '#/components/schemas/DeliveryTrip'
         '404':
           description: Delivery trip not found
+    
+    delete:
+      tags:
+        - Logistics
+      summary: Hard delete delivery trip
+      description: |
+        **Hard Delete:** Completely removes the DeliveryTrip document from the database.
+        
+        **IMPORTANT - Order Preservation:**
+        - Associated orders are NOT modified and remain in their current status
+        - Orders remain in the database exactly as they were before deletion
+        - This only removes the trip grouping, not the orders themselves
+        
+        **Constraint:**
+        - Deletion is ONLY allowed if the trip status is 'Planning'
+        - If the trip has moved to 'Transferred_To_Kitchen' or any further status, deletion is blocked to prevent data inconsistency in the production flow
+        
+        **Use Case:** Remove a delivery trip during the planning phase if it was created in error or needs to be reorganized.
+        
+        **Access:** Coordinator, Manager, Admin only
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      responses:
+        '200':
+          description: Delivery trip deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Delivery trip deleted successfully. Associated orders remain unchanged.'
+                  data:
+                    type: object
+                    properties:
+                      deletedTripId:
+                        type: string
+                        example: '60d5ec49f1b2c8b1f8e4e1a1'
+                      deletedTripNumber:
+                        type: string
+                        example: 'TRIP-1709337600000'
+                      orderCount:
+                        type: integer
+                        example: 3
+        '400':
+          description: Cannot delete - trip is not in Planning status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot delete delivery trip. Deletion is only allowed for trips in 'Planning' status. Current status: 'In_Transit'"
+        '404':
+          description: Delivery trip not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Delivery trip not found'
 
   /api/logistics/trips/{id}/add-orders:
     patch:
@@ -3771,6 +3945,15 @@ components:
           format: date
           example: '2026-01-30'
           description: 'Requested delivery date'
+          recipientName:
+          type: string
+          example: "Nguyễn Văn A"
+        recipientPhone:
+          type: string
+          example: "0912345678"
+        address:
+          type: string
+          example: "123 Lê Lợi, Quận 1, TP.HCM"
         items:
           type: array
           description: 'Items in the order'
@@ -4156,3 +4339,145 @@ components:
           example: 'Error message description'
         error:
           type: string
+
+    VehicleType:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: '65e2f1a2b3c4d5e6f7a8b9c0'
+        name:
+          type: string
+          description: 'Tên loại xe'
+          example: 'Xe tải 5 tấn'
+        description:
+          type: string
+          description: 'Mô tả chi tiết về loại xe'
+          example: 'Chuyên chở hàng đông lạnh, tải trọng tối đa 5000kg'
+        isActive:
+          type: boolean
+          description: 'Trạng thái hoạt động (mặc định true)'
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VehicleTypeInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: 'Xe máy điện'
+        description:
+          type: string
+          example: 'Phương tiện di chuyển nội khu'
+
+    VehicleTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+          description: 'Dùng để kích hoạt lại hoặc tạm khóa loại xe'
+
+# SAU ĐÓ, BẠN CẦN QUAY LÊN PHẦN PATHS ĐỂ THÊM CÁC ENDPOINT NÀY:
+# (Dán đoạn này vào dưới mục paths:)
+paths:
+  /api/vehicle-types:
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get all vehicle types
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VehicleType'
+    post:
+      tags:
+        - Vehicle Types
+      summary: Create new vehicle type (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeInput'
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/VehicleType'
+
+  /api/vehicle-types/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Vehicle Types
+      summary: Get single vehicle type
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '404':
+          $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Vehicle Types
+      summary: Update vehicle type (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleTypeUpdate'
+      responses:
+        '200':
+          description: Updated successfully
+    delete:
+      tags:
+        - Vehicle Types
+      summary: Delete vehicle type (Soft delete)
+      description: Set isActive to false
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deactivated successfully

@@ -52,6 +52,19 @@ const orderSchema = new mongoose.Schema(
       required: [true, 'Delivery address is required'],
       trim: true,
     },
+    recipientName: {
+  type: String,
+  required: [true, 'Recipient name is required'],
+  trim: true,
+  maxlength: [100, 'Recipient name cannot exceed 100 characters'],
+},
+
+recipientPhone: {
+  type: String,
+  required: [true, 'Recipient phone is required'],
+  trim: true,
+  match: [/^(0|\+84)[0-9]{9,10}$/, 'Invalid phone number format'],
+},
     items: [
       {
         productId: {
