@@ -57,6 +57,9 @@ export type CreateOrderResponse = {
 export type CreateOrderPayload = {
   storeId: string;
   requestedDeliveryDate: string; // YYYY-MM-DD
+  recipientName?: string; // optional client-side, server may require
+  recipientPhone?: string;
+  address?: string;
   items: { productId: string; quantityRequested: number }[];
   notes?: string;
   paymentMethod: "Cash" | "Bank_Transfer" | "Credit_Card" | "Check" | "Wallet" | "Other";
