@@ -1,12 +1,15 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,9 +17,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cardShadowSmall } from "@/constants/theme";
 import { useCart } from "@/context/cart-context";
 import { useNotification } from "@/context/notification-context";
-import { logisticsOrdersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
-import type { Order } from "@/lib/orders";
+import { useStore } from "@/hooks/use-store";
+import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
+import type { Invoice } from "@/lib/invoices";
 
 function formatDate(date: Date) {
   const y = date.getFullYear();
@@ -48,15 +52,68 @@ export default function CartTabScreen() {
   const { showToast } = useNotification();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const orderRef = useRef<string | null>(null);
+  const [isCreatingPaymentLink, setIsCreatingPaymentLink] = useState(false);
+
+  // choose between wallet or payOS bank transfer
+  const [paymentMethod, setPaymentMethod] = useState<"Wallet" | "Bank_Transfer">("Wallet");
+  // recipient information required by API
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [recipientAddress, setRecipientAddress] = useState("");
+
+  const { store /*, isLoading: _isStoreLoading */ } = useStore(); // loading flag currently unused
 
   const orderItems = buildOrderItems(items);
-  const isValid = orderItems.length > 0 && Boolean(token && user?.storeId);
+  const isValid =
+    orderItems.length > 0 &&
+    Boolean(
+      token &&
+      user?.storeId &&
+      recipientName.trim() &&
+      recipientPhone.trim() &&
+      recipientAddress.trim()
+    );
   const canSubmit = isValid && !submitting;
+
+  // when store info arrives, prefill missing recipient fields
+  useEffect(() => {
+    if (store) {
+      if (!recipientName.trim() && store.storeName) {
+        setRecipientName(store.storeName);
+      }
+      if (!recipientPhone.trim() && store.phone) {
+        setRecipientPhone(store.phone);
+      }
+      if (!recipientAddress.trim() && store.address) {
+        setRecipientAddress(store.address);
+      }
+    }
+  }, [store, recipientName, recipientPhone, recipientAddress]);
 
   const handleSubmitOrder = async () => {
     setSubmitError(null);
     if (!token || !user?.storeId) {
       showToast("Bạn cần đăng nhập và thuộc cửa hàng để tạo đơn.", "error");
+      return;
+    }
+    if (!recipientName.trim()) {
+      showToast("Tên người nhận là bắt buộc.", "error");
+      setSubmitError("Tên người nhận chưa nhập.");
+      return;
+    }
+    if (!recipientPhone.trim()) {
+      showToast("Số điện thoại người nhận là bắt buộc.", "error");
+      setSubmitError("Số điện thoại chưa nhập.");
+      return;
+    }
+    if (!recipientAddress.trim()) {
+      showToast("Địa chỉ người nhận là bắt buộc.", "error");
+      setSubmitError("Địa chỉ chưa nhập.");
       return;
     }
     if (orderItems.length === 0) {
@@ -73,14 +130,62 @@ export default function CartTabScreen() {
       const payload = {
         storeId: user.storeId,
         requestedDeliveryDate: formatDate(new Date()),
+        recipientName: recipientName.trim(),
+        recipientPhone: recipientPhone.trim(),
+        address: recipientAddress.trim(),
         items: orderItems,
+        paymentMethod: paymentMethod,
       };
       const res = await logisticsOrdersApi.create(payload, token);
       clearCart();
       setSubmitError(null);
-      showToast("Tạo đơn thành công.");
-      const order = res.data as Order;
-      router.push(`/orders/${order._id}`);
+
+      // backend currently returns only the order; invoice may need to be fetched separately
+      const currentOrderId = res.data._id;
+      orderRef.current = currentOrderId;
+
+      let invoice: Invoice | null = null;
+      try {
+        const invRes = await invoicesApi.getByOrder(currentOrderId, token);
+        if (invRes.success && invRes.data.length > 0) {
+          invoice = invRes.data[0];
+        }
+      } catch {
+        // ignore, invoice may simply not exist yet
+      }
+
+      // Check if invoice is already paid (via Wallet)
+      if (paymentMethod === "Wallet" && invoice?.paymentStatus === "Paid") {
+        showToast("Tạo đơn thành công. Thanh toán bằng ví đã được xử lý.");
+        router.push(`/orders/${currentOrderId}`);
+      } else if (invoice?._id) {
+        // create pay link for unpaid invoice
+        setOrderId(currentOrderId);
+        setIsCreatingPaymentLink(true);
+        try {
+          const paymentRes = await paymentApi.createLink(invoice._id, token);
+          setIsCreatingPaymentLink(false);
+          const checkoutUrl = paymentRes.data?.checkoutUrl ?? null;
+          const returnedQr = paymentRes.data?.qrCode ?? null;
+          if (checkoutUrl || returnedQr) {
+            setPaymentUrl(checkoutUrl);
+            setQrCode(returnedQr);
+            setPaymentModalVisible(true);
+            showToast("Vui lòng hoàn tất thanh toán.");
+          } else {
+            showToast("Không thể tạo link thanh toán.", "error");
+            router.push(`/orders/${currentOrderId}`);
+          }
+        } catch (_paymentError) {
+          setIsCreatingPaymentLink(false);
+          const msg = _paymentError instanceof Error ? _paymentError.message : "Lỗi tạo link thanh toán";
+          showToast(msg, "error");
+          router.push(`/orders/${currentOrderId}`);
+        }
+      } else {
+        showToast("Tạo đơn thành công.");
+        router.push(`/orders/${currentOrderId}`);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Không thể tạo đơn. Thử lại.";
       showToast(msg, "error");
@@ -90,26 +195,120 @@ export default function CartTabScreen() {
     }
   };
 
-  if (items.length === 0 && !submitting) {
-    return (
-      <View style={[styles.empty, { paddingTop: insets.top }]}>
-        <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
-        <Text style={styles.emptySub}>Thêm sản phẩm từ tab Bán hàng</Text>
-        <Pressable style={styles.emptyBtn} onPress={() => router.replace("/(tabs)/products")}>
-          <Text style={styles.emptyBtnText}>Đến Bán hàng</Text>
-        </Pressable>
-      </View>
-    );
+  const handleOpenPayment = async () => {
+    if (paymentUrl) {
+      try {
+        await Linking.openURL(paymentUrl);
+      } catch {
+        showToast("Không thể mở link thanh toán.", "error");
+      }
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    setPaymentModalVisible(false);
+    setPaymentUrl(null);
+    setQrCode(null);
+
+    const targetId = orderRef.current || orderId;
+    if (targetId) {
+      router.push(`/orders/${targetId}`);
+      showToast("Kiểm tra trạng thái thanh toán tại trang chi tiết đơn.");
+    } else {
+      showToast("Không thể xác định số hiệu đơn. Vui lòng quay lại.", "error");
+      router.back();
+    }
   }
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}>
+      {items.length === 0 ? (
+        <View style={[styles.empty, { paddingTop: insets.top }]}>
+          <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
+          <Text style={styles.emptySub}>Thêm sản phẩm từ tab Bán hàng</Text>
+          <Pressable
+            style={styles.emptyBtn}
+            onPress={() => router.replace("/(tabs)/products" as any)}
+          >
+            <Text style={styles.emptyBtnText}>Đến Bán hàng</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backText}>‹ Quay lại</Text>
         </Pressable>
       </View>
       <Text style={styles.title}>Giỏ hàng</Text>
+
+      {/* recipient details inputs */}
+      <View style={styles.fieldRow}>
+        <Text style={styles.fieldLabel}>Tên người nhận</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={recipientName}
+          onChangeText={setRecipientName}
+          placeholder="Ví dụ: Nguyễn Văn A"
+        />
+      </View>
+      <View style={styles.fieldRow}>
+        <Text style={styles.fieldLabel}>Số điện thoại</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={recipientPhone}
+          onChangeText={setRecipientPhone}
+          placeholder="0912345678"
+          keyboardType="phone-pad"
+        />
+      </View>
+      <View style={styles.fieldRow}>
+        <Text style={styles.fieldLabel}>Địa chỉ</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={recipientAddress}
+          onChangeText={setRecipientAddress}
+          placeholder="Ví dụ: 123 Lê Lợi, Quận 1"
+        />
+      </View>
+
+      {/* payment method selector */}
+      <View style={styles.methodRow}>
+        <Pressable
+          style={[
+            styles.methodBtn,
+            paymentMethod === "Wallet" && styles.methodBtnSelected,
+          ]}
+          onPress={() => setPaymentMethod("Wallet")}
+        >
+          <Text
+            style={
+              paymentMethod === "Wallet"
+                ? styles.methodTextSelected
+                : styles.methodText
+            }
+          >
+            Ví (nội bộ)
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.methodBtn,
+            paymentMethod === "Bank_Transfer" && styles.methodBtnSelected,
+          ]}
+          onPress={() => setPaymentMethod("Bank_Transfer")}
+        >
+          <Text
+            style={
+              paymentMethod === "Bank_Transfer"
+                ? styles.methodTextSelected
+                : styles.methodText
+            }
+          >
+            Chuyển khoản (PayOS)
+          </Text>
+        </Pressable>
+      </View>
+
       {items.map((item) => (
         <View key={item.productId} style={styles.row}>
           <View style={styles.thumb}>
@@ -170,6 +369,86 @@ export default function CartTabScreen() {
           <Text style={styles.submitBtnText}>Tạo đơn hàng</Text>
         )}
       </Pressable>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={paymentModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPaymentModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Thanh toán đơn hàng</Text>
+              <Pressable
+                onPress={() => {
+                  setPaymentModalVisible(false);
+                  setPaymentUrl(null);
+                  setQrCode(null);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.closeBtn}>✕</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              {isCreatingPaymentLink ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#D91E18" />
+                  <Text style={styles.loadingText}>Đang tạo link thanh toán...</Text>
+                </View>
+              ) : (
+                <>
+                  {qrCode ? (
+                    <View style={styles.qrContainer}>
+                      <Image
+                        source={{ uri: qrCode }}
+                        style={styles.qrImage}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.paymentInfo}>
+                        Quét mã QR để thanh toán qua PayOS
+                      </Text>
+                      <Pressable
+                        style={styles.paymentBtn}
+                        onPress={handleOpenPayment}
+                      >
+                        <Text style={styles.paymentBtnText}>Mở link thanh toán</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.paymentInfo}>
+                        Vui lòng nhấn nút bên dưới để thanh toán qua PayOS
+                      </Text>
+                      <Pressable
+                        style={styles.paymentBtn}
+                        onPress={handleOpenPayment}
+                      >
+                        <Text style={styles.paymentBtnText}>Mở link thanh toán</Text>
+                      </Pressable>
+                      <Text style={styles.paymentSubInfo}>
+                        Bạn sẽ được chuyển đến trang thanh toán của PayOS
+                      </Text>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={styles.modalBtn}
+                onPress={handlePaymentComplete}
+              >
+                <Text style={styles.modalBtnText}>Đã thanh toán / Bỏ qua</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -217,6 +496,54 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   emptyBtnText: { color: "#fff", fontWeight: "600" },
+  methodRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 12,
+  },
+  methodBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#9B0F0F",
+  },
+  methodBtnSelected: {
+    backgroundColor: "#9B0F0F",
+  },
+  methodText: {
+    color: "#9B0F0F",
+    fontWeight: "600",
+  },
+  methodTextSelected: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  fieldRow: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    marginBottom: 4,
+    color: "#333",
+    fontWeight: "600",
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: "#fff",
+  },
+  qrContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 8,
+  },
   row: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -278,5 +605,79 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#C62828",
     marginBottom: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  closeBtn: {
+    fontSize: 18,
+    color: "#9B0F0F",
+  },
+  modalBody: {
+    padding: 12,
+  },
+  loadingContainer: {
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 8,
+    color: "#666",
+  },
+  paymentInfo: {
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  paymentBtn: {
+    backgroundColor: "#D91E18",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  paymentBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  paymentSubInfo: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+  },
+  modalFooter: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: "#eee",
+    alignItems: "center",
+  },
+  modalBtn: {
+    backgroundColor: "#9B0F0F",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalBtnText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });

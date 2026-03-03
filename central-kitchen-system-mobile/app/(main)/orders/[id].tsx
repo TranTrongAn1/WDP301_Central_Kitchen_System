@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,10 +16,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { useNotification } from "@/context/notification-context";
-import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
-import type { Order, OrderItem } from "@/lib/orders";
+import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import type { Invoice } from "@/lib/invoices";
+import type { Order, OrderItem } from "@/lib/orders";
 
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
@@ -48,6 +50,9 @@ export default function OrderDetailScreen() {
   const [receiving, setReceiving] = useState(false);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [paying, setPaying] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id || !token) return;
@@ -126,15 +131,31 @@ export default function OrderDetailScreen() {
     setPaying(true);
     try {
       const res = await paymentApi.createLink(invoice._id, token);
-      const url = res.data?.checkoutUrl;
-      if (!url) {
+      const checkoutUrl = res.data?.checkoutUrl ?? null;
+      const returnedQr = res.data?.qrCode ?? null;
+      if (!checkoutUrl && !returnedQr) {
         showToast("Không tạo được link thanh toán.", "error");
         return;
       }
-      showToast("Đang mở trang thanh toán...");
-      await WebBrowser.openBrowserAsync(url);
-      // Sau khi user quay lại, refetch invoice để cập nhật trạng thái thanh toán (nếu webhook đã xử lý)
-      await load();
+      setPaymentUrl(checkoutUrl);
+      setQrCode(returnedQr);
+      setPaymentModalVisible(true);
+
+      // start polling invoice status while modal open
+      const interval = setInterval(async () => {
+        try {
+          const invRes = await invoicesApi.getByOrder(id, token);
+          const first = invRes.data?.[0] ?? null;
+          setInvoice(first);
+          if (first?.paymentStatus === "Paid") {
+            clearInterval(interval);
+            showToast("Thanh toán đã được ghi nhận.");
+            setPaymentModalVisible(false);
+          }
+        } catch {
+          // ignore errors during polling
+        }
+      }, 5000);
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : "Không tạo được link thanh toán.";
@@ -192,6 +213,112 @@ export default function OrderDetailScreen() {
         ) : null}
       </View>
 
+      {/* payment modal (similar to cart) */}
+      <Modal
+        visible={paymentModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setPaymentModalVisible(false);
+          setPaymentUrl(null);
+          setQrCode(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Thanh toán đơn hàng</Text>
+              <Pressable
+                onPress={() => {
+                  setPaymentModalVisible(false);
+                  setPaymentUrl(null);
+                  setQrCode(null);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.closeBtn}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+              {paying ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#D91E18" />
+                  <Text style={styles.loadingText}>Đang tạo link thanh toán...</Text>
+                </View>
+              ) : (
+                <>
+                  {qrCode ? (
+                    <View style={styles.qrContainer}>
+                      <Image
+                        source={{ uri: qrCode }}
+                        style={styles.qrImage}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.paymentInfo}>
+                        Quét mã QR để thanh toán qua PayOS
+                      </Text>
+                      {paymentUrl ? (
+                        <Pressable
+                          style={styles.paymentBtn}
+                          onPress={async () => {
+                            if (paymentUrl) {
+                              try {
+                                await WebBrowser.openBrowserAsync(paymentUrl);
+                              } catch {
+                                showToast("Không thể mở link thanh toán.", "error");
+                              }
+                            }
+                          }}
+                        >
+                          <Text style={styles.paymentBtnText}>Mở link thanh toán</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.paymentInfo}>
+                        Vui lòng nhấn nút bên dưới để thanh toán qua PayOS
+                      </Text>
+                      {paymentUrl ? (
+                        <Pressable
+                          style={styles.paymentBtn}
+                          onPress={async () => {
+                            if (paymentUrl) {
+                              try {
+                                await WebBrowser.openBrowserAsync(paymentUrl);
+                              } catch {
+                                showToast("Không thể mở link thanh toán.", "error");
+                              }
+                            }
+                          }}
+                        >
+                          <Text style={styles.paymentBtnText}>Mở link thanh toán</Text>
+                        </Pressable>
+                      ) : null}
+                      <Text style={styles.paymentSubInfo}>
+                        Bạn sẽ được chuyển đến trang thanh toán của PayOS
+                      </Text>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={styles.modalBtn}
+                onPress={() => {
+                  setPaymentModalVisible(false);
+                  setPaymentUrl(null);
+                  setQrCode(null);
+                }}
+              >
+                <Text style={styles.modalBtnText}>Đóng</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {invoice ? (
         <View style={[styles.card, cardShadowSmall]}>
           <Text style={styles.invoiceTitle}>Hoá đơn</Text>
@@ -225,20 +352,23 @@ export default function OrderDetailScreen() {
             Đơn hàng đang chờ duyệt hoặc chưa tạo hoá đơn.
           </Text>
         </View>
-      )}
+      )
+      }
 
       <Text style={styles.sectionTitle}>Sản phẩm</Text>
-      {(order.items ?? []).map((item, index) => (
-        <View key={index} style={[styles.itemRow, cardShadowSmall]}>
-          <Text style={styles.itemName}>{productName(item)}</Text>
-          <View style={styles.itemMeta}>
-            <Text style={styles.itemQty}>SL: {item.quantityRequested ?? item.quantity ?? 0}</Text>
-            {item.subtotal != null && (
-              <Text style={styles.itemSub}>{item.subtotal.toLocaleString("vi-VN")} đ</Text>
-            )}
+      {
+        (order.items ?? []).map((item, index) => (
+          <View key={index} style={[styles.itemRow, cardShadowSmall]}>
+            <Text style={styles.itemName}>{productName(item)}</Text>
+            <View style={styles.itemMeta}>
+              <Text style={styles.itemQty}>SL: {item.quantityRequested ?? item.quantity ?? 0}</Text>
+              {item.subtotal != null && (
+                <Text style={styles.itemSub}>{item.subtotal.toLocaleString("vi-VN")} đ</Text>
+              )}
+            </View>
           </View>
-        </View>
-      ))}
+        ))
+      }
 
       <View style={[styles.totalRow, cardShadowSmall]}>
         <Text style={styles.totalLabel}>Tổng cộng</Text>
@@ -249,34 +379,38 @@ export default function OrderDetailScreen() {
         </Text>
       </View>
 
-      {canPayOnline && (
-        <Pressable
-          style={[styles.payBtn, paying && styles.payBtnDisabled]}
-          onPress={handlePayOnline}
-          disabled={paying}
-        >
-          {paying ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.payBtnText}>Thanh toán online</Text>
-          )}
-        </Pressable>
-      )}
+      {
+        canPayOnline && (
+          <Pressable
+            style={[styles.payBtn, paying && styles.payBtnDisabled]}
+            onPress={handlePayOnline}
+            disabled={paying}
+          >
+            {paying ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.payBtnText}>Thanh toán online</Text>
+            )}
+          </Pressable>
+        )
+      }
 
-      {canReceive && (
-        <Pressable
-          style={[styles.receiveBtn, receiving && styles.receiveBtnDisabled]}
-          onPress={handleReceive}
-          disabled={receiving}
-        >
-          {receiving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.receiveBtnText}>Xác nhận nhận hàng</Text>
-          )}
-        </Pressable>
-      )}
-    </ScrollView>
+      {
+        canReceive && (
+          <Pressable
+            style={[styles.receiveBtn, receiving && styles.receiveBtnDisabled]}
+            onPress={handleReceive}
+            disabled={receiving}
+          >
+            {receiving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.receiveBtnText}>Xác nhận nhận hàng</Text>
+            )}
+          </Pressable>
+        )
+      }
+    </ScrollView >
   );
 }
 
@@ -422,4 +556,102 @@ const styles = StyleSheet.create({
   },
   payBtnDisabled: { opacity: 0.7 },
   payBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#FFE1E1",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2A2A2A",
+  },
+  closeBtn: {
+    fontSize: 24,
+    color: "#666",
+    fontWeight: "600",
+  },
+  modalBody: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 12,
+  },
+  paymentInfo: {
+    fontSize: 14,
+    color: "#2A2A2A",
+    textAlign: "center",
+    marginBottom: 20,
+    fontWeight: "500",
+  },
+  paymentBtn: {
+    backgroundColor: "#D91E18",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  paymentBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  paymentSubInfo: {
+    fontSize: 12,
+    color: "#999",
+    textAlign: "center",
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#FFE1E1",
+  },
+  modalBtn: {
+    backgroundColor: "#FFE1E1",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  modalBtnText: {
+    color: "#D91E18",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  qrContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 8,
+  },
 });
