@@ -21,7 +21,8 @@ const StoreInventoryPage = () => {
         setLoading(true);
         setError(null);
         const res = await inventoryApi.getByStore(user.storeId);
-        setData(res);
+        const body = (res as any)?.data ?? res;
+        setData(body as StoreInventoryResponse);
       } catch {
         setError('Không thể tải tồn kho cửa hàng.');
       } finally {

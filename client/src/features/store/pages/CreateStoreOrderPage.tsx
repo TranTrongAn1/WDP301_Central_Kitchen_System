@@ -12,7 +12,7 @@ import { OrderApi, type CreateOrderPayload } from '@/api/OrderApi';
 const orderItemSchema = z.object({
   productId: z.string().min(1, 'Vui lòng chọn sản phẩm'),
   quantityRequested: z
-    .number({ invalid_type_error: 'Số lượng phải là số' })
+    .number()
     .int('Số lượng phải là số nguyên')
     .positive('Số lượng phải > 0'),
 });

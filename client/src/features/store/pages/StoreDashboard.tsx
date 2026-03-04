@@ -44,8 +44,14 @@ const StoreDashboard = () => {
             a.createdAt < b.createdAt ? 1 : -1
           )
         );
-        if (inventoryRes && typeof inventoryRes === 'object') {
-          setInventory(inventoryRes as StoreInventoryResponse);
+        if (inventoryRes) {
+          const body =
+            typeof inventoryRes === 'object' && 'data' in (inventoryRes as any)
+              ? (inventoryRes as any).data
+              : inventoryRes;
+          if (body && typeof body === 'object' && 'success' in (body as any)) {
+            setInventory(body as StoreInventoryResponse);
+          }
         }
       } finally {
         setLoadingMetrics(false);
@@ -83,7 +89,6 @@ const StoreDashboard = () => {
 
   const totalOrders = orders.length;
   const receivedOrders = orders.filter((o) => o.status === 'Received').length;
-  const pendingOrders = orders.filter((o) => o.status === 'Pending').length;
   const inventoryLines = inventory?.count ?? inventory?.data?.length ?? 0;
 
   const recentOrders = orders.slice(0, 5);

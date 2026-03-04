@@ -12,7 +12,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { useAuthStore } from '@/shared/zustand/authStore';
 import { productionPlanApi, type ProductionPlan } from '@/api/ProductionPlanApi';
 import { batchApi, type Batch } from '@/api/BatchApi';
 import { OrderApi, type OrderAggregateItem } from '@/api/OrderApi';
@@ -27,7 +26,6 @@ const container = {
 const item = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 
 const KitchenDashboard = () => {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -46,30 +44,28 @@ const KitchenDashboard = () => {
         const [planRes, batchRes, aggRes, tripRes] = await Promise.all([
           productionPlanApi.getAll().catch(() => null),
           batchApi.getAll({ status: 'Active' }).catch(() => null),
-          OrderApi.getAggregate(today).catch(() => ({ data: [] })),
-          DeliveryTripApi.getAllDeliveryTrips().catch(() => ({ data: [] })),
+          OrderApi.getAggregate(today).catch(() => ({ data: [] } as { data: OrderAggregateItem[] })),
+          DeliveryTripApi.getAllDeliveryTrips().catch(() => ({ data: [] } as { data: ITrip[] })),
         ]);
 
         // Plans
-        const planData =
-          planRes && typeof planRes === 'object' && 'data' in (planRes as any)
-            ? (planRes as any).data
-            : planRes ?? [];
-        setPlans(Array.isArray(planData) ? planData : []);
+        const planResTyped = planRes as { data?: { data?: ProductionPlan[] } } | null;
+        const planBody = planResTyped?.data?.data ?? planResTyped?.data ?? planResTyped;
+        setPlans(Array.isArray(planBody) ? planBody : []);
 
         // Batches
-        const batchData =
-          batchRes && typeof batchRes === 'object' && 'data' in (batchRes as any)
-            ? (batchRes as any).data
-            : batchRes ?? [];
-        setBatches(Array.isArray(batchData) ? batchData : []);
+        const batchResTyped = batchRes as { data?: { data?: Batch[] } } | null;
+        const batchBody = batchResTyped?.data?.data ?? batchResTyped?.data ?? batchResTyped;
+        setBatches(Array.isArray(batchBody) ? batchBody : []);
 
         // Aggregate demand for today
-        const aggData = (aggRes as { data?: OrderAggregateItem[] })?.data ?? [];
+        const aggResTyped = aggRes as { data?: OrderAggregateItem[] };
+        const aggData = aggResTyped?.data ?? [];
         setAggregate(aggData);
 
         // Trips
-        const tripList = Array.isArray((tripRes as { data?: ITrip[] })?.data) ? (tripRes as { data: ITrip[] }).data : [];
+        const tripResTyped = tripRes as { data?: ITrip[] };
+        const tripList = Array.isArray(tripResTyped?.data) ? tripResTyped.data : [];
         setTrips(tripList);
       } catch (error) {
         console.error('Error loading kitchen dashboard data', error);
@@ -94,8 +90,6 @@ const KitchenDashboard = () => {
   });
 
   const inProgressPlans = plans.filter((p) => p.status === 'In_Progress').length;
-  const completedPlansToday = todayPlans.filter((p) => p.status === 'Completed').length;
-
   const activeBatches = batches;
   const expiringSoonBatches = activeBatches.filter((b) => {
     const exp = new Date(b.expDate);
@@ -180,11 +174,12 @@ const KitchenDashboard = () => {
       setTrips((prev) =>
         prev.map((t) => (t._id === tripId ? { ...t, status: 'ReadyForShipping' } : t))
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error marking trip ready', error);
+      const anyError = error as { response?: { data?: { message?: string } }; message?: string };
       const message =
-        error?.response?.data?.message ||
-        error?.message ||
+        anyError?.response?.data?.message ||
+        anyError?.message ||
         'Không thể đánh dấu chuyến, vui lòng thử lại';
       toast.error(message);
     } finally {
@@ -270,7 +265,7 @@ const KitchenDashboard = () => {
                     ]}
                   />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={44}>
-                    {planStatusData.map((entry, idx) => (
+                    {planStatusData.map((entry) => (
                       <Bar key={entry.key} dataKey="value" fill={entry.fill} />
                     ))}
                   </Bar>
