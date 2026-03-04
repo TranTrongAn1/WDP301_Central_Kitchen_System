@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/features/manager/com
 import { Button } from '@/features/manager/components/ui/Button';
 import { Badge } from '@/features/manager/components/ui/Badge';
 import { Input } from '@/features/manager/components/ui/Input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/features/manager/components/ui/Tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/features/manager/components/ui/Tabs';
 import toast from 'react-hot-toast';
 
 const container = {
@@ -32,7 +32,6 @@ type TripStatusFilter = 'All' | 'Planning' | 'Pending' | 'ReadyForShipping' | 'I
 export default function KitchenTripsPage() {
   const navigate = useNavigate();
   const [trips, setTrips] = useState<ITrip[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TripStatusFilter>('All');
@@ -44,9 +43,8 @@ export default function KitchenTripsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [tripRes, orderRes] = await Promise.all([
+        const [tripRes] = await Promise.all([
           DeliveryTripApi.getAllDeliveryTrips(),
-          OrderApi.getAllOrders().catch(() => []),
         ]);
 
         const tripData =
@@ -55,8 +53,6 @@ export default function KitchenTripsPage() {
             : (tripRes as unknown as ITrip[]) ?? [];
         setTrips(Array.isArray(tripData) ? tripData : []);
 
-        const orderData = Array.isArray(orderRes) ? orderRes : [];
-        setOrders(orderData);
       } catch (err) {
         console.error('Error loading trips for kitchen', err);
         setError('Không thể tải danh sách chuyến giao. Vui lòng thử lại.');
@@ -307,31 +303,31 @@ export default function KitchenTripsPage() {
                           status === 'Transferred_To_Kitchen';
                         if (!canMarkReady) return null;
                         return (
-                        <Button
-                          size="xs"
-                          className="bg-emerald-600 text-[11px] text-white hover:bg-emerald-700"
-                          disabled={markingTripId === trip._id}
-                          onClick={() => handleMarkReady(trip._id)}
-                        >
-                          {markingTripId === trip._id ? (
-                            <>
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                              Đang đánh dấu...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Đánh dấu Ready
-                            </>
-                          )}
-                        </Button>
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 text-[11px] text-white hover:bg-emerald-700 h-7 px-2"
+                            disabled={markingTripId === trip._id}
+                            onClick={() => handleMarkReady(trip._id)}
+                          >
+                            {markingTripId === trip._id ? (
+                              <>
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                Đang đánh dấu...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Đánh dấu Ready
+                              </>
+                            )}
+                          </Button>
                         );
                       })()}
                     </div>
                     <Button
                       variant="outline"
-                      size="xs"
-                      className="text-[11px]"
+                      size="sm"
+                      className="text-[11px] h-7 px-2"
                       onClick={() => navigate(`/kitchen/trips/${trip._id}`)}
                     >
                       <Eye className="mr-1 h-3 w-3" />

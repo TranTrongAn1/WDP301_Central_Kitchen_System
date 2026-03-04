@@ -1,5 +1,20 @@
-export type OrderStatus = 'Pending' | 'Approved' | 'In_Transit' | 'Received' | 'Cancelled';
-export type TripStatus = 'Planning' | 'Pending' | 'ReadyForShipping' | 'In_Transit' | 'Completed' | 'Cancelled';
+export type OrderStatus =
+  | 'Pending'
+  | 'Approved'
+  | 'In_Transit'
+  | 'Received'
+  | 'Cancelled';
+
+export type TripStatus =
+  | 'Planning'
+  | 'Pending'
+  | 'Transferred_To_Kitchen'
+  | 'ReadyForShipping'
+  | 'Ready_For_Shipping'
+  | 'Ready for shipping'
+  | 'In_Transit'
+  | 'Completed'
+  | 'Cancelled';
 
 export interface StoreRef {
   _id: string;
@@ -41,6 +56,11 @@ export interface LogisticsOrder {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // Optional fields used in store flows
+  recipientName?: string;
+  recipientPhone?: string;
+  address?: string;
+  paymentMethod?: 'Wallet' | 'Other' | string;
 }
 
 export interface TripOrderRef {

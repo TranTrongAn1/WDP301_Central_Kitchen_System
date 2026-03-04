@@ -97,7 +97,7 @@ export default function KitchenProductionQueuePage() {
     setDragIndex(index);
   };
 
-  const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  const onDragOver = (event: React.DragEvent<HTMLLIElement>) => {
     event.preventDefault();
   };
 
@@ -317,8 +317,8 @@ export default function KitchenProductionQueuePage() {
                             <div className="flex gap-1">
                               {plan.status === 'Planned' && (
                                 <Button
-                                  size="xs"
-                                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-[11px]"
+                                  size="sm"
+                                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-[11px] h-7 px-2"
                                   onClick={() =>
                                     handleStatusChange(plan._id, 'In_Progress')
                                   }
@@ -329,8 +329,8 @@ export default function KitchenProductionQueuePage() {
                               )}
                               {plan.status === 'In_Progress' && (
                                 <Button
-                                  size="xs"
-                                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-[11px]"
+                                  size="sm"
+                                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-[11px] h-7 px-2"
                                   onClick={() =>
                                     handleStatusChange(plan._id, 'Completed')
                                   }
@@ -341,8 +341,8 @@ export default function KitchenProductionQueuePage() {
                               )}
                               <Button
                                 variant="outline"
-                                size="xs"
-                                className="text-[11px]"
+                                size="sm"
+                                className="text-[11px] h-7 px-2"
                                 onClick={() =>
                                   navigate(`/kitchen/production/${plan._id}`)
                                 }

@@ -14,7 +14,6 @@ const StoreDashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
-  const [walletLoading, setWalletLoading] = useState(false);
   const [depositAmount, setDepositAmount] = useState(0);
   const [isDepositing, setIsDepositing] = useState(false);
 
@@ -78,9 +77,7 @@ const StoreDashboard = () => {
       toast.success('Nạp ví thành công', { id: toastId });
     } finally {
       setIsDepositing(false);
-      if (depositAmount <= 0) {
-        toast.dismiss();
-      }
+      if (depositAmount <= 0) toast.dismiss();
     }
   };
 
@@ -149,7 +146,7 @@ const StoreDashboard = () => {
           </div>
           <p className="text-xs text-muted-foreground">Số dư ví</p>
           <p className="text-lg font-bold">
-            {walletLoading ? 'Đang tải...' : formatCurrency(wallet?.balance ?? 0)}
+            {loadingMetrics ? 'Đang tải...' : formatCurrency(wallet?.balance ?? 0)}
           </p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             {wallet?.status === 'Locked'
@@ -228,7 +225,7 @@ const StoreDashboard = () => {
                   Store Wallet
                 </p>
                 <p className="text-lg font-bold mt-1">
-                  {walletLoading
+                  {loadingMetrics
                     ? 'Đang tải...'
                     : formatCurrency(wallet?.balance ?? 0)}
                 </p>

@@ -25,7 +25,6 @@ const StoreOrdersPage = () => {
 
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [receiveOrderId, setReceiveOrderId] = useState<string | null>(null);
-  const [receiveNotes, setReceiveNotes] = useState('');
   const [receiveEvidenceUrl, setReceiveEvidenceUrl] = useState('');
   const [receiveItems, setReceiveItems] = useState<
     { productId: string; name: string; orderedQuantity: number; receivedQuantity: number; discrepancyReason?: 'Missing' | 'Damaged' | 'Other'; note?: string }[]
@@ -112,7 +111,6 @@ const StoreOrdersPage = () => {
   const openReceiveModal = (order: Order) => {
     if (!order.items || order.items.length === 0) return;
     setReceiveOrderId(order._id);
-    setReceiveNotes('');
     setReceiveEvidenceUrl('');
     setReceiveItems(
       order.items.map((it) => {
