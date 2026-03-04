@@ -12,7 +12,6 @@ import {
   Eye,
 } from 'lucide-react';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
-import { OrderApi, type Order } from '@/api/OrderApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/features/manager/components/ui/Card';
 import { Button } from '@/features/manager/components/ui/Button';
 import { Badge } from '@/features/manager/components/ui/Badge';
