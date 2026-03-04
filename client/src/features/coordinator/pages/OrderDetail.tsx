@@ -4,6 +4,7 @@ import { OrderApi, type Order as OrderType, type ApproveOrderPayload } from '@/a
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
 import { feedbackApi } from '@/api/FeedbackApi';
+import { invoiceApi } from '@/api/InvoiceApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { toast } from 'react-toastify';
 
@@ -41,6 +42,8 @@ const OrderDetail = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
+  const [isPayingWithWallet, setIsPayingWithWallet] = useState(false);
+  const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -238,6 +241,51 @@ const OrderDetail = () => {
       toast.error('Không thể lưu feedback, vui lòng thử lại.');
     } finally {
       setIsFeedbackSaving(false);
+    }
+  };
+
+  const handlePayWithWallet = async () => {
+    if (!order) return;
+    const storeId =
+      typeof order.storeId === 'string'
+        ? order.storeId
+        : ((order.storeId as any)?._id as string | undefined);
+    if (!storeId) {
+      toast.error('Không xác định được cửa hàng để thanh toán.');
+      return;
+    }
+    try {
+      setIsPayingWithWallet(true);
+      await invoiceApi.payWithWalletForInvoice(order._id, storeId, order.totalAmount);
+      toast.success('Đã gửi yêu cầu thanh toán bằng ví.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Thanh toán bằng ví thất bại.');
+    } finally {
+      setIsPayingWithWallet(false);
+    }
+  };
+
+  const handleCreatePayOSLink = async () => {
+    if (!order) return;
+    try {
+      setIsCreatingPayOS(true);
+      const origin = window.location.origin;
+      const url = await invoiceApi.createPayOSLinkForInvoice(
+        order._id,
+        `${origin}/dashboard`,
+        `${origin}/dashboard`
+      );
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast.error('Không tạo được link thanh toán.');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Lỗi khi tạo link PayOS.');
+    } finally {
+      setIsCreatingPayOS(false);
     }
   };
 
@@ -495,6 +543,31 @@ const OrderDetail = () => {
               <span className="text-2xl font-bold text-amber-500">
                 {formatCurrency(order.totalAmount)}
               </span>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handlePayWithWallet}
+                disabled={isPayingWithWallet}
+                className="h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1 hover:bg-primary/90 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {isPayingWithWallet ? 'progress_activity' : 'account_balance_wallet'}
+                </span>
+                {isPayingWithWallet ? 'Đang thanh toán bằng ví...' : 'Thanh toán bằng ví cửa hàng'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCreatePayOSLink}
+                disabled={isCreatingPayOS}
+                className="h-9 rounded-lg border border-border text-xs font-semibold flex items-center justify-center gap-1 hover:bg-secondary disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {isCreatingPayOS ? 'progress_activity' : 'link'}
+                </span>
+                {isCreatingPayOS ? 'Đang tạo link PayOS...' : 'Tạo link thanh toán PayOS'}
+              </button>
             </div>
           </div>
 
