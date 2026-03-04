@@ -9,10 +9,12 @@ import { Badge } from '../components/ui/Badge';
 import { ErrorState } from '../components/ui/ErrorState';
 import { batchApi } from '@/api/BatchApi';
 import type { Batch } from '@/api/BatchApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const BatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [batch, setBatch] = useState<Batch | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,14 @@ const BatchDetailPage = () => {
     if (error || !batch) {
         return (
             <div className="space-y-6">
-                <Button variant="outline" onClick={() => navigate('/manager/production/batches')}>
+                <Button
+                    variant="outline"
+                    onClick={() =>
+                        user?.role === 'KitchenStaff'
+                            ? navigate('/kitchen/production/batches')
+                            : navigate('/manager/production/batches')
+                    }
+                >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Batches
                 </Button>
@@ -114,12 +123,30 @@ const BatchDetailPage = () => {
         ? 'Unknown Product'
         : batch.productId?.name || 'Unknown';
 
+    const getPlanDisplay = () => {
+        const planRef: any = (batch as any).productionPlanId;
+        if (!planRef) return null;
+        if (typeof planRef === 'string') {
+            return planRef.substring(0, 8) + '...';
+        }
+        if (planRef.planCode) return planRef.planCode;
+        if (planRef._id) return String(planRef._id).substring(0, 8) + '...';
+        return null;
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate('/manager/production/batches')}>
+                    <Button
+                        variant="outline"
+                        onClick={() =>
+                            user?.role === 'KitchenStaff'
+                                ? navigate('/kitchen/production/batches')
+                                : navigate('/manager/production/batches')
+                        }
+                    >
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
                     </Button>
@@ -148,14 +175,10 @@ const BatchDetailPage = () => {
                             <span className="text-muted-foreground">Status</span>
                             {getStatusBadge(batch.status)}
                         </div>
-                        {batch.productionPlanId && (
+                        {getPlanDisplay() && (
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Plan ID</span>
-                                <span className="font-medium">
-                                    {typeof batch.productionPlanId === 'string'
-                                        ? batch.productionPlanId.substring(0, 8) + '...'
-                                        : batch.productionPlanId}
-                                </span>
+                                <span className="text-muted-foreground">Plan</span>
+                                <span className="font-medium">{getPlanDisplay()}</span>
                             </div>
                         )}
                     </CardContent>

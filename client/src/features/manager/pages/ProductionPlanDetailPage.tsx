@@ -13,10 +13,12 @@ import { Modal, ConfirmModal } from '../components/ui/Modal';
 import { ErrorState } from '../components/ui/ErrorState';
 import { productionPlanApi } from '@/api/ProductionPlanApi';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const ProductionPlanDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [plan, setPlan] = useState<ProductionPlan | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -162,7 +164,10 @@ const ProductionPlanDetailPage = () => {
         )
         : 0;
 
-    const canDelete = plan.status === 'Planned' || plan.status === 'Cancelled';
+    const role = user?.role;
+    const canDelete =
+        (plan.status === 'Planned' || plan.status === 'Cancelled') &&
+        (role === 'Manager' || role === 'Admin');
     const canComplete = plan.status !== 'Completed' && plan.status !== 'Cancelled';
 
     return (

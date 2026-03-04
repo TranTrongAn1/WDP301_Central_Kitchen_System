@@ -16,6 +16,7 @@ import { productApi } from '@/api/ProductApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
 import type { Product } from '@/api/ProductApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 interface PlanDetailItem {
     productId: string;
@@ -25,6 +26,7 @@ interface PlanDetailItem {
 
 const ProductionPlansPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [activeTab, setActiveTab] = useState('all');
     const [plans, setPlans] = useState<ProductionPlan[]>([]);
@@ -50,7 +52,7 @@ const ProductionPlansPage = () => {
             setLoading(true);
             setError(null);
             const response = await productionPlanApi.getAll();
-            const data = (response as any)?.data || response || [];
+            const data = (response as unknown as { data?: ProductionPlan[] })?.data ?? response ?? [];
             setPlans(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching production plans:', err);
@@ -63,7 +65,7 @@ const ProductionPlansPage = () => {
     const fetchProducts = async () => {
         try {
             const response = await productApi.getAll();
-            const data = (response as any)?.data || response || [];
+            const data = (response as unknown as { data?: Product[] })?.data ?? response ?? [];
             setProducts(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching products:', err);
@@ -218,7 +220,11 @@ const ProductionPlansPage = () => {
 
     const viewPlan = (planId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate(`/manager/production/${planId}`);
+        if (user?.role === 'KitchenStaff') {
+            navigate(`/kitchen/production/${planId}`);
+        } else {
+            navigate(`/manager/production/${planId}`);
+        }
     };
 
     if (loading) {

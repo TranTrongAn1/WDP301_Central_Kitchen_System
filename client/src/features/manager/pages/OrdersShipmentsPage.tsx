@@ -123,6 +123,17 @@ const OrdersShipmentsPage = () => {
     });
   };
 
+  const getTripStatusLabel = (status: string) => {
+    if (status === 'Planning') return 'Đang lập kế hoạch';
+    if (status === 'Pending') return 'Chờ bếp chuẩn bị';
+    if (status === 'Transferred_To_Kitchen') return 'Đã chuyển cho bếp';
+    if (status === 'ReadyForShipping') return 'Sẵn sàng giao';
+    if (status === 'In_Transit') return 'Đang giao';
+    if (status === 'Completed') return 'Đã hoàn thành';
+    if (status === 'Cancelled') return 'Đã hủy';
+    return status;
+  };
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center text-muted-foreground text-sm">
@@ -433,7 +444,7 @@ const OrdersShipmentsPage = () => {
                           </p>
                           <p className="mt-0.5 text-[11px] text-muted-foreground">
                             {Array.isArray(trip.orders) ? trip.orders.length : 0} đơn •{' '}
-                            {trip.status}
+                            {getTripStatusLabel(trip.status as string)}
                           </p>
                         </div>
                       </div>

@@ -16,9 +16,11 @@ import { batchApi } from '@/api/BatchApi';
 import { productApi } from '@/api/ProductApi';
 import type { Batch } from '@/api/BatchApi';
 import type { Product } from '@/api/ProductApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const BatchesPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [batches, setBatches] = useState<Batch[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
@@ -134,7 +136,14 @@ const BatchesPage = () => {
     if (error) {
         return (
             <div className="space-y-6">
-                <Button variant="outline" onClick={() => navigate('/manager/production')}>
+                <Button
+                    variant="outline"
+                    onClick={() =>
+                        user?.role === 'KitchenStaff'
+                            ? navigate('/kitchen/production')
+                            : navigate('/manager/production')
+                    }
+                >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Production
                 </Button>
@@ -151,7 +160,14 @@ const BatchesPage = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate('/manager/production')}>
+                    <Button
+                        variant="outline"
+                        onClick={() =>
+                            user?.role === 'KitchenStaff'
+                                ? navigate('/kitchen/production')
+                                : navigate('/manager/production')
+                        }
+                    >
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
                     </Button>
@@ -247,11 +263,19 @@ const BatchesPage = () => {
                 </CardHeader>
                 <CardContent>
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
-                            <TabsTrigger value="Active">Active ({stats.active})</TabsTrigger>
-                            <TabsTrigger value="expiring">Expiring ({stats.expiring})</TabsTrigger>
-                            <TabsTrigger value="SoldOut">Sold Out</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-4 bg-transparent p-0">
+                            <TabsTrigger value="all" className="text-xs">
+                                All ({stats.total})
+                            </TabsTrigger>
+                            <TabsTrigger value="Active" className="text-xs">
+                                Active ({stats.active})
+                            </TabsTrigger>
+                            <TabsTrigger value="expiring" className="text-xs">
+                                Expiring ({stats.expiring})
+                            </TabsTrigger>
+                            <TabsTrigger value="SoldOut" className="text-xs">
+                                Sold Out
+                            </TabsTrigger>
                         </TabsList>
 
                         {['all', 'Active', 'expiring', 'SoldOut'].map(tab => {
@@ -313,16 +337,17 @@ const BatchesPage = () => {
                                                     key={batch._id}
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
-                                                    className={`p-4 rounded-xl border transition-colors ${isExpired ? 'bg-red-50 dark:bg-red-900/20 border-red-200' :
-                                                        isExpiringSoon ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200' :
-                                                            'bg-muted/50 border-transparent hover:bg-muted'
-                                                        }`}
+                                                    className="p-4 rounded-xl border border-border/70 transition-colors bg-card hover:bg-muted/40"
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${batch.status === 'Active' ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
-                                                                'bg-gray-400'
-                                                                }`}>
+                                                            <div
+                                                                className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                                                                    batch.status === 'Active'
+                                                                        ? 'bg-gradient-to-br from-primary to-orange-500'
+                                                                        : 'bg-slate-400 dark:bg-slate-600'
+                                                                }`}
+                                                            >
                                                                 <Package className="w-6 h-6 text-white" />
                                                             </div>
                                                             <div>
@@ -356,7 +381,7 @@ const BatchesPage = () => {
                                                         </div>
                                                         <div>
                                                             <p className="text-muted-foreground">Current</p>
-                                                            <p className="font-semibold text-orange-500">{batch.currentQuantity}</p>
+                                                            <p className="font-semibold text-primary">{batch.currentQuantity}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-muted-foreground">MFG Date</p>
@@ -373,7 +398,13 @@ const BatchesPage = () => {
                                                             <div className="flex items-center gap-2">
                                                                 <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                                                                     <div
-                                                                        className={`h-full ${stockPercentage > 50 ? 'bg-green-500' : stockPercentage > 20 ? 'bg-orange-500' : 'bg-red-500'}`}
+                                                                        className={`h-full ${
+                                                                            stockPercentage > 50
+                                                                                ? 'bg-emerald-500'
+                                                                                : stockPercentage > 20
+                                                                                ? 'bg-amber-500'
+                                                                                : 'bg-red-500'
+                                                                        }`}
                                                                         style={{ width: `${stockPercentage}%` }}
                                                                     />
                                                                 </div>
@@ -384,7 +415,13 @@ const BatchesPage = () => {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() => navigate(`/manager/production/batches/${batch._id}`)}
+                                                                onClick={() =>
+                                                                    navigate(
+                                                                        user?.role === 'KitchenStaff'
+                                                                            ? `/kitchen/production/batches/${batch._id}`
+                                                                            : `/manager/production/batches/${batch._id}`
+                                                                    )
+                                                                }
                                                                 title="View Details"
                                                             >
                                                                 <Eye className="w-4 h-4" />
