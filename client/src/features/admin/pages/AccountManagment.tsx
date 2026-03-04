@@ -34,12 +34,15 @@ export const AccountManagement = () => {
         roleId: '',
         storeId: ''
     });
-const getRoleName = (roleId: any) => {
+    const ITEMS_PER_PAGE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const getRoleName = (roleId: any) => {
     if (typeof roleId === 'object' && roleId !== null) {
         return roleId.roleName || 'No Role';
     }
     return 'No Role';
-};
+    };
     // FETCH DATA
     const fetchData = async () => {
         try {
@@ -180,6 +183,47 @@ const getRoleName = (roleId: any) => {
         return role?.roleName === 'StoreStaff';
     };
 
+    const handlePageChange = (next: number) => {
+        const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE) || 1;
+        if (next < 1 || next > totalPages) return;
+        setCurrentPage(next);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const getPageNumbers = () => {
+        const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE) || 1;
+        const pages: (number | string)[] = [];
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else if (currentPage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (currentPage >= totalPages - 3) {
+            pages.push(
+                1,
+                '...',
+                totalPages - 4,
+                totalPages - 3,
+                totalPages - 2,
+                totalPages - 1,
+                totalPages
+            );
+        } else {
+            pages.push(
+                1,
+                '...',
+                currentPage - 1,
+                currentPage,
+                currentPage + 1,
+                '...',
+                totalPages
+            );
+        }
+        return { pages, totalPages };
+    };
+
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const currentUsers = users.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
     return (
         <div className={`space-y-6 ${darkMode ? 'text-foreground' : 'text-gray-900'}`}>
             {openMenuId && (
@@ -213,7 +257,7 @@ const getRoleName = (roleId: any) => {
                             </tr>
                         </thead>
                         <tbody className="text-sm">
-                            {users.map((user, index) => (
+                            {currentUsers.map((user, index) => (
                                 <tr key={user._id} className={`group transition-colors border-b last:border-0 ${darkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'border-gray-100 hover:bg-gray-50'}`}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -285,6 +329,65 @@ const getRoleName = (roleId: any) => {
                     )}
                 </div>
             </div>
+
+            {users.length > ITEMS_PER_PAGE && (
+                <div className="mt-4 flex select-none items-center justify-end gap-2">
+                    {(() => {
+                        const { pages, totalPages } = getPageNumbers();
+                        return (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        chevron_left
+                                    </span>
+                                    Prev
+                                </button>
+                                <div className="flex items-center gap-1">
+                                    {pages.map((page, idx) =>
+                                        page === '...' ? (
+                                            <span
+                                                key={`dots-${idx}`}
+                                                className="px-2 text-xs text-muted-foreground"
+                                            >
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => handlePageChange(page as number)}
+                                                className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                                    currentPage === page
+                                                        ? 'bg-amber-600 text-white shadow-sm'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700 dark:bg-gray-800 dark:text-gray-300'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    Next
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        chevron_right
+                                    </span>
+                                </button>
+                            </>
+                        );
+                    })()}
+                </div>
+            )}
 
             {/* Add User Modal */}
             {showAddModal && (
