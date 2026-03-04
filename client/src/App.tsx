@@ -24,8 +24,6 @@ import TransferDetailPage from '@/features/manager/pages/TransferDetailPage';
 import ProductsRecipesPage from '@/features/manager/pages/ProductsRecipesPage';
 import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';
-import ReportsAnalyticsPage from '@/features/manager/pages/ReportsAnalyticsPage';
-import UsersRolesPage from '@/features/manager/pages/UsersRolesPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
@@ -122,9 +120,7 @@ function App() {
               <Route path="/manager/orders" element={<OrdersShipmentsPage />} />
               <Route path="/manager/orders/:id" element={<TransferDetailPage />} />
 
-              {/* Reports & Admin */}
-              <Route path="/manager/reports" element={<ReportsAnalyticsPage />} />
-              <Route path="/manager/users" element={<UsersRolesPage />} />
+              {/* Admin settings */}
               <Route path="/manager/settings" element={<SettingsPage />} />
             </Route>
           </Route>
