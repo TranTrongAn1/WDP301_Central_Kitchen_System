@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { OrderApi, type Order as OrderType, type ApproveOrderPayload } from '@/api/OrderApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
+import { batchApi, type Batch } from '@/api/BatchApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { invoiceApi } from '@/api/InvoiceApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
 
 // Interface cho bảng tính toán tồn kho
 interface InventoryCalculation {
@@ -44,6 +45,7 @@ const OrderDetail = () => {
   const [hasFeedback, setHasFeedback] = useState(false);
   const [isPayingWithWallet, setIsPayingWithWallet] = useState(false);
   const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
+  const [paymentUnavailable, setPaymentUnavailable] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -151,7 +153,7 @@ const OrderDetail = () => {
   const handleRejectOrder = async () => {
     if (!id) return;
     if (!rejectReason.trim()) {
-      toast.warning("Vui lòng nhập lý do từ chối!");
+      toast.error('Vui lòng nhập lý do từ chối!');
       return;
     }
 
@@ -178,24 +180,52 @@ const OrderDetail = () => {
   const handleApproveOrder = async () => {
     if (!id || !order) return;
     if (!isEnoughStock) {
-      toast.warning('Không đủ nguyên liệu để duyệt đơn này.');
+      toast.error('Không đủ nguyên liệu để duyệt đơn này.');
       return;
     }
 
     try {
       setIsApproving(true);
 
-      const payload: ApproveOrderPayload = {
-        items: order.items.map((item) => ({
-          productId:
-            typeof item.productId === 'object'
-              ? item.productId._id
-              : (item.productId as string),
-          approvedQuantity: item.quantity,
-          // Sử dụng đơn giản: để backend tự xác thực / mapping nếu cần
-          batches: [],
-        })),
-      };
+      // Với mỗi item trong đơn, chọn 1 batch Active, chưa hết hạn, đủ số lượng
+      const approveItems: ApproveOrderPayload['items'] = [];
+
+      for (const item of order.items) {
+        const pid =
+          typeof item.productId === 'object'
+            ? item.productId._id
+            : (item.productId as string);
+
+        const res = await batchApi.getAll({ productId: pid, status: 'Active' });
+        const raw = (res as any)?.data ?? res ?? [];
+        const batches: Batch[] = Array.isArray(raw) ? raw : [];
+
+        const candidates = batches
+          .filter((b) => {
+            const notExpired = new Date(b.expDate).getTime() > Date.now();
+            return (
+              b.currentQuantity >= item.quantity &&
+              notExpired
+            );
+          })
+          .sort(
+            (a, b) =>
+              new Date(a.expDate).getTime() - new Date(b.expDate).getTime()
+          ); // ưu tiên HSD gần nhất
+
+        const chosen = candidates[0];
+
+        if (!chosen) {
+          throw new Error(
+            `Không có lô thành phẩm đủ số lượng cho sản phẩm ${(item.productId as any)?.name || pid
+            } (cần ${item.quantity}).`
+          );
+        }
+
+        approveItems.push({ batchId: chosen._id });
+      }
+
+      const payload: ApproveOrderPayload = { items: approveItems };
 
       const res = await OrderApi.approveOrder(id, payload);
 
@@ -205,9 +235,13 @@ const OrderDetail = () => {
       } else {
         toast.error(res.message || 'Lỗi khi duyệt đơn hàng');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Không thể kết nối đến máy chủ');
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Lỗi khi duyệt đơn hàng';
+      toast.error(message);
     } finally {
       setIsApproving(false);
     }
@@ -216,7 +250,7 @@ const OrderDetail = () => {
   const handleSaveFeedback = async () => {
     if (!id) return;
     if (!feedbackContent.trim()) {
-      toast.warning('Vui lòng nhập nội dung phản hồi.');
+      toast.error('Vui lòng nhập nội dung phản hồi.');
       return;
     }
 
@@ -258,9 +292,16 @@ const OrderDetail = () => {
       setIsPayingWithWallet(true);
       await invoiceApi.payWithWalletForInvoice(order._id, storeId, order.totalAmount);
       toast.success('Đã gửi yêu cầu thanh toán bằng ví.');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Thanh toán bằng ví thất bại.');
+      if (error?.response?.status === 404) {
+        setPaymentUnavailable(true);
+      }
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Thanh toán bằng ví thất bại.';
+      toast.error(message);
     } finally {
       setIsPayingWithWallet(false);
     }
@@ -281,9 +322,16 @@ const OrderDetail = () => {
       } else {
         toast.error('Không tạo được link thanh toán.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Lỗi khi tạo link PayOS.');
+      if (error?.response?.status === 404) {
+        setPaymentUnavailable(true);
+      }
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Lỗi khi tạo link PayOS.';
+      toast.error(message);
     } finally {
       setIsCreatingPayOS(false);
     }
@@ -549,7 +597,7 @@ const OrderDetail = () => {
               <button
                 type="button"
                 onClick={handlePayWithWallet}
-                disabled={isPayingWithWallet}
+                disabled={isPayingWithWallet || paymentUnavailable}
                 className="h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1 hover:bg-primary/90 disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[16px]">
@@ -560,7 +608,7 @@ const OrderDetail = () => {
               <button
                 type="button"
                 onClick={handleCreatePayOSLink}
-                disabled={isCreatingPayOS}
+                disabled={isCreatingPayOS || paymentUnavailable}
                 className="h-9 rounded-lg border border-border text-xs font-semibold flex items-center justify-center gap-1 hover:bg-secondary disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[16px]">
@@ -568,6 +616,11 @@ const OrderDetail = () => {
                 </span>
                 {isCreatingPayOS ? 'Đang tạo link PayOS...' : 'Tạo link thanh toán PayOS'}
               </button>
+              {paymentUnavailable && (
+                <p className="mt-1 text-[11px] text-red-500">
+                  Các endpoint thanh toán chưa được bật trên môi trường hiện tại (404). Vui lòng dùng phương thức khác hoặc liên hệ backend.
+                </p>
+              )}
             </div>
           </div>
 

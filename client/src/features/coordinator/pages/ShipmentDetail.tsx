@@ -128,6 +128,8 @@ const ShipmentDetail = () => {
 
     const getTripStatusStyle = (status: string) => {
         if (status === 'Planning') return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+        if (status === 'Pending' || status === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
+        if (status === 'ReadyForShipping') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
         if (status === 'In_Transit') return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
         if (status === 'Completed') return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
         if (status === 'Cancelled') return 'bg-red-500/20 text-red-500 border-red-500/30';
@@ -201,7 +203,7 @@ const ShipmentDetail = () => {
                             {isFinalizing ? 'Đang chốt kế hoạch...' : 'Chốt kế hoạch (Finalize)'}
                         </button>
                     )}
-                    {(trip.status === 'Pending' || trip.status === 'Planning') && (
+                    {(trip.status === 'Pending' || trip.status === 'Planning' || trip.status === 'Transferred_To_Kitchen') && (
                         <button
                             type="button"
                             onClick={handleMarkReady}
@@ -211,7 +213,11 @@ const ShipmentDetail = () => {
                             {isMarkingReady ? 'Đang đánh dấu...' : 'Sẵn sàng giao (Ready)'}
                         </button>
                     )}
-                    {(trip.status === 'ReadyForShipping' || trip.status === 'Pending') && (
+                    {(
+                        trip.status === 'ReadyForShipping' ||
+                        trip.status === 'Ready_For_Shipping' ||
+                        trip.status === 'Ready for shipping'
+                    ) && (
                         <button
                             type="button"
                             onClick={handleStartShipping}
