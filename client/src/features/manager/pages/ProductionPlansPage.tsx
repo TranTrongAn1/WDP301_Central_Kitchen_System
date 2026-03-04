@@ -42,6 +42,9 @@ const ProductionPlansPage = () => {
     const [selectedProduct, setSelectedProduct] = useState('');
     const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
 
+    const ITEMS_PER_PAGE = 6;
+    const [currentPage, setCurrentPage] = useState(1);
+
     const fetchPlans = async () => {
         try {
             setLoading(true);
@@ -247,9 +250,189 @@ const ProductionPlansPage = () => {
         );
     }
 
-    const renderPlanList = (filteredPlans: ProductionPlan[]) => (
-        <div className="space-y-4 mt-4">
-            {filteredPlans.length === 0 ? (
+    const renderPlanList = (filteredPlans: ProductionPlan[]) => {
+        const totalPages = Math.ceil(filteredPlans.length / ITEMS_PER_PAGE) || 1;
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const currentPlans = filteredPlans.slice(
+            startIndex,
+            startIndex + ITEMS_PER_PAGE
+        );
+
+        const getPageNumbers = () => {
+            const pages: (number | string)[] = [];
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else if (currentPage <= 4) {
+                pages.push(1, 2, 3, 4, 5, '...', totalPages);
+            } else if (currentPage >= totalPages - 3) {
+                pages.push(
+                    1,
+                    '...',
+                    totalPages - 4,
+                    totalPages - 3,
+                    totalPages - 2,
+                    totalPages - 1,
+                    totalPages
+                );
+            } else {
+                pages.push(
+                    1,
+                    '...',
+                    currentPage - 1,
+                    currentPage,
+                    currentPage + 1,
+                    '...',
+                    totalPages
+                );
+            }
+            return pages;
+        };
+
+        if (filteredPlans.length === 0) {
+            return (
+                <div className="space-y-4 mt-4">
+                    <EmptyState
+                        icon={Package}
+                        title="No Production Plans"
+                        message={`No production plans found for ${date?.toLocaleDateString() || 'selected date'}`}
+                        actionLabel="Create New Plan"
+                        onAction={openCreateModal}
+                    />
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4 mt-4">
+                {currentPlans.map((plan) => (
+                    <motion.div
+                        key={plan._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                        onClick={() => navigate(`/manager/production/${plan._id}`)}
+                    >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
+                            <div>
+                                <h3 className="font-semibold text-lg">{plan.planCode}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    {new Date(plan.planDate).toLocaleDateString()}
+                                    {plan.note && ` • ${plan.note}`}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {getStatusBadge(plan.status)}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => viewPlan(plan._id, e)}
+                                >
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    View
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {plan.details?.slice(0, 2).map((detail, idx) => (
+                                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-background/50 p-2 rounded-lg gap-2">
+                                    <div>
+                                        <span className="font-medium">{getProductName(detail)}</span>
+                                        <span className="text-muted-foreground ml-2">({getProductSku(detail)})</span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span>{detail.actualQuantity} / {detail.plannedQuantity} units</span>
+                                        {getStatusBadge(detail.status)}
+                                    </div>
+                                </div>
+                            ))}
+                            {plan.details && plan.details.length > 2 && (
+                                <p className="text-sm text-muted-foreground text-center">
+                                    +{plan.details.length - 2} more items
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="mt-3">
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="text-muted-foreground">Completion</span>
+                                <span className="font-medium">{getCompletionPercentage(plan)}%</span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-orange-500 to-amber-600 transition-all"
+                                    style={{ width: `${getCompletionPercentage(plan)}%` }}
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                ))}
+
+                {totalPages > 1 && (
+                    <div className="mt-2 flex select-none items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (currentPage <= 1) return;
+                                setCurrentPage(currentPage - 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                chevron_left
+                            </span>
+                            Trước
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {getPageNumbers().map((page, idx) =>
+                                page === '...' ? (
+                                    <span
+                                        key={`dots-${idx}`}
+                                        className="px-2 text-xs text-muted-foreground"
+                                    >
+                                        ...
+                                    </span>
+                                ) : (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => {
+                                            setCurrentPage(page as number);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                            currentPage === page
+                                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                                : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (currentPage >= totalPages) return;
+                                setCurrentPage(currentPage + 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                            Sau
+                            <span className="material-symbols-outlined text-[18px]">
+                                chevron_right
+                            </span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    };
                 <EmptyState
                     icon={Package}
                     title="No Production Plans"

@@ -39,6 +39,9 @@ export default function CategoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
@@ -63,10 +66,53 @@ export default function CategoryPage() {
     fetchCategories();
   }, []);
 
-  const filteredCategories = categories.filter(
-    (category) =>
-      category.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCategories = categories.filter((category) =>
+    category.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages =
+    Math.ceil(filteredCategories.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentCategories = filteredCategories.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (next: number) => {
+    if (next < 1 || next > totalPages) return;
+    setCurrentPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(
+        1,
+        '...',
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages
+      );
+    } else {
+      pages.push(
+        1,
+        '...',
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        '...',
+        totalPages
+      );
+    }
+    return pages;
+  };
 
   const handleSubmit = async (data: { categoryName: string }) => {
     setIsSubmitting(true);
@@ -198,7 +244,7 @@ export default function CategoryPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCategories.map((category, index) => {
+                currentCategories.map((category, index) => {
                   const isExpanded = expandedCategory === category._id;
 
                   return (
@@ -328,6 +374,58 @@ export default function CategoryPage() {
           </Table>
         </Card>
       </motion.div>
+
+      {totalPages > 1 && filteredCategories.length > 0 && (
+        <div className="mt-4 flex select-none items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              chevron_left
+            </span>
+            Trước
+          </button>
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, idx) =>
+              page === '...' ? (
+                <span
+                  key={`dots-${idx}`}
+                  className="px-2 text-xs text-muted-foreground"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handlePageChange(page as number)}
+                  className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                    currentPage === page
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            Sau
+            <span className="material-symbols-outlined text-[18px]">
+              chevron_right
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Category Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
