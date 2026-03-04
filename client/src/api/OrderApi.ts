@@ -37,6 +37,16 @@ export interface OrderAggregateResponse {
   data: OrderAggregateItem[];
 }
 
+export interface ApproveOrderItemPayload {
+  productId: string;
+  approvedQuantity: number;
+  batches: { batchId: string; quantity: number }[];
+}
+
+export interface ApproveOrderPayload {
+  items: ApproveOrderItemPayload[];
+}
+
 export const OrderApi = {
   getAllOrders: async (params?: OrderQueryParams): Promise<LogisticsOrder[]> => {
     const res = (await apiClient.get('/logistics/orders', { params })) as OrderListResponse;
@@ -60,10 +70,19 @@ export const OrderApi = {
     if (res && typeof res === 'object' && '_id' in res && 'orderCode' in res) return res as LogisticsOrder;
     throw new Error('Order not found');
   },
+
   rejectOrder: async (orderId: string, reason: string): Promise<OrderDetailResponse> => {
     const res = (await apiClient.post(`/logistics/orders/${orderId}/reject`, {
       reason
     })) as OrderDetailResponse;
     return res;
-  }
+  },
+
+  approveOrder: async (orderId: string, payload: ApproveOrderPayload): Promise<OrderDetailResponse> => {
+    const res = (await apiClient.post(
+      `/logistics/orders/${orderId}/approve`,
+      payload
+    )) as OrderDetailResponse;
+    return res;
+  },
 };

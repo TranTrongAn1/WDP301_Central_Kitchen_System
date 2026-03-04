@@ -33,6 +33,14 @@ interface FinalizeResponseData {
   totalOrders?: number;
 }
 
+interface ReadyResponseData {
+  trip: DeliveryTrip;
+}
+
+interface StartShippingResponseData {
+  trip: DeliveryTrip;
+}
+
 export type ITrip = DeliveryTrip;
 
 const DeliveryTripApi = {
@@ -77,6 +85,16 @@ const DeliveryTripApi = {
   finalizeTrip: async (tripId: string) => {
     const res = await apiClient.post(`/logistics/trips/${tripId}/finalize`);
     return res as unknown as LogisticsApiResponse<FinalizeResponseData>;
+  },
+
+  markReady: async (tripId: string) => {
+    const res = await apiClient.post(`/logistics/trips/${tripId}/ready`);
+    return res as unknown as LogisticsApiResponse<ReadyResponseData>;
+  },
+
+  startShipping: async (tripId: string) => {
+    const res = await apiClient.post(`/logistics/trips/${tripId}/start-shipping`);
+    return res as unknown as LogisticsApiResponse<StartShippingResponseData>;
   },
 };
 

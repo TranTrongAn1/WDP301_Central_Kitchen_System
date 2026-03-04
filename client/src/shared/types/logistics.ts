@@ -1,5 +1,5 @@
 export type OrderStatus = 'Pending' | 'Approved' | 'In_Transit' | 'Received' | 'Cancelled';
-export type TripStatus = 'Planning' | 'Pending' | 'In_Transit' | 'Completed' | 'Cancelled';
+export type TripStatus = 'Planning' | 'Pending' | 'ReadyForShipping' | 'In_Transit' | 'Completed' | 'Cancelled';
 
 export interface StoreRef {
   _id: string;

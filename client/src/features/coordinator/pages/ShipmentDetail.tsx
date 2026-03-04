@@ -23,6 +23,8 @@ const ShipmentDetail = () => {
     const [loading, setLoading] = useState(true);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [isMarkingReady, setIsMarkingReady] = useState(false);
+    const [isStartingShipping, setIsStartingShipping] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -73,6 +75,34 @@ const ShipmentDetail = () => {
             toast.error('Không thể duyệt chuyến hàng.');
         } finally {
             setIsFinalizing(false);
+        }
+    };
+
+    const handleMarkReady = async () => {
+        if (!id) return;
+        try {
+            setIsMarkingReady(true);
+            await DeliveryTripApi.markReady(id);
+            toast.success('Chuyến hàng đã sẵn sàng giao.');
+            setRefreshTrigger((prev) => prev + 1);
+        } catch (err) {
+            toast.error('Không thể đánh dấu sẵn sàng giao.');
+        } finally {
+            setIsMarkingReady(false);
+        }
+    };
+
+    const handleStartShipping = async () => {
+        if (!id) return;
+        try {
+            setIsStartingShipping(true);
+            await DeliveryTripApi.startShipping(id);
+            toast.success('Chuyến hàng đã bắt đầu giao (In Transit).');
+            setRefreshTrigger((prev) => prev + 1);
+        } catch (err) {
+            toast.error('Không thể bắt đầu giao hàng.');
+        } finally {
+            setIsStartingShipping(false);
         }
     };
 
@@ -160,16 +190,38 @@ const ShipmentDetail = () => {
                     </div>
                 </div>
 
-                {trip.status === 'Planning' && (
-                    <button
-                        type="button"
-                        onClick={handleFinalizeTrip}
-                        disabled={isFinalizing || (trip.orders?.length ?? 0) === 0}
-                        className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all hover:opacity-90 disabled:opacity-50"
-                    >
-                        {isFinalizing ? 'Đang xử lý...' : 'Duyệt chuyến (Khởi hành)'}
-                    </button>
-                )}
+                <div className="flex gap-2">
+                    {trip.status === 'Planning' && (
+                        <button
+                            type="button"
+                            onClick={handleFinalizeTrip}
+                            disabled={isFinalizing || (trip.orders?.length ?? 0) === 0}
+                            className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all hover:opacity-90 disabled:opacity-50"
+                        >
+                            {isFinalizing ? 'Đang chốt kế hoạch...' : 'Chốt kế hoạch (Finalize)'}
+                        </button>
+                    )}
+                    {(trip.status === 'Pending' || trip.status === 'Planning') && (
+                        <button
+                            type="button"
+                            onClick={handleMarkReady}
+                            disabled={isMarkingReady}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            {isMarkingReady ? 'Đang đánh dấu...' : 'Sẵn sàng giao (Ready)'}
+                        </button>
+                    )}
+                    {(trip.status === 'ReadyForShipping' || trip.status === 'Pending') && (
+                        <button
+                            type="button"
+                            onClick={handleStartShipping}
+                            disabled={isStartingShipping}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {isStartingShipping ? 'Đang bắt đầu...' : 'Bắt đầu giao (In Transit)'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
