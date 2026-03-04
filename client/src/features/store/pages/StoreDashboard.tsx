@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { paymentApi, type WalletInfo } from '@/api/PaymentApi';
 
 const StoreDashboard = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [depositAmount, setDepositAmount] = useState(0);
@@ -69,6 +71,13 @@ const StoreDashboard = () => {
           <p className="text-muted-foreground text-sm">
             Create and manage internal orders
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/store/orders')}
+            className="mt-3 inline-flex items-center rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary"
+          >
+            Xem đơn & feedback
+          </button>
         </div>
         <div className="bg-card p-6 rounded-lg shadow">
           <h3 className="font-semibold text-lg">Inventory</h3>

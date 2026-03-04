@@ -27,6 +27,7 @@ import StoresPage from '@/features/manager/pages/StoresPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
+import StoreOrdersPage from '@/features/store/pages/StoreOrdersPage';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ProfilePage from '@/features/dashboard/pages/ProfilePage';
@@ -142,6 +143,7 @@ function App() {
           >
             <Route element={<DashboardLayout />}>
               <Route path="/store/dashboard" element={<StoreDashboard />} />
+              <Route path="/store/orders" element={<StoreOrdersPage />} />
             </Route>
           </Route>
 
