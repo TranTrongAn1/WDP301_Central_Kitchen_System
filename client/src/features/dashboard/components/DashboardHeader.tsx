@@ -45,6 +45,15 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/coordinator/shipments/:id": { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" },
   "/coordinator/inventory": { name: "Finished Goods", title: "Kho thành phẩm sẵn sàng giao" },
   "/coordinator/issues": { name: "Issues & Returns", title: "Xử lý sự cố & đổi trả" },
+  "/store/dashboard": { name: "Store Dashboard", title: "Tổng quan hoạt động cửa hàng" },
+  "/store/orders": { name: "Store Orders", title: "Đơn nội bộ & phản hồi" },
+  "/store/orders/new": { name: "Create Store Order", title: "Tạo đơn nội bộ từ catalog sản phẩm" },
+  "/store/inventory": { name: "Store Inventory", title: "Tồn kho thành phẩm tại cửa hàng" },
+  "/kitchen/dashboard": { name: "Kitchen Dashboard", title: "Tổng quan bếp & sản xuất" },
+  "/kitchen/production": { name: "Kitchen Production", title: "Kế hoạch sản xuất của bếp" },
+  "/kitchen/production/queue": { name: "Production Queue", title: "Ưu tiên sản xuất trong ngày" },
+  "/kitchen/production/batches": { name: "Kitchen Batches", title: "Lô thành phẩm do bếp sản xuất" },
+  "/kitchen/trips": { name: "Kitchen Trips", title: "Chuyến giao cần bếp chuẩn bị & đánh dấu Ready" },
   "/profile": { name: "Hồ sơ cá nhân", title: "Thông tin tài khoản và vai trò của bạn" },
   "/settings": { name: "Cài đặt", title: "Giao diện, thông báo và cấu hình hệ thống" },
   "/help": { name: "Trợ giúp", title: "Hướng dẫn sử dụng và kênh hỗ trợ" },
@@ -69,7 +78,9 @@ export const DashboardHeader = ({
       ? { name: "Order Detail", title: "Chi tiết đơn hàng" }
       : path.startsWith("/coordinator/shipments/")
         ? { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" }
-        : { name: "Dashboard", title: "Tổng quan" });
+        : path.startsWith("/store/orders/")
+          ? { name: "Order Detail", title: "Chi tiết đơn hàng cửa hàng" }
+          : { name: "Dashboard", title: "Tổng quan" });
 
   const notifications = [
     {

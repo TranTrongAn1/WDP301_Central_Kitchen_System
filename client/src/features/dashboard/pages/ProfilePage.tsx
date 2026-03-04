@@ -30,6 +30,7 @@ import {
 } from '@/features/manager/components/ui/Card';
 import { Badge } from '@/features/manager/components/ui/Badge';
 import { Button } from '@/features/manager/components/ui/Button';
+import { paymentApi, type WalletInfo } from '@/api/PaymentApi';
 
 interface RoleMeta {
   label: string;
@@ -120,6 +121,8 @@ const ProfilePage = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingStore, setIsLoadingStore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
 
   const roleMeta = useMemo(() => {
     if (!profile?.role) return null;
@@ -189,6 +192,21 @@ const ProfilePage = () => {
       isMounted = false;
     };
   }, [profile?.storeId]);
+
+  useEffect(() => {
+    const fetchWallet = async () => {
+      if (!profile?.storeId || profile.role !== 'StoreStaff') return;
+      try {
+        setIsLoadingWallet(true);
+        const res = await paymentApi.getWallet(profile.storeId);
+        setWallet(res);
+      } finally {
+        setIsLoadingWallet(false);
+      }
+    };
+
+    fetchWallet();
+  }, [profile?.storeId, profile?.role]);
 
   const isActive = profile?.isActive ?? false;
 
@@ -462,6 +480,58 @@ const ProfilePage = () => {
           transition={{ delay: 0.15, duration: 0.3 }}
           className="space-y-4"
         >
+          {profile?.role === 'StoreStaff' && profile.storeId && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Ví cửa hàng của bạn
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Số dư và thông tin ví gắn với cửa hàng mà bạn phụ trách.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">
+                      Store Wallet
+                    </p>
+                    <p className="mt-1 text-lg font-bold">
+                      {isLoadingWallet
+                        ? 'Đang tải...'
+                        : new Intl.NumberFormat('vi-VN', {
+                            style: 'currency',
+                            currency: 'VND',
+                          }).format(wallet?.balance ?? 0)}
+                    </p>
+                  </div>
+                  <div className="text-right text-[11px] text-muted-foreground">
+                    <p>Store ID</p>
+                    <p className="font-mono">
+                      {String(profile.storeId).slice(-6).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+                {wallet?.status === 'Locked' && (
+                  <p className="text-[11px] text-red-500">
+                    Ví đang bị khóa, vui lòng liên hệ Manager để được hỗ trợ.
+                  </p>
+                )}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center text-xs"
+                    onClick={() => navigate('/store/dashboard')}
+                  >
+                    Mở Store Dashboard để nạp ví & xem chi tiết
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">

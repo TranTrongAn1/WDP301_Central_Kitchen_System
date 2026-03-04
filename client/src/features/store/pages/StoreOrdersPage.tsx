@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/shared/zustand/authStore';
-import { OrderApi, type Order } from '@/api/OrderApi';
+import { OrderApi, type Order, type ReceiveOrderPayload } from '@/api/OrderApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 
 const ITEMS_PER_PAGE = 8;
 
 const StoreOrdersPage = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +22,15 @@ const StoreOrdersPage = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
+
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [receiveOrderId, setReceiveOrderId] = useState<string | null>(null);
+  const [receiveNotes, setReceiveNotes] = useState('');
+  const [receiveEvidenceUrl, setReceiveEvidenceUrl] = useState('');
+  const [receiveItems, setReceiveItems] = useState<
+    { productId: string; name: string; orderedQuantity: number; receivedQuantity: number; discrepancyReason?: 'Missing' | 'Damaged' | 'Other'; note?: string }[]
+  >([]);
+  const [isReceiving, setIsReceiving] = useState(false);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -97,6 +109,93 @@ const StoreOrdersPage = () => {
     return pages;
   };
 
+  const openReceiveModal = (order: Order) => {
+    if (!order.items || order.items.length === 0) return;
+    setReceiveOrderId(order._id);
+    setReceiveNotes('');
+    setReceiveEvidenceUrl('');
+    setReceiveItems(
+      order.items.map((it) => {
+        const product =
+          typeof it.productId === 'string'
+            ? { _id: it.productId, name: it.productId }
+            : it.productId;
+        return {
+          productId: product._id,
+          name: product.name,
+          orderedQuantity: it.quantity,
+          receivedQuantity: it.quantity,
+        };
+      })
+    );
+    setReceiveModalOpen(true);
+  };
+
+  const handleChangeReceiveQty = (index: number, value: number) => {
+    setReceiveItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              receivedQuantity: value < 0 ? 0 : value,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleChangeReason = (index: number, value: string) => {
+    setReceiveItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              discrepancyReason: value === '' ? undefined : (value as 'Missing' | 'Damaged' | 'Other'),
+            }
+          : item
+      )
+    );
+  };
+
+  const handleSaveReceive = async () => {
+    if (!receiveOrderId) return;
+    const payload: ReceiveOrderPayload = {
+      items: receiveItems.map((item) => ({
+        productId: item.productId,
+        receivedQuantity: item.receivedQuantity,
+        note: item.note,
+        discrepancyReason: item.discrepancyReason,
+      })),
+      receivedEvidenceImageURL: receiveEvidenceUrl || undefined,
+    };
+
+    try {
+      setIsReceiving(true);
+      const toastId = toast.loading('Đang cập nhật nhận hàng...');
+      await OrderApi.receiveOrder(receiveOrderId, payload);
+      setReceiveModalOpen(false);
+      const data = await OrderApi.getAllOrders();
+      const storeId = user?.storeId;
+      const filtered = storeId
+        ? data.filter((o) => {
+            if (typeof o.storeId === 'string') return o.storeId === storeId;
+            return (o.storeId as any)?._id === storeId;
+          })
+        : data;
+      setOrders(filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+      toast.success('Đã cập nhật trạng thái nhận hàng', { id: toastId });
+    } catch (error: any) {
+      console.error(error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Không thể lưu thông tin nhận hàng';
+      toast.error(message);
+    } finally {
+      setIsReceiving(false);
+    }
+  };
+
   const openFeedbackModal = async (orderId: string) => {
     setFeedbackOrderId(orderId);
     setFeedbackModalOpen(true);
@@ -160,14 +259,18 @@ const StoreOrdersPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold">Đơn hàng của cửa hàng</h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Xem trạng thái đơn và gửi feedback về chất lượng hàng nhận.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => navigate('/store/orders/new')}
+          className="inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <span className="material-symbols-outlined text-[16px] mr-1">
+            add
+          </span>
+          Tạo đơn mới
+        </button>
       </div>
 
       <div className="rounded-xl border bg-card p-4">
@@ -202,21 +305,61 @@ const StoreOrdersPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="h-8 rounded-lg border border-border px-3 text-[11px] font-semibold hover:bg-secondary"
-                    onClick={() => openFeedbackModal(order._id)}
-                    disabled={order.status !== 'Received'}
-                    title={
-                      order.status !== 'Received'
-                        ? 'Chỉ gửi feedback khi đơn đã nhận hàng.'
-                        : ''
-                    }
-                  >
-                    {order.status === 'Received'
-                      ? 'Viết / xem feedback'
-                      : 'Chờ nhận hàng'}
-                  </button>
+                  {(() => {
+                    const recipientName = (order as any)?.recipientName;
+                    const recipientPhone = (order as any)?.recipientPhone;
+                    const address = (order as any)?.address;
+                    const canReceive =
+                      order.status === 'In_Transit' &&
+                      recipientName &&
+                      recipientPhone &&
+                      address;
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          className="h-8 rounded-lg border border-border px-3 text-[11px] font-semibold hover:bg-secondary"
+                          onClick={() => navigate(`/store/orders/${order._id}`)}
+                        >
+                          Xem chi tiết
+                        </button>
+
+                        {canReceive && (
+                          <button
+                            type="button"
+                            className="h-8 rounded-lg border border-border px-3 text-[11px] font-semibold hover:bg-secondary"
+                            onClick={() => openReceiveModal(order)}
+                            title="Xác nhận hàng đã nhận tại cửa hàng."
+                          >
+                            Nhận hàng
+                          </button>
+                        )}
+
+                        {!canReceive && order.status === 'In_Transit' && (
+                          <span className="text-[10px] text-red-500 font-semibold">
+                            Thiếu thông tin giao hàng
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          className="h-8 rounded-lg border border-border px-3 text-[11px] font-semibold hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={() => openFeedbackModal(order._id)}
+                          disabled={order.status !== 'Received'}
+                          title={
+                            order.status !== 'Received'
+                              ? 'Chỉ gửi feedback khi đơn đã nhận hàng.'
+                              : ''
+                          }
+                        >
+                          {order.status === 'Received'
+                            ? 'Viết / xem feedback'
+                            : 'Chờ nhận hàng'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
@@ -337,6 +480,106 @@ const StoreOrdersPage = () => {
                   : hasFeedback
                   ? 'Cập nhật'
                   : 'Gửi feedback'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {receiveModalOpen && receiveOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-card border border-border p-4 space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Nhận hàng tại cửa hàng</h2>
+              <button
+                type="button"
+                onClick={() => setReceiveModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Cập nhật số lượng thực nhận cho từng sản phẩm. Nếu thiếu / hư hỏng, hãy chọn lý do.
+            </p>
+
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {receiveItems.map((item, index) => (
+                <div
+                  key={item.productId}
+                  className="rounded-lg border border-border/60 bg-background/60 p-3 flex flex-col gap-2 md:flex-row md:items-center"
+                >
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Đặt: {item.orderedQuantity}
+                    </p>
+                  </div>
+                  <div className="w-full md:w-32 space-y-1">
+                    <label className="text-[11px] font-medium">
+                      SL nhận
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={item.orderedQuantity}
+                      value={item.receivedQuantity}
+                      onChange={(e) =>
+                        handleChangeReceiveQty(index, Number(e.target.value) || 0)
+                      }
+                      className="h-8 w-full rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div className="w-full md:w-40 space-y-1">
+                    <label className="text-[11px] font-medium">
+                      Lý do chênh lệch
+                    </label>
+                    <select
+                      value={item.discrepancyReason || ''}
+                      onChange={(e) => handleChangeReason(index, e.target.value)}
+                      className="h-8 w-full rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Không</option>
+                      <option value="Missing">Thiếu hàng</option>
+                      <option value="Damaged">Hư hỏng</option>
+                      <option value="Other">Khác</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium">
+                Link ảnh biên bản / bằng chứng (tuỳ chọn)
+              </label>
+              <input
+                type="url"
+                value={receiveEvidenceUrl}
+                onChange={(e) => setReceiveEvidenceUrl(e.target.value)}
+                placeholder="https://..."
+                className="h-8 w-full rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setReceiveModalOpen(false)}
+                className="h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground hover:bg-secondary"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveReceive}
+                disabled={isReceiving}
+                className="h-8 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isReceiving ? 'Đang lưu...' : 'Xác nhận đã nhận hàng'}
               </button>
             </div>
           </div>

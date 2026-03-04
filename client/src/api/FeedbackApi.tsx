@@ -28,19 +28,27 @@ const BASE = '/feedback';
 
 export const feedbackApi = {
   getByOrderId: async (orderId: string): Promise<Feedback | null> => {
-    const res = (await apiClient.get(`${BASE}/${orderId}`)) as
-      | ApiResponse<Feedback>
-      | Feedback
-      | null;
+    try {
+      const res = (await apiClient.get(`${BASE}/${orderId}`)) as
+        | ApiResponse<Feedback>
+        | Feedback
+        | null;
 
-    if (!res) return null;
-    if (typeof res === 'object' && 'data' in res && (res as any).data) {
-      return (res as ApiResponse<Feedback>).data;
+      if (!res) return null;
+      if (typeof res === 'object' && 'data' in res && (res as any).data) {
+        return (res as ApiResponse<Feedback>).data;
+      }
+      if (typeof res === 'object' && '_id' in res) {
+        return res as Feedback;
+      }
+      return null;
+    } catch (error: any) {
+      // Nếu không có feedback cho order này, backend trả 404 => coi như không có feedback
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
     }
-    if (typeof res === 'object' && '_id' in res) {
-      return res as Feedback;
-    }
-    return null;
   },
 
   create: (orderId: string, payload: FeedbackPayload) =>

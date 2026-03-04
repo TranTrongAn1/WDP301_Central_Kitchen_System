@@ -12,6 +12,7 @@ import {
   UtensilsCrossed,
   FolderTree,
   Package,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/zustand/authStore";
@@ -46,71 +47,142 @@ export const DashboardSideBar = ({
   const { darkMode } = useThemeStore();
   const location = useLocation();
 
-  const navItems: NavItem[] = [
-    {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      subLabel: "Tổng quan",
-      path: "/manager/dashboard",
-      end: true,
-    },
-    {
-      icon: ClipboardList,
-      label: "Orders & Shipments",
-      subLabel: "Đơn hàng & Giao hàng",
-      path: "/manager/orders",
-      end: false,
-    },
-    {
-      icon: ChefHat,
-      label: "Production Plans",
-      subLabel: "Kế hoạch sản xuất",
-      path: "/manager/production",
-      end: false,
-    },
-    {
-      icon: Boxes,
-      label: "Inventory & Batches",
-      subLabel: "Kho & Lô hàng",
-      path: "/manager/inventory",
-      end: false,
-    },
-    {
-      icon: UtensilsCrossed,
-      label: "Products & Recipes",
-      subLabel: "Sản phẩm & Công thức",
-      path: "/manager/products",
-      end: false,
-    },
-    {
-      icon: FolderTree,
-      label: "Categories",
-      subLabel: "Danh mục",
-      path: "/manager/categories",
-      end: true,
-    },
-    {
-      icon: Package,
-      label: "Ingredients",
-      subLabel: "Nguyên liệu",
-      path: "/manager/ingredients",
-      end: true,
-    },
-    {
-      icon: Store,
-      label: "Stores",
-      subLabel: "Cửa hàng",
-      path: "/manager/stores",
-      end: false,
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      subLabel: "Cài đặt",
-      path: "/manager/settings",
-      end: false,
-    },
-  ];
+  const role = user?.role;
+
+  let navItems: NavItem[];
+
+  if (role === "StoreStaff") {
+    // Sidebar riêng cho Store Staff
+    navItems = [
+      {
+        icon: LayoutDashboard,
+        label: "Dashboard",
+        subLabel: "Tổng quan cửa hàng",
+        path: "/store/dashboard",
+        end: true,
+      },
+      {
+        icon: ClipboardList,
+        label: "Orders",
+        subLabel: "Đơn hàng & feedback",
+        path: "/store/orders",
+        end: false,
+      },
+      {
+        icon: Boxes,
+        label: "Inventory",
+        subLabel: "Tồn kho cửa hàng",
+        path: "/store/inventory",
+        end: false,
+      },
+    ];
+  } else if (role === "KitchenStaff") {
+    // Sidebar cho Kitchen Staff
+    navItems = [
+      {
+        icon: LayoutDashboard,
+        label: "Dashboard",
+        subLabel: "Tổng quan bếp",
+        path: "/kitchen/dashboard",
+        end: true,
+      },
+      {
+        icon: ChefHat,
+        label: "Production",
+        subLabel: "Kế hoạch sản xuất",
+        path: "/kitchen/production",
+        end: true,
+      },
+      {
+        icon: ClipboardList,
+        label: "Production Queue",
+        subLabel: "Ưu tiên sản xuất hôm nay",
+        path: "/kitchen/production/queue",
+        end: true,
+      },
+      {
+        icon: Boxes,
+        label: "Batches",
+        subLabel: "Lô thành phẩm",
+        path: "/kitchen/production/batches",
+        end: true,
+      },
+      {
+        icon: Truck,
+        label: "Trips",
+        subLabel: "Chuyến giao từ bếp",
+        path: "/kitchen/trips",
+        end: true,
+      },
+    ];
+  } else {
+    // Mặc định: sidebar cho Manager/Admin
+    navItems = [
+      {
+        icon: LayoutDashboard,
+        label: "Dashboard",
+        subLabel: "Tổng quan",
+        path: "/manager/dashboard",
+        end: true,
+      },
+      {
+        icon: ClipboardList,
+        label: "Orders & Shipments",
+        subLabel: "Đơn hàng & Giao hàng",
+        path: "/manager/orders",
+        end: false,
+      },
+      {
+        icon: ChefHat,
+        label: "Production Plans",
+        subLabel: "Kế hoạch sản xuất",
+        path: "/manager/production",
+        end: false,
+      },
+      {
+        icon: Boxes,
+        label: "Inventory & Batches",
+        subLabel: "Kho & Lô hàng",
+        path: "/manager/inventory",
+        end: false,
+      },
+      {
+        icon: UtensilsCrossed,
+        label: "Products & Recipes",
+        subLabel: "Sản phẩm & Công thức",
+        path: "/manager/products",
+        end: false,
+      },
+      {
+        icon: FolderTree,
+        label: "Categories",
+        subLabel: "Danh mục",
+        path: "/manager/categories",
+        end: true,
+      },
+      {
+        icon: Package,
+        label: "Ingredients",
+        subLabel: "Nguyên liệu",
+        path: "/manager/ingredients",
+        end: true,
+      },
+      {
+        icon: Store,
+        label: "Stores",
+        subLabel: "Cửa hàng",
+        path: "/manager/stores",
+        end: false,
+      },
+      {
+        icon: Settings,
+        label: "Settings",
+        subLabel: "Cài đặt",
+        path: "/manager/settings",
+        end: false,
+      },
+    ];
+  }
 
   const filteredNavItems = navItems.filter((item) => {
     if (!item.allowedRoles) return true;

@@ -41,7 +41,7 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-const BASE = '/payments';
+const BASE = '/payment';
 
 export const paymentApi = {
   getWallet: async (storeId: string): Promise<WalletInfo | null> => {

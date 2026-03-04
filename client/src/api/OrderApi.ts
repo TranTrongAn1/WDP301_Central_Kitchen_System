@@ -37,10 +37,47 @@ export interface OrderAggregateResponse {
   data: OrderAggregateItem[];
 }
 
-export interface ApproveOrderItemPayload {
+export interface CreateOrderItemPayload {
   productId: string;
-  approvedQuantity: number;
-  batches: { batchId: string; quantity: number }[];
+  quantityRequested: number;
+}
+
+export interface CreateOrderPayload {
+  storeId: string;
+  requestedDeliveryDate: string;
+  recipientName: string;
+  recipientPhone: string;
+  address?: string;
+  notes?: string;
+  paymentMethod: 'Wallet' | 'Other';
+  items: CreateOrderItemPayload[];
+}
+
+export interface UpdateOrderPayload {
+  requestedDeliveryDate?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  address?: string;
+  notes?: string;
+  paymentMethod?: 'Wallet' | 'Other';
+  items?: CreateOrderItemPayload[];
+}
+
+export interface ReceiveOrderItemPayload {
+  productId: string;
+  receivedQuantity: number;
+  note?: string;
+  discrepancyReason?: 'Missing' | 'Damaged' | 'Other';
+  discrepancyImageURL?: string;
+}
+
+export interface ReceiveOrderPayload {
+  items: ReceiveOrderItemPayload[];
+  receivedEvidenceImageURL?: string;
+}
+
+export interface ApproveOrderItemPayload {
+  batchId: string;
 }
 
 export interface ApproveOrderPayload {
@@ -69,6 +106,24 @@ export const OrderApi = {
     if (res && typeof res === 'object' && 'data' in res && res.data) return res.data;
     if (res && typeof res === 'object' && '_id' in res && 'orderCode' in res) return res as LogisticsOrder;
     throw new Error('Order not found');
+  },
+
+  createOrder: async (payload: CreateOrderPayload): Promise<OrderDetailResponse> => {
+    const res = (await apiClient.post('/logistics/orders', payload)) as OrderDetailResponse;
+    return res;
+  },
+
+  updateOrder: async (orderId: string, payload: UpdateOrderPayload): Promise<OrderDetailResponse> => {
+    const res = (await apiClient.put(`/logistics/orders/${orderId}`, payload)) as OrderDetailResponse;
+    return res;
+  },
+
+  receiveOrder: async (orderId: string, payload: ReceiveOrderPayload): Promise<OrderDetailResponse> => {
+    const res = (await apiClient.post(
+      `/logistics/orders/${orderId}/receive`,
+      payload
+    )) as OrderDetailResponse;
+    return res;
   },
 
   rejectOrder: async (orderId: string, reason: string): Promise<OrderDetailResponse> => {

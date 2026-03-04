@@ -26,8 +26,13 @@ import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
+import KitchenProductionQueuePage from '@/features/kitchen/pages/KitchenProductionQueuePage';
+import KitchenTripsPage from '@/features/kitchen/pages/KitchenTripsPage';
 import StoreDashboard from '@/features/store/pages/StoreDashboard';
 import StoreOrdersPage from '@/features/store/pages/StoreOrdersPage';
+import CreateStoreOrderPage from '@/features/store/pages/CreateStoreOrderPage';
+import StoreInventoryPage from '@/features/store/pages/StoreInventoryPage';
+import StoreOrderDetailPage from '@/features/store/pages/StoreOrderDetailPage';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ProfilePage from '@/features/dashboard/pages/ProfilePage';
@@ -133,6 +138,14 @@ function App() {
           >
             <Route element={<DashboardLayout />}>
               <Route path="/kitchen/dashboard" element={<KitchenDashboard />} />
+              {/* Kitchen production & batches (chia sẻ UI với Manager nhưng route riêng) */}
+              <Route path="/kitchen/production/queue" element={<KitchenProductionQueuePage />} />
+              <Route path="/kitchen/production" element={<ProductionPlansPage />} />
+              <Route path="/kitchen/production/:id" element={<ProductionPlanDetailPage />} />
+              <Route path="/kitchen/production/batches" element={<BatchesPage />} />
+              <Route path="/kitchen/production/batches/:id" element={<BatchDetailPage />} />
+              <Route path="/kitchen/trips" element={<KitchenTripsPage />} />
+              <Route path="/kitchen/trips/:id" element={<ShipmentDetail />} />
             </Route>
           </Route>
 
@@ -144,12 +157,15 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route path="/store/dashboard" element={<StoreDashboard />} />
               <Route path="/store/orders" element={<StoreOrdersPage />} />
+              <Route path="/store/orders/new" element={<CreateStoreOrderPage />} />
+              <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />
+              <Route path="/store/inventory" element={<StoreInventoryPage />} />
             </Route>
           </Route>
 
           <Route
             element={
-              <ProtectedRoute allowedRoles={['Coordinator']} />
+              <ProtectedRoute allowedRoles={['Coordinator', 'Manager', 'Admin']} />
             }
           >
             <Route element={<DashboardLayout />}>
