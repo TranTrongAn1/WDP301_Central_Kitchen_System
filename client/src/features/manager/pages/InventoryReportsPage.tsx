@@ -38,6 +38,11 @@ const InventoryReportsPage = () => {
     const [importInitialQty, setImportInitialQty] = useState<number>(1);
     const [importPrice, setImportPrice] = useState<number>(0);
 
+    const ITEMS_PER_PAGE_MATERIALS = 8;
+    const ITEMS_PER_PAGE_BATCHES = 8;
+    const [materialsPage, setMaterialsPage] = useState(1);
+    const [batchesPage, setBatchesPage] = useState(1);
+
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -266,7 +271,44 @@ const InventoryReportsPage = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {ingredients.map((ing) => {
+                                    {(() => {
+                                        const totalPages = Math.ceil(ingredients.length / ITEMS_PER_PAGE_MATERIALS) || 1;
+                                        const startIndex = (materialsPage - 1) * ITEMS_PER_PAGE_MATERIALS;
+                                        const currentItems = ingredients.slice(startIndex, startIndex + ITEMS_PER_PAGE_MATERIALS);
+
+                                        const getPageNumbers = () => {
+                                            const pages: (number | string)[] = [];
+                                            if (totalPages <= 7) {
+                                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                            } else if (materialsPage <= 4) {
+                                                pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                            } else if (materialsPage >= totalPages - 3) {
+                                                pages.push(
+                                                    1,
+                                                    '...',
+                                                    totalPages - 4,
+                                                    totalPages - 3,
+                                                    totalPages - 2,
+                                                    totalPages - 1,
+                                                    totalPages
+                                                );
+                                            } else {
+                                                pages.push(
+                                                    1,
+                                                    '...',
+                                                    materialsPage - 1,
+                                                    materialsPage,
+                                                    materialsPage + 1,
+                                                    '...',
+                                                    totalPages
+                                                );
+                                            }
+                                            return { pages, totalPages };
+                                        };
+
+                                        return (
+                                            <>
+                                                {currentItems.map((ing) => {
                                         const stock = getStockLevel(ing);
                                         return (
                                             <motion.div
@@ -300,9 +342,82 @@ const InventoryReportsPage = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </motion.div>
+                                                        </motion.div>
+                                                    );
+                                                })}
+
+                                                {ingredients.length > ITEMS_PER_PAGE_MATERIALS && (
+                                                    <div className="mt-4 flex select-none items-center justify-end gap-2">
+                                                        {(() => {
+                                                            const { pages, totalPages } = getPageNumbers();
+                                                            return (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (materialsPage <= 1) return;
+                                                                            setMaterialsPage(materialsPage - 1);
+                                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                        }}
+                                                                        disabled={materialsPage === 1}
+                                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-[18px]">
+                                                                            chevron_left
+                                                                        </span>
+                                                                        Trước
+                                                                    </button>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {pages.map((page, idx) =>
+                                                                            page === '...' ? (
+                                                                                <span
+                                                                                    key={`dots-${idx}`}
+                                                                                    className="px-2 text-xs text-muted-foreground"
+                                                                                >
+                                                                                    ...
+                                                                                </span>
+                                                                            ) : (
+                                                                                <button
+                                                                                    key={idx}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setMaterialsPage(page as number);
+                                                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                                    }}
+                                                                                    className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                                                                        materialsPage === page
+                                                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                                                            : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                                                                    }`}
+                                                                                >
+                                                                                    {page}
+                                                                                </button>
+                                                                            )
+                                                                        )}
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (materialsPage >= totalPages) return;
+                                                                            setMaterialsPage(materialsPage + 1);
+                                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                        }}
+                                                                        disabled={materialsPage === totalPages}
+                                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                    >
+                                                                        Sau
+                                                                        <span className="material-symbols-outlined text-[18px]">
+                                                                            chevron_right
+                                                                        </span>
+                                                                    </button>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                )}
+                                            </>
                                         );
-                                    })}
+                                    })()}
                                 </div>
                             )}
                         </CardContent>
@@ -366,7 +481,44 @@ const InventoryReportsPage = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {batches.map((batch) => {
+                                    {(() => {
+                                        const totalPages = Math.ceil(batches.length / ITEMS_PER_PAGE_BATCHES) || 1;
+                                        const startIndex = (batchesPage - 1) * ITEMS_PER_PAGE_BATCHES;
+                                        const currentItems = batches.slice(startIndex, startIndex + ITEMS_PER_PAGE_BATCHES);
+
+                                        const getPageNumbers = () => {
+                                            const pages: (number | string)[] = [];
+                                            if (totalPages <= 7) {
+                                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                            } else if (batchesPage <= 4) {
+                                                pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                            } else if (batchesPage >= totalPages - 3) {
+                                                pages.push(
+                                                    1,
+                                                    '...',
+                                                    totalPages - 4,
+                                                    totalPages - 3,
+                                                    totalPages - 2,
+                                                    totalPages - 1,
+                                                    totalPages
+                                                );
+                                            } else {
+                                                pages.push(
+                                                    1,
+                                                    '...',
+                                                    batchesPage - 1,
+                                                    batchesPage,
+                                                    batchesPage + 1,
+                                                    '...',
+                                                    totalPages
+                                                );
+                                            }
+                                            return { pages, totalPages };
+                                        };
+
+                                        return (
+                                            <>
+                                                {currentItems.map((batch) => {
                                         const status = getBatchStatus(batch);
                                         const productName = typeof batch.productId === 'string'
                                             ? 'Product'
@@ -404,10 +556,83 @@ const InventoryReportsPage = () => {
                                                         <p className="text-muted-foreground">Status</p>
                                                         <p className="font-medium">{batch.status}</p>
                                                     </div>
-                                                </div>
-                                            </motion.div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+
+                                                {batches.length > ITEMS_PER_PAGE_BATCHES && (
+                                                    <div className="mt-4 flex select-none items-center justify-end gap-2">
+                                                        {(() => {
+                                                            const { pages, totalPages } = getPageNumbers();
+                                                            return (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (batchesPage <= 1) return;
+                                                                            setBatchesPage(batchesPage - 1);
+                                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                        }}
+                                                                        disabled={batchesPage === 1}
+                                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-[18px]">
+                                                                            chevron_left
+                                                                        </span>
+                                                                        Trước
+                                                                    </button>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {pages.map((page, idx) =>
+                                                                            page === '...' ? (
+                                                                                <span
+                                                                                    key={`dots-${idx}`}
+                                                                                    className="px-2 text-xs text-muted-foreground"
+                                                                                >
+                                                                                    ...
+                                                                                </span>
+                                                                            ) : (
+                                                                                <button
+                                                                                    key={idx}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setBatchesPage(page as number);
+                                                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                                    }}
+                                                                                    className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                                                                        batchesPage === page
+                                                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                                                            : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                                                                    }`}
+                                                                                >
+                                                                                    {page}
+                                                                                </button>
+                                                                            )
+                                                                        )}
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (batchesPage >= totalPages) return;
+                                                                            setBatchesPage(batchesPage + 1);
+                                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                        }}
+                                                                        disabled={batchesPage === totalPages}
+                                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                    >
+                                                                        Sau
+                                                                        <span className="material-symbols-outlined text-[18px]">
+                                                                            chevron_right
+                                                                        </span>
+                                                                    </button>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                )}
+                                            </>
                                         );
-                                    })}
+                                    })()}
                                 </div>
                             )}
                         </CardContent>

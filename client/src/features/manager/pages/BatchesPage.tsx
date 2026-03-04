@@ -27,6 +27,9 @@ const BatchesPage = () => {
     const [selectedProduct, setSelectedProduct] = useState<string>('');
     const [activeTab, setActiveTab] = useState('all');
 
+    const ITEMS_PER_PAGE = 8;
+    const [currentPage, setCurrentPage] = useState(1);
+
     const fetchBatches = async () => {
         try {
             setLoading(true);
@@ -251,17 +254,53 @@ const BatchesPage = () => {
                             <TabsTrigger value="SoldOut">Sold Out</TabsTrigger>
                         </TabsList>
 
-                        {['all', 'Active', 'expiring', 'SoldOut'].map(tab => (
-                            <TabsContent key={tab} value={tab}>
-                                {filterBatches(tab).length === 0 ? (
-                                    <EmptyState
-                                        icon={Package}
-                                        title="No Batches Found"
-                                        message={searchQuery ? 'Try a different search term' : 'No batches in this category'}
-                                    />
-                                ) : (
-                                    <div className="space-y-3 mt-4">
-                                        {filterBatches(tab).map((batch) => {
+                        {['all', 'Active', 'expiring', 'SoldOut'].map(tab => {
+                            const tabBatches = filterBatches(tab);
+                            const totalPages = Math.ceil(tabBatches.length / ITEMS_PER_PAGE) || 1;
+                            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                            const currentBatches = tabBatches.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                            const getPageNumbers = () => {
+                                const pages: (number | string)[] = [];
+                                if (totalPages <= 7) {
+                                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                } else if (currentPage <= 4) {
+                                    pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                } else if (currentPage >= totalPages - 3) {
+                                    pages.push(
+                                        1,
+                                        '...',
+                                        totalPages - 4,
+                                        totalPages - 3,
+                                        totalPages - 2,
+                                        totalPages - 1,
+                                        totalPages
+                                    );
+                                } else {
+                                    pages.push(
+                                        1,
+                                        '...',
+                                        currentPage - 1,
+                                        currentPage,
+                                        currentPage + 1,
+                                        '...',
+                                        totalPages
+                                    );
+                                }
+                                return pages;
+                            };
+
+                            return (
+                                <TabsContent key={tab} value={tab}>
+                                    {tabBatches.length === 0 ? (
+                                        <EmptyState
+                                            icon={Package}
+                                            title="No Batches Found"
+                                            message={searchQuery ? 'Try a different search term' : 'No batches in this category'}
+                                        />
+                                    ) : (
+                                        <div className="space-y-3 mt-4">
+                                            {currentBatches.map((batch) => {
                                             const daysUntilExpiry = getDaysUntilExpiry(batch.expDate);
                                             const isExpiringSoon = daysUntilExpiry <= 7 && daysUntilExpiry > 0;
                                             const isExpired = daysUntilExpiry <= 0;
@@ -353,12 +392,76 @@ const BatchesPage = () => {
                                                         </div>
                                                     </div>
                                                 </motion.div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </TabsContent>
-                        ))}
+                                                );
+                                            })}
+
+                                            {totalPages > 1 && (
+                                                <div className="mt-2 flex select-none items-center justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (currentPage <= 1) return;
+                                                            setCurrentPage(currentPage - 1);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                        disabled={currentPage === 1}
+                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            chevron_left
+                                                        </span>
+                                                        Trước
+                                                    </button>
+                                                    <div className="flex items-center gap-1">
+                                                        {getPageNumbers().map((page, idx) =>
+                                                            page === '...' ? (
+                                                                <span
+                                                                    key={`dots-${idx}`}
+                                                                    className="px-2 text-xs text-muted-foreground"
+                                                                >
+                                                                    ...
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setCurrentPage(page as number);
+                                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                    }}
+                                                                    className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                                                        currentPage === page
+                                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                                            : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                                                    }`}
+                                                                >
+                                                                    {page}
+                                                                </button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (currentPage >= totalPages) return;
+                                                            setCurrentPage(currentPage + 1);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                        disabled={currentPage === totalPages}
+                                                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                                    >
+                                                        Sau
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            chevron_right
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </TabsContent>
+                            );
+                        })}
                     </Tabs>
                 </CardContent>
             </Card>
