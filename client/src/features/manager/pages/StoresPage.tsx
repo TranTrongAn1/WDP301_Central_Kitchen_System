@@ -10,6 +10,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { storeApi } from '@/api/StoreApi';
 import type { Store, CreateStoreRequest } from '@/api/StoreApi';
+import { paymentApi, type WalletInfo } from '@/api/PaymentApi';
 
 const StoresPage = () => {
     const [stores, setStores] = useState<Store[]>([]);
@@ -22,6 +23,9 @@ const StoresPage = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedStore, setSelectedStore] = useState<Store | null>(null);
     const [formLoading, setFormLoading] = useState(false);
+
+    const [selectedStoreWallet, setSelectedStoreWallet] = useState<WalletInfo | null>(null);
+    const [walletLoading, setWalletLoading] = useState(false);
 
     const ITEMS_PER_PAGE = 9;
     const [currentPage, setCurrentPage] = useState(1);
@@ -109,6 +113,14 @@ const StoresPage = () => {
 
     const openDetailModal = (store: Store) => {
         setSelectedStore(store);
+        if (store._id) {
+            setWalletLoading(true);
+            paymentApi
+                .getWallet(store._id)
+                .then((w) => setSelectedStoreWallet(w))
+                .catch(() => setSelectedStoreWallet(null))
+                .finally(() => setWalletLoading(false));
+        }
         setIsDetailModalOpen(true);
     };
 
@@ -540,6 +552,23 @@ const StoresPage = () => {
                                     </p>
                                 </div>
                             </div>
+                            {selectedStoreWallet && (
+                                <div className="flex items-center gap-3">
+                                    <StoreIcon className="w-5 h-5 text-muted-foreground" />
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                                        <p className="font-medium">
+                                            {new Intl.NumberFormat('vi-VN', {
+                                                style: 'currency',
+                                                currency: 'VND',
+                                            }).format(selectedStoreWallet.balance)}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            {walletLoading && !selectedStoreWallet && (
+                                <p className="text-xs text-muted-foreground">Đang tải số dư ví...</p>
+                            )}
                         </div>
                     </div>
                 )}
