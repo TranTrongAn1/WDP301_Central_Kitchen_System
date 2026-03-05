@@ -94,7 +94,7 @@ const ProductionPlansPage = () => {
                 </Badge>
             );
         }
-        if (status === 'In_Progress') {
+        if (status === 'In_Progress' || status === 'InProgress') {
             return (
                 <Badge className="bg-orange-500 text-white">
                     <Clock className="w-3 h-3 mr-1" />
@@ -151,7 +151,7 @@ const ProductionPlansPage = () => {
     const stats = {
         total: todayPlans.length,
         completed: todayPlans.filter(p => p.status === 'Completed').length,
-        inProgress: todayPlans.filter(p => p.status === 'In_Progress').length,
+        inProgress: todayPlans.filter(p => p.status === 'In_Progress' || p.status === 'InProgress').length,
         totalUnits: todayPlans.reduce((sum, p) =>
             sum + (p.details?.reduce((s, d) => s + d.plannedQuantity, 0) || 0), 0
         ),
