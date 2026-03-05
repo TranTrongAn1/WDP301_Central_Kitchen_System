@@ -46,6 +46,9 @@ const OrderDetail = () => {
   const [isPayingWithWallet, setIsPayingWithWallet] = useState(false);
   const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
   const [paymentUnavailable, setPaymentUnavailable] = useState(false);
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const [cashAmount, setCashAmount] = useState<number>(0);
+  const [isRecordingCash, setIsRecordingCash] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -187,7 +190,7 @@ const OrderDetail = () => {
     try {
       setIsApproving(true);
 
-      // Với mỗi item trong đơn, chọn 1 batch Active, chưa hết hạn, đủ số lượng
+      // Với mỗi item trong đơn, chọn batch Active FEFO, gửi đúng format BE: productId, approvedQuantity, batches[]
       const approveItems: ApproveOrderPayload['items'] = [];
 
       for (const item of order.items) {
@@ -195,6 +198,7 @@ const OrderDetail = () => {
           typeof item.productId === 'object'
             ? item.productId._id
             : (item.productId as string);
+        const qty = item.quantity ?? 0;
 
         const res = await batchApi.getAll({ productId: pid, status: 'Active' });
         const raw = (res as any)?.data ?? res ?? [];
@@ -203,26 +207,28 @@ const OrderDetail = () => {
         const candidates = batches
           .filter((b) => {
             const notExpired = new Date(b.expDate).getTime() > Date.now();
-            return (
-              b.currentQuantity >= item.quantity &&
-              notExpired
-            );
+            return b.currentQuantity >= qty && notExpired;
           })
           .sort(
             (a, b) =>
               new Date(a.expDate).getTime() - new Date(b.expDate).getTime()
-          ); // ưu tiên HSD gần nhất
+          );
 
         const chosen = candidates[0];
 
         if (!chosen) {
           throw new Error(
-            `Không có lô thành phẩm đủ số lượng cho sản phẩm ${(item.productId as any)?.name || pid
-            } (cần ${item.quantity}).`
+            `Không có lô thành phẩm đủ số lượng cho sản phẩm ${(item.productId as any)?.name || pid} (cần ${qty}).`
           );
         }
 
-        approveItems.push({ batchId: chosen._id });
+        approveItems.push({
+          productId: pid,
+          approvedQuantity: qty,
+          batches: [{ batchId: chosen._id, quantity: qty }],
+          // Gửi thêm batchId top-level cho BE nào đọc ở đây
+          batchId: chosen._id,
+        });
       }
 
       const payload: ApproveOrderPayload = { items: approveItems };
@@ -334,6 +340,25 @@ const OrderDetail = () => {
       toast.error(message);
     } finally {
       setIsCreatingPayOS(false);
+    }
+  };
+
+  const handleRecordCashPayment = async () => {
+    if (!order || cashAmount <= 0) {
+      toast.error('Nhập số tiền thanh toán tiền mặt (lớn hơn 0).');
+      return;
+    }
+    try {
+      setIsRecordingCash(true);
+      await invoiceApi.recordPayment(order._id, { method: 'Cash', amount: cashAmount });
+      toast.success('Đã ghi nhận thanh toán tiền mặt.');
+      setIsCashModalOpen(false);
+      setCashAmount(0);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Ghi nhận thất bại.');
+    } finally {
+      setIsRecordingCash(false);
     }
   };
 
@@ -616,6 +641,35 @@ const OrderDetail = () => {
                 </span>
                 {isCreatingPayOS ? 'Đang tạo link PayOS...' : 'Tạo link thanh toán PayOS'}
               </button>
+              <button
+                type="button"
+                onClick={() => { setCashAmount(order?.totalAmount ?? 0); setIsCashModalOpen(true); }}
+                className="h-9 rounded-lg border border-border text-xs font-semibold flex items-center justify-center gap-1 hover:bg-secondary"
+              >
+                <span className="material-symbols-outlined text-[16px]">payments</span>
+                Ghi nhận thanh toán tiền mặt
+              </button>
+              {isCashModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !isRecordingCash && setIsCashModalOpen(false)}>
+                  <div className={`rounded-xl border p-6 w-full max-w-sm shadow-xl ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
+                    <h4 className="font-bold mb-3">Ghi nhận thanh toán tiền mặt</h4>
+                    <input
+                      type="number"
+                      min={1}
+                      value={cashAmount || ''}
+                      onChange={(e) => setCashAmount(Number(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent mb-4"
+                      placeholder="Số tiền (VND)"
+                    />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setIsCashModalOpen(false)} className="flex-1 py-2 rounded-lg border text-sm font-medium">Hủy</button>
+                      <button type="button" onClick={handleRecordCashPayment} disabled={isRecordingCash || cashAmount <= 0} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium disabled:opacity-50">
+                        {isRecordingCash ? 'Đang ghi nhận...' : 'Xác nhận'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {paymentUnavailable && (
                 <p className="mt-1 text-[11px] text-red-500">
                   Các endpoint thanh toán chưa được bật trên môi trường hiện tại (404). Vui lòng dùng phương thức khác hoặc liên hệ backend.
