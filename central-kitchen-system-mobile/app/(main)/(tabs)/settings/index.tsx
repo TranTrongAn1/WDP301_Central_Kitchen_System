@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadow } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useStore } from '@/hooks/use-store';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const { store, isLoading: storeLoading, error: storeError } = useStore();
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
@@ -32,6 +34,13 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>Thông tin cửa hàng</Text>
           <Text style={styles.cardSubtitle}>{user?.storeName ?? 'Cửa hàng của bạn'}</Text>
           <Text style={styles.cardMeta}>Mã: {user?.storeId ?? '--'}</Text>
+          {storeLoading ? (
+            <Text style={styles.cardMeta}>Đang tải số dư ví...</Text>
+          ) : storeError ? (
+            <Text style={[styles.cardMeta, { color: '#D91E18' }]}>{storeError}</Text>
+          ) : store?.walletBalance != null ? (
+            <Text style={styles.cardMeta}>Số dư ví: {store.walletBalance.toLocaleString('vi-VN')} đ</Text>
+          ) : null}
         </View>
       ) : null}
       <Pressable style={styles.dangerButton} onPress={logout}>

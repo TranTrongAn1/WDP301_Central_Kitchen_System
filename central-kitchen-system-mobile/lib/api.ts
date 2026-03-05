@@ -1,29 +1,29 @@
+import { getApiErrorHandlers } from "@/lib/api-error-handler";
 import type { LoginResponse, MeResponse } from "@/lib/auth";
 import type { CategoriesResponse } from "@/lib/categories";
 import { API_BASE_URL } from "@/lib/env";
-import type {
-  Ingredient,
-  IngredientResponse,
-  IngredientsResponse,
-} from "@/lib/ingredients";
-import type { CreateOrderPayload, OrderResponse, OrdersResponse, CreateOrderResponse } from "@/lib/orders";
-import type { StoreInventoryResponse } from "@/lib/inventory";
-import type { Product, ProductsResponse } from "@/lib/products";
-import type {
-  ProductionPlanResponse,
-  ProductionPlansResponse,
-} from "@/lib/production-plans";
-import type {
-  InvoicesResponse,
-  InvoiceResponse,
-  PaymentLinkResponse,
-} from "@/lib/invoices";
 import type {
   IngredientBatch,
   IngredientBatchResponse,
   IngredientBatchesResponse,
 } from "@/lib/ingredient-batches";
-import { getApiErrorHandlers } from "@/lib/api-error-handler";
+import type {
+  Ingredient,
+  IngredientResponse,
+  IngredientsResponse,
+} from "@/lib/ingredients";
+import type { StoreInventoryResponse } from "@/lib/inventory";
+import type {
+  InvoiceResponse,
+  InvoicesResponse,
+  PaymentLinkResponse,
+} from "@/lib/invoices";
+import type { CreateOrderPayload, OrderResponse, OrdersResponse } from "@/lib/orders";
+import type {
+  ProductionPlanResponse,
+  ProductionPlansResponse,
+} from "@/lib/production-plans";
+import type { Product, ProductsResponse } from "@/lib/products";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
@@ -339,6 +339,14 @@ export const paymentApi = {
       method: "POST",
       headers: withAuth(token),
       body: JSON.stringify({ invoiceId }),
+    }),
+};
+
+// store endpoints used by client to prefill order recipient fields
+export const storeApi = {
+  getById: (id: string, token?: string | null) =>
+    request<{ success: boolean; data: any }>(`/api/stores/${id}`, {
+      headers: withAuth(token),
     }),
 };
 

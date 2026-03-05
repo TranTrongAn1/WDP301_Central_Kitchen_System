@@ -13,10 +13,12 @@ import { Modal, ConfirmModal } from '../components/ui/Modal';
 import { ErrorState } from '../components/ui/ErrorState';
 import { productionPlanApi } from '@/api/ProductionPlanApi';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const ProductionPlanDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [plan, setPlan] = useState<ProductionPlan | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,6 +53,7 @@ const ProductionPlanDetailPage = () => {
         const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
             Completed: { className: 'bg-green-500 text-white', icon: <CheckCircle2 className="w-3 h-3 mr-1" />, label: 'Completed' },
             In_Progress: { className: 'bg-orange-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'In Progress' },
+            InProgress: { className: 'bg-orange-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'In Progress' },
             Cancelled: { className: 'bg-red-500 text-white', icon: <X className="w-3 h-3 mr-1" />, label: 'Cancelled' },
             Planned: { className: 'bg-blue-500 text-white', icon: <AlertCircle className="w-3 h-3 mr-1" />, label: 'Planned' },
             Pending: { className: 'bg-gray-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'Pending' },
@@ -162,7 +165,10 @@ const ProductionPlanDetailPage = () => {
         )
         : 0;
 
-    const canDelete = plan.status === 'Planned' || plan.status === 'Cancelled';
+    const role = user?.role;
+    const canDelete =
+        (plan.status === 'Planned' || plan.status === 'Cancelled') &&
+        (role === 'Manager' || role === 'Admin');
     const canComplete = plan.status !== 'Completed' && plan.status !== 'Cancelled';
 
     return (
@@ -192,6 +198,29 @@ const ProductionPlanDetailPage = () => {
                             <Play className="w-4 h-4 mr-1" />
                             Start
                         </Button>
+                    )}
+                    {(plan.status === 'In_Progress' || plan.status === 'InProgress') && (
+                        <>
+                            <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => handleUpdateStatus('Completed')}
+                                disabled={actionLoading}
+                            >
+                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                                Complete Plan
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-500 border-red-200 hover:bg-red-50"
+                                onClick={() => handleUpdateStatus('Cancelled')}
+                                disabled={actionLoading}
+                            >
+                                <X className="w-4 h-4 mr-1" />
+                                Cancel Plan
+                            </Button>
+                        </>
                     )}
                     {canDelete && (
                         <Button

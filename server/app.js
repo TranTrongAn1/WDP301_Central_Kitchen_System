@@ -95,6 +95,7 @@ app.use('/api/logistics', require('./routes/logisticsRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/vehicle-types', require('./routes/vehicleTypeRoutes'));
+app.use('/api/system-settings', require('./routes/systemSettingRoutes'));
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { userApi } from '../../../api/UserApi';
 import { storeApi } from '../../../api/StoreApi';
 import type { User, Role, CreateUserPayload } from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 import UpdateUserModal from '../components/UpdateUserModal';
+import { ConfirmModal } from '../../manager/components/ui/Modal';
 
 export const AccountManagement = () => {
     const { darkMode } = useThemeStore();
@@ -34,12 +36,20 @@ export const AccountManagement = () => {
         roleId: '',
         storeId: ''
     });
-const getRoleName = (roleId: any) => {
+    const ITEMS_PER_PAGE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        type: 'toggleStatus' | 'deleteUser';
+        user: User | null;
+    } | null>(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
+
+    const getRoleName = (roleId: any) => {
     if (typeof roleId === 'object' && roleId !== null) {
         return roleId.roleName || 'No Role';
     }
     return 'No Role';
-};
+    };
     // FETCH DATA
     const fetchData = async () => {
         try {
@@ -93,11 +103,11 @@ const getRoleName = (roleId: any) => {
         e.preventDefault();
         try {
             if (!newUser.roleId) {
-                alert('Please select a role');
+                toast.error('Please select a role');
                 return;
             }
             await userApi.createUser(newUser);
-            alert('User created successfully!');
+            toast.success('User created successfully!');
             setShowAddModal(false);
             fetchData();
             
@@ -112,7 +122,7 @@ const getRoleName = (roleId: any) => {
             });
         } catch (error: any) {
             console.error(error);
-            alert(error.response?.data?.message || 'Failed to create user');
+            toast.error(error.response?.data?.message || 'Failed to create user');
         }
     };
 
@@ -133,21 +143,53 @@ const getRoleName = (roleId: any) => {
         }
     };
 
-    const handleToggleStatus = async (user: User) => {
-        setOpenMenuId(null);
-        if (!window.confirm(`Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} this user?`)) return;
+    const performToggleStatus = async (user: User) => {
         try {
+            setConfirmLoading(true);
             await userApi.updateUserStatus(user._id, !user.isActive);
             setUsers(users.map(u => u._id === user._id ? { ...u, isActive: !u.isActive } : u));
+            toast.success(user.isActive ? 'Đã chuyển user sang Inactive' : 'Đã kích hoạt user');
         } catch (error) {
-            alert('Cannot update status');
+            console.error(error);
+            toast.error('Cannot update status');
+        } finally {
+            setConfirmLoading(false);
         }
     };
 
-    // Open Update Modal
-    const handleEditUser = (user: User) => {
+    const performDeleteUser = async (user: User) => {
+        try {
+            setConfirmLoading(true);
+            await userApi.deleteUser(user._id);
+            setUsers(users.filter(u => u._id !== user._id));
+            toast.success('Đã xóa tài khoản.');
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error?.response?.data?.message || 'Không thể xóa tài khoản.');
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const handleToggleStatus = (user: User) => {
         setOpenMenuId(null);
-        setSelectedUser(user);
+        setConfirmConfig({ type: 'toggleStatus', user });
+    };
+
+    const handleDeleteUser = (user: User) => {
+        setOpenMenuId(null);
+        setConfirmConfig({ type: 'deleteUser', user });
+    };
+
+    // Open Update Modal
+    const handleEditUser = async (user: User) => {
+        setOpenMenuId(null);
+        try {
+            const fresh = await userApi.getById(user._id);
+            setSelectedUser(fresh ?? user);
+        } catch {
+            setSelectedUser(user);
+        }
         setShowUpdateModal(true);
     };
 
@@ -155,12 +197,12 @@ const getRoleName = (roleId: any) => {
     const onUpdateUserSubmit = async (id: string, data: any) => {
         try {
             await userApi.updateUser(id, data);
-            alert('User updated successfully!');
+            toast.success('User updated successfully!');
             setShowUpdateModal(false);
             fetchData();
         } catch (error: any) {
             console.error(error);
-            alert(error.response?.data?.message || 'Failed to update user');
+            toast.error(error.response?.data?.message || 'Failed to update user');
         }
     };
     const getRoleBadgeColor = (roleName: string | undefined) => {
@@ -179,6 +221,47 @@ const getRoleName = (roleId: any) => {
         const role = roles.find(r => r._id === newUser.roleId);
         return role?.roleName === 'StoreStaff';
     };
+
+    const handlePageChange = (next: number) => {
+        const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE) || 1;
+        if (next < 1 || next > totalPages) return;
+        setCurrentPage(next);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const getPageNumbers = () => {
+        const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE) || 1;
+        const pages: (number | string)[] = [];
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else if (currentPage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (currentPage >= totalPages - 3) {
+            pages.push(
+                1,
+                '...',
+                totalPages - 4,
+                totalPages - 3,
+                totalPages - 2,
+                totalPages - 1,
+                totalPages
+            );
+        } else {
+            pages.push(
+                1,
+                '...',
+                currentPage - 1,
+                currentPage,
+                currentPage + 1,
+                '...',
+                totalPages
+            );
+        }
+        return { pages, totalPages };
+    };
+
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const currentUsers = users.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     return (
         <div className={`space-y-6 ${darkMode ? 'text-foreground' : 'text-gray-900'}`}>
@@ -213,7 +296,7 @@ const getRoleName = (roleId: any) => {
                             </tr>
                         </thead>
                         <tbody className="text-sm">
-                            {users.map((user, index) => (
+                            {currentUsers.map((user, index) => (
                                 <tr key={user._id} className={`group transition-colors border-b last:border-0 ${darkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'border-gray-100 hover:bg-gray-50'}`}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -272,6 +355,13 @@ const getRoleName = (roleId: any) => {
                                                         <span className="material-symbols-outlined text-[18px]">{user.isActive ? 'lock' : 'lock_open'}</span>
                                                         {user.isActive ? 'Inactive' : 'Active'}
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${darkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'}`}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        Delete
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
@@ -285,6 +375,65 @@ const getRoleName = (roleId: any) => {
                     )}
                 </div>
             </div>
+
+            {users.length > ITEMS_PER_PAGE && (
+                <div className="mt-4 flex select-none items-center justify-end gap-2">
+                    {(() => {
+                        const { pages, totalPages } = getPageNumbers();
+                        return (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        chevron_left
+                                    </span>
+                                    Prev
+                                </button>
+                                <div className="flex items-center gap-1">
+                                    {pages.map((page, idx) =>
+                                        page === '...' ? (
+                                            <span
+                                                key={`dots-${idx}`}
+                                                className="px-2 text-xs text-muted-foreground"
+                                            >
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => handlePageChange(page as number)}
+                                                className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                                    currentPage === page
+                                                        ? 'bg-amber-600 text-white shadow-sm'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700 dark:bg-gray-800 dark:text-gray-300'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    Next
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        chevron_right
+                                    </span>
+                                </button>
+                            </>
+                        );
+                    })()}
+                </div>
+            )}
 
             {/* Add User Modal */}
             {showAddModal && (
@@ -324,7 +473,7 @@ const getRoleName = (roleId: any) => {
                                     <label className="block text-sm font-medium mb-1.5">Store</label>
                                     <select className={`w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21] ${!isStoreStaffSelected() ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}`} value={newUser.storeId} onChange={e => setNewUser({ ...newUser, storeId: e.target.value })} disabled={!isStoreStaffSelected()}>
                                         {!isStoreStaffSelected() ? (<option value="">Central Kitchen (HQ)</option>) : (<option value="">-- Select a Store --</option>)}
-                                        {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName}</option>))}
+                                        {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName || store.name || store._id}</option>))}
                                     </select>
                                 </div>
                             </div>
@@ -345,6 +494,40 @@ const getRoleName = (roleId: any) => {
                 roles={roles}
                 stores={stores}
                 darkMode={darkMode}
+            />
+            <ConfirmModal
+                isOpen={!!confirmConfig}
+                onClose={() => setConfirmConfig(null)}
+                onConfirm={async () => {
+                    if (!confirmConfig || !confirmConfig.user) return;
+                    if (confirmConfig.type === 'toggleStatus') {
+                        await performToggleStatus(confirmConfig.user);
+                    } else {
+                        await performDeleteUser(confirmConfig.user);
+                    }
+                    setConfirmConfig(null);
+                }}
+                title={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? confirmConfig.user?.isActive
+                            ? 'Deactivate user?'
+                            : 'Activate user?'
+                        : 'Delete user?'
+                }
+                message={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? `Bạn có chắc muốn ${confirmConfig.user?.isActive ? 'deactivate' : 'activate'} tài khoản "${confirmConfig.user?.fullName}" (@${confirmConfig.user?.username})?`
+                        : `Xóa tài khoản "${confirmConfig?.user?.fullName}" (@${confirmConfig?.user?.username})? Thao tác này là soft-delete.`
+                }
+                confirmLabel={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? confirmConfig.user?.isActive
+                            ? 'Deactivate'
+                            : 'Activate'
+                        : 'Delete'
+                }
+                variant={confirmConfig?.type === 'deleteUser' ? 'danger' : 'default'}
+                loading={confirmLoading}
             />
         </div>
     );

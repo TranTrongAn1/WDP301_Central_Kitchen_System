@@ -44,8 +44,10 @@ const TransferDetailPage = () => {
             case 'Pending':
                 return <Badge className="bg-yellow-500 text-white"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
             case 'Shipped':
+            case 'InTransit':
                 return <Badge className="bg-blue-500 text-white"><Truck className="w-3 h-3 mr-1" />Shipped</Badge>;
             case 'Received':
+            case 'Completed':
                 return <Badge className="bg-green-500 text-white"><CheckCircle2 className="w-3 h-3 mr-1" />Received</Badge>;
             case 'Cancelled':
                 return <Badge className="bg-red-500 text-white"><XCircle className="w-3 h-3 mr-1" />Cancelled</Badge>;

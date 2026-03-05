@@ -16,6 +16,7 @@ import { productApi } from '@/api/ProductApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
 import type { Product } from '@/api/ProductApi';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 interface PlanDetailItem {
     productId: string;
@@ -25,6 +26,7 @@ interface PlanDetailItem {
 
 const ProductionPlansPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [activeTab, setActiveTab] = useState('all');
     const [plans, setPlans] = useState<ProductionPlan[]>([]);
@@ -42,12 +44,15 @@ const ProductionPlansPage = () => {
     const [selectedProduct, setSelectedProduct] = useState('');
     const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
 
+    const ITEMS_PER_PAGE = 6;
+    const [currentPage, setCurrentPage] = useState(1);
+
     const fetchPlans = async () => {
         try {
             setLoading(true);
             setError(null);
             const response = await productionPlanApi.getAll();
-            const data = (response as any)?.data || response || [];
+            const data = (response as unknown as { data?: ProductionPlan[] })?.data ?? response ?? [];
             setPlans(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching production plans:', err);
@@ -60,7 +65,7 @@ const ProductionPlansPage = () => {
     const fetchProducts = async () => {
         try {
             const response = await productApi.getAll();
-            const data = (response as any)?.data || response || [];
+            const data = (response as unknown as { data?: Product[] })?.data ?? response ?? [];
             setProducts(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching products:', err);
@@ -89,7 +94,7 @@ const ProductionPlansPage = () => {
                 </Badge>
             );
         }
-        if (status === 'In_Progress') {
+        if (status === 'In_Progress' || status === 'InProgress') {
             return (
                 <Badge className="bg-orange-500 text-white">
                     <Clock className="w-3 h-3 mr-1" />
@@ -146,7 +151,7 @@ const ProductionPlansPage = () => {
     const stats = {
         total: todayPlans.length,
         completed: todayPlans.filter(p => p.status === 'Completed').length,
-        inProgress: todayPlans.filter(p => p.status === 'In_Progress').length,
+        inProgress: todayPlans.filter(p => p.status === 'In_Progress' || p.status === 'InProgress').length,
         totalUnits: todayPlans.reduce((sum, p) =>
             sum + (p.details?.reduce((s, d) => s + d.plannedQuantity, 0) || 0), 0
         ),
@@ -215,7 +220,11 @@ const ProductionPlansPage = () => {
 
     const viewPlan = (planId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate(`/manager/production/${planId}`);
+        if (user?.role === 'KitchenStaff') {
+            navigate(`/kitchen/production/${planId}`);
+        } else {
+            navigate(`/manager/production/${planId}`);
+        }
     };
 
     if (loading) {
@@ -247,18 +256,61 @@ const ProductionPlansPage = () => {
         );
     }
 
-    const renderPlanList = (filteredPlans: ProductionPlan[]) => (
-        <div className="space-y-4 mt-4">
-            {filteredPlans.length === 0 ? (
-                <EmptyState
-                    icon={Package}
-                    title="No Production Plans"
-                    message={`No production plans found for ${date?.toLocaleDateString() || 'selected date'}`}
-                    actionLabel="Create New Plan"
-                    onAction={openCreateModal}
-                />
-            ) : (
-                filteredPlans.map((plan) => (
+    const renderPlanList = (filteredPlans: ProductionPlan[]) => {
+        const totalPages = Math.ceil(filteredPlans.length / ITEMS_PER_PAGE) || 1;
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const currentPlans = filteredPlans.slice(
+            startIndex,
+            startIndex + ITEMS_PER_PAGE
+        );
+
+        const getPageNumbers = () => {
+            const pages: (number | string)[] = [];
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else if (currentPage <= 4) {
+                pages.push(1, 2, 3, 4, 5, '...', totalPages);
+            } else if (currentPage >= totalPages - 3) {
+                pages.push(
+                    1,
+                    '...',
+                    totalPages - 4,
+                    totalPages - 3,
+                    totalPages - 2,
+                    totalPages - 1,
+                    totalPages
+                );
+            } else {
+                pages.push(
+                    1,
+                    '...',
+                    currentPage - 1,
+                    currentPage,
+                    currentPage + 1,
+                    '...',
+                    totalPages
+                );
+            }
+            return pages;
+        };
+
+        if (filteredPlans.length === 0) {
+            return (
+                <div className="space-y-4 mt-4">
+                    <EmptyState
+                        icon={Package}
+                        title="No Production Plans"
+                        message={`No production plans found for ${date?.toLocaleDateString() || 'selected date'}`}
+                        actionLabel="Create New Plan"
+                        onAction={openCreateModal}
+                    />
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4 mt-4">
+                {currentPlans.map((plan) => (
                     <motion.div
                         key={plan._id}
                         initial={{ opacity: 0, y: 10 }}
@@ -320,10 +372,73 @@ const ProductionPlansPage = () => {
                             </div>
                         </div>
                     </motion.div>
-                ))
-            )}
-        </div>
-    );
+                ))}
+
+                {totalPages > 1 && (
+                    <div className="mt-2 flex select-none items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (currentPage <= 1) return;
+                                setCurrentPage(currentPage - 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                chevron_left
+                            </span>
+                            Trước
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {getPageNumbers().map((page, idx) =>
+                                page === '...' ? (
+                                    <span
+                                        key={`dots-${idx}`}
+                                        className="px-2 text-xs text-muted-foreground"
+                                    >
+                                        ...
+                                    </span>
+                                ) : (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => {
+                                            setCurrentPage(page as number);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
+                                            currentPage === page
+                                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                                : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (currentPage >= totalPages) return;
+                                setCurrentPage(currentPage + 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                            Sau
+                            <span className="material-symbols-outlined text-[18px]">
+                                chevron_right
+                            </span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-6">

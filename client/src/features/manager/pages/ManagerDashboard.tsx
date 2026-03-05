@@ -19,6 +19,7 @@ import { OrderApi } from '@/api/OrderApi';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { inventoryApi } from '@/api/InventoryApi';
 import type { LogisticsOrder } from '@/shared/types/logistics';
+import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
 import { cn } from '@/shared/lib/utils';
 
 const container = {
@@ -60,6 +61,7 @@ const QUICK_LINKS = [
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
+  const { compactMode } = useUserSettingsStore();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -127,14 +129,14 @@ export default function ManagerDashboard() {
 
   const planStatusData = [
     { key: 'Planned', label: 'Planned', value: plans.filter((p) => p.status === 'Planned').length, fill: 'hsl(var(--chart-1))' },
-    { key: 'In_Progress', label: 'In Progress', value: plans.filter((p) => p.status === 'In_Progress').length, fill: 'hsl(var(--chart-2))' },
+    { key: 'In_Progress', label: 'In Progress', value: plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length, fill: 'hsl(var(--chart-2))' },
     { key: 'Completed', label: 'Completed', value: plans.filter((p) => p.status === 'Completed').length, fill: 'hsl(var(--chart-3))' },
     { key: 'Cancelled', label: 'Cancelled', value: plans.filter((p) => p.status === 'Cancelled').length, fill: 'hsl(var(--chart-4))' },
   ];
 
   const recentPlans = plans.slice(0, 5);
   const recentTrips = trips.slice(0, 5);
-  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress').length;
+  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length;
 
   const statCards = [
     { label: 'Kế hoạch sản xuất', value: loading ? 0 : plans.length, icon: ChefHat, gradient: 'from-amber-500 to-orange-600', href: '/manager/production' },
@@ -161,7 +163,10 @@ export default function ManagerDashboard() {
             key={stat.label}
             variants={item}
             whileHover={{ scale: 1.02, y: -2 }}
-            className="group cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-secondary/20"
+            className={cn(
+              'group cursor-pointer rounded-xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-secondary/20',
+              compactMode ? 'p-3' : 'p-4'
+            )}
             onClick={() => navigate(stat.href)}
           >
             <div className={cn('mb-2 inline-flex rounded-lg bg-gradient-to-br p-2', stat.gradient)}>
@@ -237,7 +242,7 @@ export default function ManagerDashboard() {
             <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/manager/orders')}>Xem tất cả</button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className={cn('w-full', compactMode ? 'text-xs' : 'text-sm')}>
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="pb-2 pr-2 font-medium">Mã đơn</th>
@@ -247,15 +252,15 @@ export default function ManagerDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Đang tải...</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                 ) : recentOrders.length === 0 ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Chưa có đơn</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Chưa có đơn</td></tr>
                 ) : (
                   recentOrders.map((o) => (
                     <tr key={o._id} className="border-b border-border/50">
-                      <td className="py-1.5 pr-2 font-mono text-xs">{o.orderCode}</td>
-                      <td className="py-1.5 pr-2">{o.status}</td>
-                      <td className="py-1.5">{formatDate(o.requestedDeliveryDate)}</td>
+                      <td className={cn('pr-2 font-mono', compactMode ? 'py-1 text-[11px]' : 'py-1.5 text-xs')}>{o.orderCode}</td>
+                      <td className={cn('pr-2', compactMode ? 'py-1' : 'py-1.5')}>{o.status}</td>
+                      <td className={cn(compactMode ? 'py-1' : 'py-1.5')}>{formatDate(o.requestedDeliveryDate)}</td>
                     </tr>
                   ))
                 )}
@@ -270,7 +275,7 @@ export default function ManagerDashboard() {
             <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/manager/orders')}>Xem tất cả</button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className={cn('w-full', compactMode ? 'text-xs' : 'text-sm')}>
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="pb-2 pr-2 font-medium">Mã chuyến</th>
@@ -280,15 +285,15 @@ export default function ManagerDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Đang tải...</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                 ) : recentTrips.length === 0 ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Chưa có chuyến</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Chưa có chuyến</td></tr>
                 ) : (
                   recentTrips.map((t) => (
                     <tr key={t._id} className="border-b border-border/50">
-                      <td className="py-1.5 pr-2 font-mono text-xs">{t.tripCode}</td>
-                      <td className="py-1.5 pr-2">{t.status}</td>
-                      <td className="py-1.5">{Array.isArray(t.orders) ? t.orders.length : 0}</td>
+                      <td className={cn('pr-2 font-mono', compactMode ? 'py-1 text-[11px]' : 'py-1.5 text-xs')}>{t.tripCode}</td>
+                      <td className={cn('pr-2', compactMode ? 'py-1' : 'py-1.5')}>{t.status}</td>
+                      <td className={cn(compactMode ? 'py-1' : 'py-1.5')}>{Array.isArray(t.orders) ? t.orders.length : 0}</td>
                     </tr>
                   ))
                 )}
@@ -303,7 +308,7 @@ export default function ManagerDashboard() {
             <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/manager/production')}>Xem tất cả</button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className={cn('w-full', compactMode ? 'text-xs' : 'text-sm')}>
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="pb-2 pr-2 font-medium">Mã kế hoạch</th>
@@ -313,15 +318,15 @@ export default function ManagerDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Đang tải...</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                 ) : recentPlans.length === 0 ? (
-                  <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">Chưa có kế hoạch</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Chưa có kế hoạch</td></tr>
                 ) : (
                   recentPlans.map((p) => (
                     <tr key={p._id} className="border-b border-border/50">
-                      <td className="py-1.5 pr-2 font-mono text-xs">{p.planCode}</td>
-                      <td className="py-1.5 pr-2">{p.status}</td>
-                      <td className="py-1.5">{formatDate(p.planDate)}</td>
+                      <td className={cn('pr-2 font-mono', compactMode ? 'py-1 text-[11px]' : 'py-1.5 text-xs')}>{p.planCode}</td>
+                      <td className={cn('pr-2', compactMode ? 'py-1' : 'py-1.5')}>{p.status}</td>
+                      <td className={cn(compactMode ? 'py-1' : 'py-1.5')}>{formatDate(p.planDate)}</td>
                     </tr>
                   ))
                 )}

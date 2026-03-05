@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore';
+import { authApi } from '@/api/AuthApi';
 import { CoordinatorSidebar } from './components/CoordinatorSideBar';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
@@ -41,8 +42,13 @@ export const CoordinatorLayout = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleLogout = () => {
-        if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+    const handleLogout = async () => {
+        if (!window.confirm('Bạn có chắc chắn muốn đăng xuất?')) return;
+        try {
+            await authApi.logout();
+        } catch {
+            // Ignore BE logout errors; FE vẫn logout để tránh kẹt phiên.
+        } finally {
             logout(); 
             navigate('/login');
         }

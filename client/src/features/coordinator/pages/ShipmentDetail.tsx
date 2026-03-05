@@ -1,28 +1,44 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { useAuthStore } from '@/shared/zustand/authStore';
 import {
     ArrowLeft,
     Truck,
     MapPin,
     CalendarDays,
     DollarSign,
-    Trash2
+    Trash2,
+    Plus,
+    X,
+    CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ShipmentDetail = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { darkMode } = useThemeStore();
+    const { user } = useAuthStore();
 
     const [trip, setTrip] = useState<ITrip | null>(null);
     const [tripOrders, setTripOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [isMarkingReady, setIsMarkingReady] = useState(false);
+    const [isStartingShipping, setIsStartingShipping] = useState(false);
+    const [confirmAction, setConfirmAction] = useState<null | { type: 'markReady' | 'startShipping' | 'removeOrder'; orderId?: string }>(null);
+
+    // Add orders modal state
+    const [addOrdersModalOpen, setAddOrdersModalOpen] = useState(false);
+    const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+    const [isAddingOrders, setIsAddingOrders] = useState(false);
+    const [loadingAvailable, setLoadingAvailable] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -39,7 +55,7 @@ const ShipmentDetail = () => {
                     setTrip(tripData);
 
                     const allOrders = Array.isArray(ordersRes) ? ordersRes : [];
-                    
+
                     const mappedOrders = tripData.orders.map((tripOrder: unknown) => {
                         if (typeof tripOrder === 'string') {
                             return allOrders.find((o: Order) => o._id === tripOrder);
@@ -61,6 +77,59 @@ const ShipmentDetail = () => {
         fetchDetail();
     }, [id, refreshTrigger]);
 
+    // --- LOGIC THÊM ĐƠN HÀNG ---
+    const handleOpenAddOrders = async () => {
+        if (!trip) return;
+        setLoadingAvailable(true);
+        setSelectedOrderIds([]);
+        setAddOrdersModalOpen(true);
+        try {
+            const allOrders = await OrderApi.getAllOrders();
+            const tripOrderIds = new Set(
+                trip.orders.map((o: unknown) => {
+                    if (typeof o === 'string') return o;
+                    return (o as { _id?: string })?._id ?? '';
+                })
+            );
+            // Show Approved orders that are NOT already in this trip
+            const available = allOrders.filter(
+                (o) => o.status === 'Approved' && !tripOrderIds.has(o._id)
+            );
+            setAvailableOrders(available);
+        } catch {
+            toast.error('Không thể tải danh sách đơn hàng.');
+        } finally {
+            setLoadingAvailable(false);
+        }
+    };
+
+    const toggleOrderSelection = (orderId: string) => {
+        setSelectedOrderIds((prev) =>
+            prev.includes(orderId)
+                ? prev.filter((id) => id !== orderId)
+                : [...prev, orderId]
+        );
+    };
+
+    const handleAddOrdersToTrip = async () => {
+        if (!id || selectedOrderIds.length === 0) return;
+        try {
+            setIsAddingOrders(true);
+            const res = await DeliveryTripApi.addOrdersToDeliveryTrip(id, selectedOrderIds);
+            if ((res as { success?: boolean })?.success) {
+                toast.success(`Đã thêm ${selectedOrderIds.length} đơn hàng vào chuyến xe!`);
+                setAddOrdersModalOpen(false);
+                setRefreshTrigger((prev) => prev + 1);
+            } else {
+                toast.error('Lỗi khi thêm đơn hàng!');
+            }
+        } catch {
+            toast.error('Đã xảy ra lỗi khi thêm đơn hàng.');
+        } finally {
+            setIsAddingOrders(false);
+        }
+    };
+
     // --- LOGIC XÓA ĐƠN HÀNG ---
     const handleFinalizeTrip = async () => {
         if (!id) return;
@@ -76,9 +145,38 @@ const ShipmentDetail = () => {
         }
     };
 
+    const handleMarkReady = async () => {
+        if (!id) return;
+        try {
+            setIsMarkingReady(true);
+            await DeliveryTripApi.markReady(id);
+            toast.success('Chuyến hàng đã sẵn sàng giao.');
+            setRefreshTrigger((prev) => prev + 1);
+        } catch (err) {
+            toast.error('Không thể đánh dấu sẵn sàng giao.');
+        } finally {
+            setIsMarkingReady(false);
+            setConfirmAction(null);
+        }
+    };
+
+    const handleStartShipping = async () => {
+        if (!id) return;
+        try {
+            setIsStartingShipping(true);
+            await DeliveryTripApi.startShipping(id);
+            toast.success('Chuyến hàng đã bắt đầu giao (In Transit).');
+            setRefreshTrigger((prev) => prev + 1);
+        } catch (err) {
+            toast.error('Không thể bắt đầu giao hàng.');
+        } finally {
+            setIsStartingShipping(false);
+            setConfirmAction(null);
+        }
+    };
+
     const handleRemoveOrder = async (orderId: string) => {
         if (!trip || !id) return;
-        if (!window.confirm("Bạn có chắc chắn muốn gỡ đơn hàng này khỏi chuyến xe?")) return;
 
         try {
             const toastId = toast.loading('Đang gỡ đơn hàng...');
@@ -93,11 +191,15 @@ const ShipmentDetail = () => {
         } catch (error) {
             console.error(error);
             toast.error('Đã xảy ra lỗi kết nối');
+        } finally {
+            setConfirmAction(null);
         }
     };
 
     const getTripStatusStyle = (status: string) => {
         if (status === 'Planning') return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+        if (status === 'Pending' || status === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
+        if (status === 'ReadyForShipping') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
         if (status === 'In_Transit') return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
         if (status === 'Completed') return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
         if (status === 'Cancelled') return 'bg-red-500/20 text-red-500 border-red-500/30';
@@ -116,25 +218,63 @@ const ShipmentDetail = () => {
 
     const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-    if (loading && !trip) return (
-        <div className={`flex items-center justify-center h-screen ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            <span className="material-symbols-outlined animate-spin text-4xl mr-3">progress_activity</span>
-            <span className="font-bold tracking-widest uppercase">Đang tải chi tiết chuyến xe...</span>
-        </div>
-    );
+    const handleBack = () => {
+        // Ưu tiên theo path hiện tại để giữ đúng module
+        if (location.pathname.startsWith('/manager')) {
+            navigate('/manager/orders');
+            return;
+        }
+        if (location.pathname.startsWith('/admin')) {
+            navigate('/admin/orders');
+            return;
+        }
+        if (location.pathname.startsWith('/kitchen')) {
+            navigate('/kitchen/trips');
+            return;
+        }
+        if (location.pathname.startsWith('/coordinator')) {
+            navigate('/coordinator/shipments');
+            return;
+        }
 
-    if (!trip) return (
-        <div className="flex flex-col items-center justify-center h-screen gap-4">
-            <p className="text-red-500 font-bold text-xl">Không tìm thấy chuyến hàng!</p>
-            <button 
-                type="button" 
-                onClick={() => navigate(-1)} 
-                className="text-orange-500 hover:underline flex items-center gap-2"
-            >
-                <ArrowLeft className="w-5 h-5" /> Quay lại
-            </button>
-        </div>
-    );
+        // Fallback theo role nếu path không khớp
+        const role = user?.role;
+        if (role === 'Manager') {
+            navigate('/manager/orders');
+        } else if (role === 'Admin') {
+            navigate('/admin/orders');
+        } else if (role === 'KitchenStaff') {
+            navigate('/kitchen/trips');
+        } else if (role === 'Coordinator') {
+            navigate('/coordinator/shipments');
+        } else {
+            navigate(-1);
+        }
+    };
+
+    if (loading && !trip) {
+        return (
+            <div className={`flex items-center justify-center h-screen ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <span className="material-symbols-outlined animate-spin text-4xl mr-3">progress_activity</span>
+                <span className="font-bold tracking-widest uppercase">Đang tải chi tiết chuyến xe...</span>
+            </div>
+        );
+    }
+
+    if (!trip) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen gap-4">
+                <p className="text-red-500 font-bold text-xl">Không tìm thấy chuyến hàng!</p>
+                <button
+                    type="button"
+                    onClick={handleBack}
+                    className="text-orange-500 hover:underline flex items-center gap-2"
+                >
+                    <ArrowLeft className="w-5 h-5" /> Quay lại
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="animate-in fade-in duration-500 pb-10">
@@ -142,7 +282,7 @@ const ShipmentDetail = () => {
                 <div className="flex items-center gap-4">
                     <button
                         type="button"
-                        onClick={() => navigate(-1)}
+                        onClick={handleBack}
                         className="p-3 rounded-xl transition-colors bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground"
                     >
                         <ArrowLeft className="w-6 h-6" />
@@ -160,19 +300,54 @@ const ShipmentDetail = () => {
                     </div>
                 </div>
 
-                {trip.status === 'Planning' && (
-                    <button
-                        type="button"
-                        onClick={handleFinalizeTrip}
-                        disabled={isFinalizing || (trip.orders?.length ?? 0) === 0}
-                        className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all hover:opacity-90 disabled:opacity-50"
-                    >
-                        {isFinalizing ? 'Đang xử lý...' : 'Duyệt chuyến (Khởi hành)'}
-                    </button>
-                )}
+                <div className="flex gap-2">
+                    {trip.status === 'Planning' && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={handleOpenAddOrders}
+                                className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> Thêm đơn hàng
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleFinalizeTrip}
+                                disabled={isFinalizing || (trip.orders?.length ?? 0) === 0}
+                                className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all hover:opacity-90 disabled:opacity-50"
+                            >
+                                {isFinalizing ? 'Đang chốt kế hoạch...' : 'Chốt kế hoạch (Finalize)'}
+                            </button>
+                        </>
+                    )}
+                    {(trip.status === 'Pending' || trip.status === 'Planning' || trip.status === 'Transferred_To_Kitchen') && (
+                        <button
+                            type="button"
+                            onClick={() => setConfirmAction({ type: 'markReady' })}
+                            disabled={isMarkingReady}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            {isMarkingReady ? 'Đang đánh dấu...' : 'Sẵn sàng giao (Ready)'}
+                        </button>
+                    )}
+                    {(
+                        trip.status === 'ReadyForShipping' ||
+                        trip.status === 'Ready_For_Shipping' ||
+                        trip.status === 'Ready for shipping'
+                    ) && (
+                            <button
+                                type="button"
+                                onClick={() => setConfirmAction({ type: 'startShipping' })}
+                                disabled={isStartingShipping}
+                                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {isStartingShipping ? 'Đang bắt đầu...' : 'Bắt đầu giao (In Transit)'}
+                            </button>
+                        )}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="p-6 rounded-xl border border-border bg-card flex items-center gap-4">
                     <div className="p-4 rounded-xl bg-primary/10 text-primary">
                         <MapPin className="w-8 h-8" />
@@ -206,6 +381,59 @@ const ShipmentDetail = () => {
                 </div>
             </div>
 
+            <div className="mb-8 rounded-xl border border-border bg-card p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Thông tin chuyến
+                    </p>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Mã chuyến</span>
+                        <span className="font-mono font-semibold text-card-foreground">
+                            {trip.tripCode ?? `TRIP-${trip._id.slice(-6).toUpperCase()}`}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Trạng thái</span>
+                        <span className="text-xs font-semibold">
+                            {trip.status.replace(/_/g, ' ')}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Ghi chú</span>
+                        <span className="text-xs text-card-foreground truncate max-w-[220px]">
+                            {trip.notes || 'Không có'}
+                        </span>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Phương tiện & thời gian
+                    </p>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Loại xe</span>
+                        <span className="text-xs font-semibold text-card-foreground">
+                            {(trip as any).vehicleType?.name || 'Chưa gán'}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Dự kiến giao</span>
+                        <span className="text-xs text-card-foreground">
+                            {(trip as any).plannedShipDate
+                                ? new Date((trip as any).plannedShipDate as string).toLocaleString('vi-VN')
+                                : 'Chưa đặt'}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Khởi hành</span>
+                        <span className="text-xs text-card-foreground">
+                            {trip.departureTime
+                                ? new Date(trip.departureTime).toLocaleString('vi-VN')
+                                : 'Chưa khởi hành'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <h2 className="text-lg font-semibold text-card-foreground mb-6 flex items-center gap-2">
                 <Truck className="w-5 h-5 text-primary" /> Danh sách điểm giao ({tripOrders.length})
             </h2>
@@ -234,7 +462,7 @@ const ShipmentDetail = () => {
                                     {trip.status === 'Planning' && (
                                         <button
                                             type="button"
-                                            onClick={() => handleRemoveOrder(order._id)}
+                                            onClick={() => setConfirmAction({ type: 'removeOrder', orderId: order._id })}
                                             className="p-1.5 rounded-xl transition-colors bg-secondary text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                             title="Gỡ khỏi chuyến xe"
                                         >
@@ -256,14 +484,38 @@ const ShipmentDetail = () => {
                                                 ? order.storeId.slice(-6).toUpperCase()
                                                 : 'N/A'}
                                     </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Giá trị</p>
-                                    <p className="text-sm font-bold text-primary mt-1">
-                                        {formatCurrency(order.totalAmount || 0)}
+                                    <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                                        {typeof order.storeId === 'object' && (order.storeId as any)?.address
+                                            ? (order.storeId as any).address
+                                            : ''}
                                     </p>
                                 </div>
+                                <div className="text-right space-y-1">
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Giá trị</p>
+                                        <p className="text-sm font-bold text-primary mt-1">
+                                            {formatCurrency(order.totalAmount || 0)}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                            Người nhận
+                                        </p>
+                                        <p className="text-xs font-medium text-card-foreground">
+                                            {order.recipientName || '—'}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            {order.recipientPhone || ''}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+                            {order.notes && (
+                                <div className="mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
+                                    <span className="font-semibold">Ghi chú đơn hàng: </span>
+                                    <span>{order.notes}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -276,6 +528,138 @@ const ShipmentDetail = () => {
                     </div>
                 )}
             </div>
+
+            {/* Add Orders Modal */}
+            {addOrdersModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-2xl rounded-2xl bg-card border border-border p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold">Thêm đơn hàng vào chuyến xe</h2>
+                            <button
+                                type="button"
+                                onClick={() => setAddOrdersModalOpen(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground">
+                            Chọn các đơn hàng đã duyệt (Approved) để thêm vào chuyến xe.
+                        </p>
+
+                        {loadingAvailable ? (
+                            <div className="py-10 text-center text-sm text-muted-foreground">
+                                Đang tải đơn hàng...
+                            </div>
+                        ) : availableOrders.length === 0 ? (
+                            <div className="py-10 text-center text-sm text-muted-foreground">
+                                Không có đơn hàng nào đã duyệt để thêm.
+                            </div>
+                        ) : (
+                            <div className="max-h-72 overflow-y-auto space-y-2">
+                                {availableOrders.map((order) => (
+                                    <label
+                                        key={order._id}
+                                        className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors text-xs ${selectedOrderIds.includes(order._id)
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border/60 bg-background/60 hover:border-primary/30'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedOrderIds.includes(order._id)}
+                                            onChange={() => toggleOrderSelection(order._id)}
+                                            className="w-4 h-4 accent-primary"
+                                        />
+                                        <div className="flex-1">
+                                            <span className="font-mono font-semibold">
+                                                {order.orderCode || order._id.slice(-6).toUpperCase()}
+                                            </span>
+                                            <span className="ml-2 text-muted-foreground">
+                                                {typeof order.storeId === 'object' && order.storeId?.storeName
+                                                    ? order.storeId.storeName
+                                                    : ''}
+                                            </span>
+                                        </div>
+                                        <span className="font-semibold text-primary">
+                                            {formatCurrency(order.totalAmount || 0)}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <span className="text-xs text-muted-foreground">
+                                Đã chọn: <span className="font-bold text-foreground">{selectedOrderIds.length}</span> đơn
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setAddOrdersModalOpen(false)}
+                                    className="h-9 rounded-lg px-4 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAddOrdersToTrip}
+                                    disabled={isAddingOrders || selectedOrderIds.length === 0}
+                                    className="h-9 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                    {isAddingOrders ? 'Đang thêm...' : `Thêm ${selectedOrderIds.length} đơn hàng`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmAction && (
+                <div className={`fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-sm ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
+                    <div className={`w-full max-w-sm rounded-[28px] border shadow-2xl p-6 text-center animate-in zoom-in-95 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                            <CheckCircle2 className="w-7 h-7" />
+                        </div>
+                        <h3 className="text-lg font-black uppercase mb-2">
+                            {confirmAction.type === 'markReady' && 'Đánh dấu sẵn sàng giao?'}
+                            {confirmAction.type === 'startShipping' && 'Bắt đầu giao chuyến hàng?'}
+                            {confirmAction.type === 'removeOrder' && 'Gỡ đơn khỏi chuyến xe?'}
+                        </h3>
+                        <p className="text-sm mb-6 text-muted-foreground">
+                            {confirmAction.type === 'markReady' &&
+                                'Chuyến hàng sẽ được chuyển sang trạng thái sẵn sàng giao để chuẩn bị xuất kho.'}
+                            {confirmAction.type === 'startShipping' &&
+                                'Chuyến hàng sẽ được chuyển sang trạng thái đang giao (In Transit).'}
+                            {confirmAction.type === 'removeOrder' &&
+                                'Đơn hàng này sẽ được gỡ ra khỏi chuyến xe hiện tại và có thể được gom vào chuyến khác.'}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmAction(null)}
+                                className="flex-1 py-2.5 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirmAction.type === 'markReady') handleMarkReady();
+                                    else if (confirmAction.type === 'startShipping') handleStartShipping();
+                                    else if (confirmAction.type === 'removeOrder' && confirmAction.orderId) {
+                                        handleRemoveOrder(confirmAction.orderId);
+                                    }
+                                }}
+                                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
+                            >
+                                Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
+import { OrderApi, type Order as OrderType, type ApproveOrderPayload } from '@/api/OrderApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
+import { batchApi, type Batch } from '@/api/BatchApi';
+import { feedbackApi } from '@/api/FeedbackApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
 
 // Interface cho bảng tính toán tồn kho
 interface InventoryCalculation {
@@ -33,8 +35,13 @@ const OrderDetail = () => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [feedbackContent, setFeedbackContent] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
+  const [hasFeedback, setHasFeedback] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -116,6 +123,18 @@ const OrderDetail = () => {
           setIsEnoughStock(allEnough);
         }
 
+        // Load feedback for this order (nếu có)
+        const fb = id ? await feedbackApi.getByOrderId(id) : null;
+        if (fb) {
+          setFeedbackContent(fb.content);
+          setFeedbackRating(fb.rating);
+          setHasFeedback(true);
+        } else {
+          setFeedbackContent('');
+          setFeedbackRating(5);
+          setHasFeedback(false);
+        }
+
       } catch (err) {
         console.error(err);
         setError('Không thể tải dữ liệu đối chiếu.');
@@ -130,7 +149,7 @@ const OrderDetail = () => {
   const handleRejectOrder = async () => {
     if (!id) return;
     if (!rejectReason.trim()) {
-      toast.warning("Vui lòng nhập lý do từ chối!");
+      toast.error('Vui lòng nhập lý do từ chối!');
       return;
     }
 
@@ -153,6 +172,112 @@ const OrderDetail = () => {
       setIsRejecting(false);
     }
   };
+
+  const handleApproveOrder = async () => {
+    if (!id || !order) return;
+    if (!isEnoughStock) {
+      toast.error('Không đủ nguyên liệu để duyệt đơn này.');
+      return;
+    }
+
+    try {
+      setIsApproving(true);
+
+      // Với mỗi item trong đơn, chọn batch Active FEFO, gửi đúng format BE: productId, approvedQuantity, batches[]
+      const approveItems: ApproveOrderPayload['items'] = [];
+
+      for (const item of order.items) {
+        const pid =
+          typeof item.productId === 'object'
+            ? item.productId._id
+            : (item.productId as string);
+        const qty = item.quantity ?? 0;
+
+        const res = await batchApi.getAll({ productId: pid, status: 'Active' });
+        const raw = (res as any)?.data ?? res ?? [];
+        const batches: Batch[] = Array.isArray(raw) ? raw : [];
+
+        const candidates = batches
+          .filter((b) => {
+            const notExpired = new Date(b.expDate).getTime() > Date.now();
+            return b.currentQuantity >= qty && notExpired;
+          })
+          .sort(
+            (a, b) =>
+              new Date(a.expDate).getTime() - new Date(b.expDate).getTime()
+          );
+
+        const chosen = candidates[0];
+
+        if (!chosen) {
+          throw new Error(
+            `Không có lô thành phẩm đủ số lượng cho sản phẩm ${(item.productId as any)?.name || pid} (cần ${qty}).`
+          );
+        }
+
+        approveItems.push({
+          productId: pid,
+          approvedQuantity: qty,
+          batches: [{ batchId: chosen._id, quantity: qty }],
+          // Gửi thêm batchId top-level cho BE nào đọc ở đây
+          batchId: chosen._id,
+        });
+      }
+
+      const payload: ApproveOrderPayload = { items: approveItems };
+
+      const res = await OrderApi.approveOrder(id, payload);
+
+      if (res.success) {
+        toast.success('Đã duyệt đơn hàng thành công.');
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        toast.error(res.message || 'Lỗi khi duyệt đơn hàng');
+      }
+    } catch (error: any) {
+      console.error(error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Lỗi khi duyệt đơn hàng';
+      toast.error(message);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!id) return;
+    if (!feedbackContent.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi.');
+      return;
+    }
+
+    try {
+      setIsFeedbackSaving(true);
+      if (hasFeedback) {
+        await feedbackApi.update(id, {
+          rating: feedbackRating,
+          content: feedbackContent.trim(),
+        });
+        toast.success('Đã cập nhật feedback cho đơn hàng.');
+      } else {
+        await feedbackApi.create(id, {
+          rating: feedbackRating,
+          content: feedbackContent.trim(),
+        });
+        toast.success('Đã gửi feedback cho đơn hàng.');
+      }
+      setHasFeedback(true);
+    } catch (error) {
+      console.error(error);
+      toast.error('Không thể lưu feedback, vui lòng thử lại.');
+    } finally {
+      setIsFeedbackSaving(false);
+    }
+  };
+
+  // Các handler thanh toán trực tiếp bằng ví/PayOS/cash đã được loại bỏ khỏi UI trong MVP web.
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -222,17 +347,18 @@ const OrderDetail = () => {
           )}
           {order.status === 'Pending' && (
             <button
-              disabled={!isEnoughStock}
+              disabled={!isEnoughStock || isApproving}
               title={!isEnoughStock ? 'Không đủ nguyên liệu trong kho để làm đơn này' : ''}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${isEnoughStock
                   ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30'
                   : 'bg-gray-400 text-gray-200 cursor-not-allowed grayscale'
                 }`}
+              onClick={handleApproveOrder}
             >
               <span className="material-symbols-outlined text-[18px]">
-                {isEnoughStock ? 'check' : 'block'}
+                {isApproving ? 'progress_activity' : isEnoughStock ? 'check' : 'block'}
               </span>
-              {isEnoughStock ? 'Duyệt đơn' : 'Thiếu nguyên liệu'}
+              {isApproving ? 'Đang duyệt...' : isEnoughStock ? 'Duyệt đơn' : 'Thiếu nguyên liệu'}
             </button>
           )}
 
@@ -398,6 +524,14 @@ const OrderDetail = () => {
                 <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Phí vận chuyển:</span>
                 <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>{formatCurrency(0)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Hình thức thanh toán:</span>
+                <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>
+                  {order.paymentMethod === 'Wallet'
+                    ? 'Ví cửa hàng (đã trừ khi tạo đơn nếu đủ điều kiện)'
+                    : order.paymentMethod || 'Khác'}
+                </span>
+              </div>
             </div>
 
             <div className={`h-px w-full my-4 border-dashed ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
@@ -408,6 +542,11 @@ const OrderDetail = () => {
                 {formatCurrency(order.totalAmount)}
               </span>
             </div>
+
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Theo thiết kế hiện tại, việc trừ ví hoặc thanh toán PayOS được xử lý khi tạo đơn
+              (paymentMethod) hoặc qua các hệ thống khác. Màn hình này chỉ hiển thị thông tin, không thực hiện thanh toán lại.
+            </p>
           </div>
 
           {/* SỬA: DÙNG CANCELLATION REASON THAY CHO NOTES */}
@@ -433,6 +572,49 @@ const OrderDetail = () => {
               </p>
             </div>
           )}
+
+          <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Feedback từ cửa hàng
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className={darkMode ? 'text-gray-300 text-xs font-semibold' : 'text-gray-700 text-xs font-semibold'}>
+                  Đánh giá (1–5)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={feedbackRating}
+                  onChange={(e) =>
+                    setFeedbackRating(Math.min(5, Math.max(1, Number(e.target.value) || 1)))
+                  }
+                  className="mt-1 h-8 w-20 rounded-lg border border-input bg-background px-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className={darkMode ? 'text-gray-300 text-xs font-semibold' : 'text-gray-700 text-xs font-semibold'}>
+                  Nội dung
+                </label>
+                <textarea
+                  value={feedbackContent}
+                  onChange={(e) => setFeedbackContent(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none"
+                  placeholder="Ghi nhận chất lượng hàng, thiếu/hư hỏng..."
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveFeedback}
+                disabled={isFeedbackSaving || !feedbackContent.trim()}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary"
+              >
+                {isFeedbackSaving ? 'Đang lưu...' : hasFeedback ? 'Cập nhật feedback' : 'Gửi feedback'}
+              </button>
+            </div>
+          </div>
 
         </div>
       </div>

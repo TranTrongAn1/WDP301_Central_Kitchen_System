@@ -23,6 +23,13 @@ interface SystemSettingResponse {
   data: SystemSetting;
 }
 
+export interface CreateSystemSettingPayload {
+  key: string;
+  value: string;
+  description?: string;
+  isPublic?: boolean;
+}
+
 export const systemSettingApi = {
   getAll: (publicOnly?: boolean) => {
     const query = publicOnly ? '?publicOnly=true' : '';
@@ -32,6 +39,9 @@ export const systemSettingApi = {
   getByKey: (key: string) =>
     apiClient.get(`/system-settings/${encodeURIComponent(key)}`) as Promise<SystemSettingResponse>,
 
+  create: (payload: CreateSystemSettingPayload) =>
+    apiClient.post('/system-settings', payload) as Promise<SystemSettingResponse>,
+
   update: (
     key: string,
     payload: Partial<Pick<SystemSetting, 'value' | 'description' | 'isPublic'>>
@@ -40,5 +50,11 @@ export const systemSettingApi = {
       `/system-settings/${encodeURIComponent(key)}`,
       payload
     ) as Promise<SystemSettingResponse>,
+
+  delete: (key: string) =>
+    apiClient.delete(`/system-settings/${encodeURIComponent(key)}`) as Promise<{ success: boolean; message?: string }>,
+
+  seed: () =>
+    apiClient.post('/system-settings/seed') as Promise<SystemSettingListResponse>,
 };
 

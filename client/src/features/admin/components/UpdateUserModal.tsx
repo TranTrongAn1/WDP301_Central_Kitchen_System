@@ -134,7 +134,7 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
                             >
                                 {!isStoreStaffSelected() ? (<option value="">Central Kitchen (HQ)</option>) : (<option value="">-- Select a Store --</option>)}
                                 {stores.map(store => (
-                                    <option key={store._id} value={store._id}>{store.storeName}</option>
+                                    <option key={store._id} value={store._id}>{store.storeName || store.name || store._id}</option>
                                 ))}
                             </select>
                         </div>

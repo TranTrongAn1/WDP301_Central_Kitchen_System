@@ -30,6 +30,7 @@ import {
 } from '@/features/manager/components/ui/Card';
 import { Badge } from '@/features/manager/components/ui/Badge';
 import { Button } from '@/features/manager/components/ui/Button';
+import { paymentApi, type WalletInfo } from '@/api/PaymentApi';
 
 interface RoleMeta {
   label: string;
@@ -120,6 +121,8 @@ const ProfilePage = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingStore, setIsLoadingStore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
 
   const roleMeta = useMemo(() => {
     if (!profile?.role) return null;
@@ -190,10 +193,25 @@ const ProfilePage = () => {
     };
   }, [profile?.storeId]);
 
+  useEffect(() => {
+    const fetchWallet = async () => {
+      if (!profile?.storeId || profile.role !== 'StoreStaff') return;
+      try {
+        setIsLoadingWallet(true);
+        const res = await paymentApi.getWallet(profile.storeId);
+        setWallet(res);
+      } finally {
+        setIsLoadingWallet(false);
+      }
+    };
+
+    fetchWallet();
+  }, [profile?.storeId, profile?.role]);
+
   const isActive = profile?.isActive ?? false;
 
   return (
-    <div className="relative space-y-6">
+    <div className="relative space-y-6 max-w-6xl mx-auto">
       {/* Background 3D-ish orbs */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <motion.div
@@ -224,14 +242,14 @@ const ProfilePage = () => {
             }}
             transition={{ type: 'spring', stiffness: 200, damping: 18 }}
             className="relative rounded-3xl border border-orange-100/60 dark:border-border bg-gradient-to-br from-orange-50/80 via-white/90 to-amber-100/70 dark:from-orange-950/70 dark:via-slate-950/90 dark:to-amber-950/60 shadow-[0_24px_80px_rgba(15,23,42,0.35)] overflow-hidden"
-          >
+            >
             <div className="absolute inset-0 opacity-60 mix-blend-soft-light pointer-events-none">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_0_0,rgba(248,250,252,0.3),transparent_55%),radial-gradient(circle_at_100%_0,rgba(254,215,170,0.6),transparent_55%)]" />
             </div>
 
-            <div className="relative flex flex-col md:flex-row items-stretch gap-8 p-6 md:p-8">
+            <div className="relative flex flex-col xl:flex-row items-stretch gap-8 p-6 md:p-8">
               {/* Avatar + summary */}
-              <div className="flex items-center gap-5 md:gap-6">
+              <div className="flex flex-1 min-w-0 items-center gap-5 md:gap-6">
                 <div className="relative">
                   <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary/60 via-amber-400/60 to-rose-400/40 blur-xl opacity-70" />
                   <div className="relative flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-orange-500 text-primary-foreground shadow-xl shadow-orange-500/40">
@@ -281,11 +299,25 @@ const ProfilePage = () => {
                       </span>
                     </div>
                   )}
+
+                  <div className="pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-primary/60 text-xs md:text-sm"
+                      onClick={() => navigate('/settings')}
+                    >
+                      <span className="underline-offset-4 hover:underline">
+                        Tinh chỉnh cài đặt cá nhân
+                      </span>
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
               {/* Status & quick stats */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
                 <Card className="border-none bg-white/60 dark:bg-black/20 backdrop-blur-sm shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -382,19 +414,6 @@ const ProfilePage = () => {
                         {profile?.role || '—'}
                       </p>
                     </div>
-                    <div className="pt-2 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-0 text-[11px] text-primary hover:text-primary/90"
-                        onClick={() => navigate('/settings')}
-                      >
-                        <span className="underline-offset-4 hover:underline">
-                          Tinh chỉnh cài đặt cá nhân
-                        </span>
-                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                      </Button>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -461,6 +480,58 @@ const ProfilePage = () => {
           transition={{ delay: 0.15, duration: 0.3 }}
           className="space-y-4"
         >
+          {profile?.role === 'StoreStaff' && profile.storeId && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Ví cửa hàng của bạn
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Số dư và thông tin ví gắn với cửa hàng mà bạn phụ trách.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">
+                      Store Wallet
+                    </p>
+                    <p className="mt-1 text-lg font-bold">
+                      {isLoadingWallet
+                        ? 'Đang tải...'
+                        : new Intl.NumberFormat('vi-VN', {
+                            style: 'currency',
+                            currency: 'VND',
+                          }).format(wallet?.balance ?? 0)}
+                    </p>
+                  </div>
+                  <div className="text-right text-[11px] text-muted-foreground">
+                    <p>Store ID</p>
+                    <p className="font-mono">
+                      {String(profile.storeId).slice(-6).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+                {wallet?.status === 'Locked' && (
+                  <p className="text-[11px] text-red-500">
+                    Ví đang bị khóa, vui lòng liên hệ Manager để được hỗ trợ.
+                  </p>
+                )}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center text-xs"
+                    onClick={() => navigate('/store/dashboard')}
+                  >
+                    Mở Store Dashboard để nạp ví & xem chi tiết
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">

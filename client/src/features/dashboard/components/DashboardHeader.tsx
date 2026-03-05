@@ -1,10 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import toast from "react-hot-toast";
+
 import { useAuthStore } from "@/shared/zustand/authStore";
+import { authApi } from "@/api/AuthApi";
 import { useThemeStore } from "@/shared/zustand/themeStore";
+import { useUserSettingsStore } from "@/shared/zustand/userSettingsStore";
 import { cn } from "@/shared/lib/utils";
 import {
   Bell,
-  Search,
   Sun,
   Moon,
   Menu,
@@ -14,8 +18,6 @@ import {
   Settings,
   HelpCircle,
 } from "lucide-react";
-import { useState } from "react";
-import toast from "react-hot-toast";
 
 interface DashboardHeaderProps {
   isSidebarCollapsed?: boolean;
@@ -23,6 +25,7 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_NAME: Record<string, { name: string; title: string }> = {
+  // Manager
   "/manager/dashboard": { name: "Dashboard", title: "Tổng quan hệ thống" },
   "/manager/orders": { name: "Orders & Shipments", title: "Quản lý đơn hàng & giao hàng" },
   "/manager/production": { name: "Production Plans", title: "Kế hoạch sản xuất" },
@@ -37,6 +40,25 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/manager/reports": { name: "Reports & Analytics", title: "Báo cáo & Phân tích" },
   "/manager/users": { name: "Users & Roles", title: "Quản lý người dùng" },
   "/manager/settings": { name: "Settings", title: "Cài đặt hệ thống" },
+  "/manager/feedback": { name: "Feedback", title: "Danh sách phản hồi" },
+  "/manager/suppliers": { name: "Suppliers", title: "Quản lý nhà cung cấp" },
+  "/manager/vehicle-types": { name: "Vehicle Types", title: "Quản lý loại xe" },
+  // Admin
+  "/admin/dashboard": { name: "Admin Dashboard", title: "Tổng quan hệ thống" },
+  "/admin/account": { name: "Accounts", title: "Quản lý tài khoản" },
+  "/admin/stores": { name: "Stores", title: "Quản lý danh sách cửa hàng" },
+  "/admin/orders": { name: "Orders & Shipments", title: "Quản lý đơn hàng & chuyến giao" },
+  "/admin/production": { name: "Production Plans", title: "Kế hoạch sản xuất" },
+  "/admin/production/batches": { name: "Finished Batches", title: "Lô thành phẩm" },
+  "/admin/inventory": { name: "Inventory & Batches", title: "Kho & Lô hàng" },
+  "/admin/products": { name: "Products & Recipes", title: "Sản phẩm & Công thức" },
+  "/admin/categories": { name: "Categories", title: "Danh mục sản phẩm" },
+  "/admin/ingredients": { name: "Ingredients", title: "Nguyên liệu" },
+  "/admin/suppliers": { name: "Suppliers", title: "Nhà cung cấp" },
+  "/admin/vehicle-types": { name: "Vehicle Types", title: "Loại xe vận chuyển" },
+  "/admin/payment": { name: "Payment & Wallet", title: "Thanh toán & Ví cửa hàng" },
+  "/admin/feedback": { name: "Feedback", title: "Danh sách phản hồi" },
+  "/admin/settings": { name: "Settings", title: "Cài đặt hệ thống" },
   "/coordinator/dashboard": { name: "Logistics Dashboard", title: "Tổng quan vận chuyển & điều phối" },
   "/coordinator/orders": { name: "Store Orders", title: "Đơn hàng từ cửa hàng" },
   "/coordinator/orders/:id": { name: "Order Detail", title: "Chi tiết đơn hàng" },
@@ -44,17 +66,27 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/coordinator/shipments/:id": { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" },
   "/coordinator/inventory": { name: "Finished Goods", title: "Kho thành phẩm sẵn sàng giao" },
   "/coordinator/issues": { name: "Issues & Returns", title: "Xử lý sự cố & đổi trả" },
+  "/store/dashboard": { name: "Store Dashboard", title: "Tổng quan hoạt động cửa hàng" },
+  "/store/orders": { name: "Store Orders", title: "Đơn nội bộ & phản hồi" },
+  "/store/orders/new": { name: "Create Store Order", title: "Tạo đơn nội bộ từ catalog sản phẩm" },
+  "/store/inventory": { name: "Store Inventory", title: "Tồn kho thành phẩm tại cửa hàng" },
+  "/kitchen/dashboard": { name: "Kitchen Dashboard", title: "Tổng quan bếp & sản xuất" },
+  "/kitchen/production": { name: "Kitchen Production", title: "Kế hoạch sản xuất của bếp" },
+  "/kitchen/production/queue": { name: "Production Queue", title: "Ưu tiên sản xuất trong ngày" },
+  "/kitchen/production/batches": { name: "Kitchen Batches", title: "Lô thành phẩm do bếp sản xuất" },
+  "/kitchen/trips": { name: "Kitchen Trips", title: "Chuyến giao cần bếp chuẩn bị & đánh dấu Ready" },
   "/profile": { name: "Hồ sơ cá nhân", title: "Thông tin tài khoản và vai trò của bạn" },
   "/settings": { name: "Cài đặt", title: "Giao diện, thông báo và cấu hình hệ thống" },
   "/help": { name: "Trợ giúp", title: "Hướng dẫn sử dụng và kênh hỗ trợ" },
 };
 
 export const DashboardHeader = ({
-  isSidebarCollapsed: _isSidebarCollapsed,
+  isSidebarCollapsed,
   onMenuClick,
 }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
   const { darkMode, toggleDarkMode } = useThemeStore();
+   const { enableSystemNotifications, enableSoundEffects } = useUserSettingsStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -67,7 +99,9 @@ export const DashboardHeader = ({
       ? { name: "Order Detail", title: "Chi tiết đơn hàng" }
       : path.startsWith("/coordinator/shipments/")
         ? { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" }
-        : { name: "Dashboard", title: "Tổng quan" });
+        : path.startsWith("/store/orders/")
+          ? { name: "Order Detail", title: "Chi tiết đơn hàng cửa hàng" }
+          : { name: "Dashboard", title: "Tổng quan" });
 
   const notifications = [
     {
@@ -95,10 +129,56 @@ export const DashboardHeader = ({
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Đăng xuất thành công!");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Nếu BE không hỗ trợ logout hoặc lỗi mạng, vẫn cho đăng xuất FE.
+    } finally {
+      logout();
+      toast.success("Đăng xuất thành công!");
+      navigate("/login");
+    }
+  };
+
+  const playNotificationSound = () => {
+    if (typeof window === "undefined" || !enableSoundEffects) return;
+    try {
+      void isSidebarCollapsed;
+      const w = window as unknown as {
+        AudioContext?: typeof AudioContext;
+        webkitAudioContext?: typeof AudioContext;
+      };
+      const AudioCtx = w.AudioContext || w.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch {
+      // Ignore audio errors (browser restrictions, etc.)
+    }
+  };
+
+  const handleToggleNotifications = () => {
+    if (!enableSystemNotifications) {
+      toast("Bạn đã tắt thông báo trong phần Cài đặt.");
+      return;
+    }
+    const next = !showNotifications;
+    setShowNotifications(next);
+    setShowUserMenu(false);
+    if (next) {
+      playNotificationSound();
+    }
   };
 
   return (
@@ -134,22 +214,6 @@ export const DashboardHeader = ({
         </div>
       </div>
 
-      <div className="hidden md:flex flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            className={cn(
-              "w-full pl-10 pr-4 py-2.5 rounded-full border transition-all duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20",
-              darkMode
-                ? "bg-secondary border-secondary hover:bg-secondary/80"
-                : "bg-orange-50 border-orange-200 hover:bg-orange-100"
-            )}
-          />
-        </div>
-      </div>
-
       <div className="flex items-center gap-2 px-4">
         <button
           onClick={toggleDarkMode}
@@ -170,10 +234,7 @@ export const DashboardHeader = ({
 
         <div className="relative">
           <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowUserMenu(false);
-            }}
+            onClick={handleToggleNotifications}
             className={cn(
               "relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
               darkMode

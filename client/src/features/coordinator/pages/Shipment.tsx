@@ -32,12 +32,14 @@ const Shipments = () => {
 
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [selectedVehicleTypeId, setSelectedVehicleTypeId] = useState<string>('');
+    const [plannedShipDate, setPlannedShipDate] = useState<string>(() => new Date().toISOString().slice(0, 16));
     const [tripNotes, setTripNotes] = useState('');
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [editingTrip, setEditingTrip] = useState<ITrip | null>(null);
     const [tripToFinalize, setTripToFinalize] = useState<string | null>(null);
+    const [tripToDelete, setTripToDelete] = useState<string | null>(null);
 
     // State Phân trang
     const [currentPage, setCurrentPage] = useState(1);
@@ -120,6 +122,7 @@ const Shipments = () => {
         setEditingTrip(null);
         setSelectedOrderIds([]);
         setSelectedVehicleTypeId('');
+        setPlannedShipDate(new Date().toISOString().slice(0, 16));
         setTripNotes('');
         setShowModal(true);
     };
@@ -134,10 +137,10 @@ const Shipments = () => {
     };
 
     const handleDeleteTrip = async (id: string) => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa chuyến hàng này?')) return;
         try {
             await DeliveryTripApi.deleteDeliveryTrip(id);
             toast.success('Xóa chuyến hàng thành công');
+            setTripToDelete(null);
             fetchData();
         } catch (error) {
             console.error(error);
@@ -161,7 +164,11 @@ const Shipments = () => {
                 // Cập nhật loại xe và ghi chú nếu có API hỗ trợ update chung, nếu không có thể để sau
                 toast.success('Cập nhật chuyến hàng thành công!');
             } else {
-                const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds, tripNotes || undefined, selectedVehicleTypeId || undefined);
+                const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds, {
+                    notes: tripNotes || undefined,
+                    vehicleTypeId: selectedVehicleTypeId || undefined,
+                    plannedShipDate: plannedShipDate ? new Date(plannedShipDate).toISOString() : undefined,
+                });
                 if (res?.success) toast.success(res?.message ?? 'Tạo chuyến hàng thành công!');
             }
             setShowModal(false);
@@ -259,13 +266,22 @@ const Shipments = () => {
 
                             {trip.status === "Planning" && (
                                 <div className="flex gap-2 mt-4">
-                                    <button onClick={() => openEditModal(trip)} className="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase bg-secondary text-secondary-foreground hover:opacity-90 flex justify-center items-center gap-1.5">
+                                    <button
+                                        onClick={() => openEditModal(trip)}
+                                        className="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase bg-secondary text-secondary-foreground hover:opacity-90 flex justify-center items-center gap-1.5"
+                                    >
                                         <PenSquare className="w-4 h-4" /> Edit
                                     </button>
-                                    <button onClick={() => setTripToFinalize(trip._id)} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-[10px] uppercase hover:opacity-90 flex justify-center items-center gap-1.5">
+                                    <button
+                                        onClick={() => setTripToFinalize(trip._id)}
+                                        className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-[10px] uppercase hover:opacity-90 flex justify-center items-center gap-1.5"
+                                    >
                                         <Send className="w-4 h-4" /> Finalize
                                     </button>
-                                    <button onClick={() => handleDeleteTrip(trip._id)} className="w-10 h-10 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex justify-center items-center">
+                                    <button
+                                        onClick={() => setTripToDelete(trip._id)}
+                                        className="w-10 h-10 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex justify-center items-center"
+                                    >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -308,12 +324,50 @@ const Shipments = () => {
 
                         <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar max-h-[60vh]">
                             <div className="space-y-4">
+                                {!editingTrip && (
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">Ngày giờ dự kiến giao hàng</label>
+                                        <input type="datetime-local" value={plannedShipDate} onChange={(e) => setPlannedShipDate(e.target.value)} className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none ${darkMode ? 'bg-[#1C1C21] border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'}`} />
+                                    </div>
+                                )}
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">Chọn loại phương tiện (tùy chọn)</label>
-                                    <select value={selectedVehicleTypeId} onChange={(e) => setSelectedVehicleTypeId(e.target.value)} className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none ${darkMode ? 'bg-[#1C1C21] border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-                                        <option value="">-- Không chọn --</option>
-                                        {vehicleTypes.map((v) => <option key={v._id} value={v._id}>{v.name}</option>)}
-                                    </select>
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">
+                                        Loại phương tiện giao hàng
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedVehicleTypeId}
+                                            onChange={(e) => setSelectedVehicleTypeId(e.target.value)}
+                                            className={cn(
+                                                'w-full appearance-none rounded-xl border px-3 pr-9 py-2.5 text-sm font-medium outline-none transition-colors',
+                                                darkMode
+                                                    ? 'bg-[#1C1C21] border-gray-600 text-white hover:border-orange-400'
+                                                    : 'bg-white border-gray-200 text-gray-900 hover:border-orange-400',
+                                            )}
+                                        >
+                                            <option value="">
+                                                {vehicleTypes.length === 0
+                                                    ? 'Không có loại xe khả dụng'
+                                                    : 'Chọn loại xe (tùy chọn)'}
+                                            </option>
+                                            {vehicleTypes.map((v) => (
+                                                <option key={v._id} value={v._id}>
+                                                    {v.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-muted-foreground">
+                                            expand_more
+                                        </span>
+                                    </div>
+                                    {selectedVehicleTypeId && (
+                                        <p className="mt-1 text-[11px] text-muted-foreground">
+                                            Đã chọn:{' '}
+                                            <span className="font-semibold text-orange-500">
+                                                {vehicleTypes.find((v) => v._id === selectedVehicleTypeId)?.name}
+                                            </span>
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">Ghi chú chuyến</label>
@@ -359,12 +413,55 @@ const Shipments = () => {
             {tripToFinalize && (
                 <div className={`fixed inset-0 z-[110] flex items-center justify-center p-6 backdrop-blur-sm ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
                     <div className={`w-full max-w-sm rounded-[32px] border shadow-2xl p-6 text-center animate-in zoom-in-95 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center"><AlertTriangle className="w-8 h-8" /></div>
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
                         <h3 className="text-xl font-black uppercase mb-2">Chuyển qua sản xuất?</h3>
-                        <p className="text-sm mb-8 text-muted-foreground">Kế hoạch giao hàng này sẽ được chốt và chuyển xuống bộ phận bếp để chuẩn bị đơn hàng.</p>
+                        <p className="text-sm mb-8 text-muted-foreground">
+                            Kế hoạch giao hàng này sẽ được chốt và chuyển xuống bộ phận bếp để chuẩn bị đơn hàng.
+                        </p>
                         <div className="flex gap-3">
-                            <button onClick={() => setTripToFinalize(null)} className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors">Hủy bỏ</button>
-                            <button onClick={executeFinalizeTrip} className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Xác nhận</button>
+                            <button
+                                onClick={() => setTripToFinalize(null)}
+                                className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={executeFinalizeTrip}
+                                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
+                            >
+                                <Send className="w-4 h-4" /> Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DELETE TRIP */}
+            {tripToDelete && (
+                <div className={`fixed inset-0 z-[115] flex items-center justify-center p-6 backdrop-blur-sm ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
+                    <div className={`w-full max-w-sm rounded-[32px] border shadow-2xl p-6 text-center animate-in zoom-in-95 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center">
+                            <Trash2 className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black uppercase mb-2">Xóa chuyến hàng?</h3>
+                        <p className="text-sm mb-8 text-muted-foreground">
+                            Thao tác này sẽ xóa kế hoạch giao hàng hiện tại. Bạn sẽ cần lập lại chuyến nếu muốn giao các đơn này.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setTripToDelete(null)}
+                                className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={() => handleDeleteTrip(tripToDelete)}
+                                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" /> Xác nhận
+                            </button>
                         </div>
                     </div>
                 </div>

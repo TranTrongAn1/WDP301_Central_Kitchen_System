@@ -5,8 +5,19 @@ const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
   { icon: 'storefront', label: 'Stores', path: '/admin/stores' },
   { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
-  { icon: 'settings', label: 'Setting System', path: '/admin/setting' },
   { icon: 'group', label: 'Users', path: '/admin/users' },
+  { icon: 'shopping_cart', label: 'Orders & Shipments', path: '/admin/orders' },
+  { icon: 'factory', label: 'Production Plans', path: '/admin/production' },
+  { icon: 'inventory_2', label: 'Inventory & Batches', path: '/admin/inventory' },
+  { icon: 'restaurant_menu', label: 'Products & Recipes', path: '/admin/products' },
+  { icon: 'category', label: 'Categories', path: '/admin/categories' },
+  { icon: 'science', label: 'Ingredients', path: '/admin/ingredients' },
+  { icon: 'local_shipping', label: 'Suppliers', path: '/admin/suppliers' },
+  { icon: 'directions_car', label: 'Vehicle Types', path: '/admin/vehicle-types' },
+  { icon: 'swap_horiz', label: 'Transfers', path: '/admin/transfers' },
+  { icon: 'account_balance_wallet', label: 'Payment & Wallet', path: '/admin/payment' },
+  { icon: 'rate_review', label: 'Feedback', path: '/admin/feedback' },
+  { icon: 'settings', label: 'System Settings', path: '/admin/settings' },
 ];
 
 export const AdminSidebar = () => {
@@ -15,49 +26,45 @@ export const AdminSidebar = () => {
 
   return (
     <aside
-      className={`w-64 min-h-screen flex flex-col transition-all duration-300 border-r ${
-        darkMode
+      className={`w-64 min-h-screen flex flex-col transition-all duration-300 border-r ${darkMode
           ? 'bg-[#1C1C21] border-gray-800'
           : 'bg-white border-gray-200'
-      }`}
+        }`}
     >
       {/* Logo Section */}
-      <div className={`h-16 flex items-center px-6 border-b ${
-          darkMode ? 'border-gray-800' : 'border-gray-100'
-      }`}>
+      <div className={`h-16 flex items-center px-6 border-b ${darkMode ? 'border-gray-800' : 'border-gray-100'
+        }`}>
         <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-                 <span className="material-symbols-outlined text-amber-500">bakery_dining</span>
-            </div>
-            <div>
-                <h1 className={`font-bold text-lg ${
-                    darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                    Kendo Bakery
-                </h1>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Admin Portal</p>
-            </div>
+          <div className="p-2 bg-amber-500/10 rounded-lg">
+            <span className="material-symbols-outlined text-amber-500">bakery_dining</span>
+          </div>
+          <div>
+            <h1 className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+              Kendo Bakery
+            </h1>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Admin Portal</p>
+          </div>
         </div>
       </div>
 
       {/* Menu Items */}
-      <nav className="flex-1 py-6 px-3 space-y-1">
+      <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
         {MENU_ITEMS.map((item) => {
-          const isActive = location.pathname === item.path;
-          
+          const isActive = location.pathname === item.path ||
+            (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path));
+
           return (
             <Link
-              key={item.path}
+              key={item.path + item.label}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${isActive
                   ? 'bg-amber-500/10 text-amber-600'
-                  : `${
-                      darkMode 
-                        ? 'text-gray-400 hover:text-white hover:bg-white/5'
-                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                    }`
-              }`}
+                  : `${darkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-white/5'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`
+                }`}
             >
               <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
               {item.label}

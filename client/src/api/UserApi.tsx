@@ -42,23 +42,26 @@ export interface UpdateUserPayload {
 // --- API METHODS ---
 
 export const userApi = {
-  // 1. GET ALL USERS
-getAllUsers: async () => {
-  const res = await apiClient.get<any>('/users');
-  console.log("Dữ liệu thô từ Server:", res.data);
+  getAllUsers: async (): Promise<User[]> => {
+    const res = await apiClient.get<any>('/users');
+    if (Array.isArray(res?.data)) return res.data;
+    if (res?.data && Array.isArray(res.data.data)) return res.data.data;
+    return [];
+  },
 
-  if (Array.isArray(res.data)) return res.data;        
-  if (res.data && Array.isArray(res.data.data)) return res.data.data;
-  return [];
-},
+  getById: async (id: string): Promise<User | null> => {
+    try {
+      const res = await apiClient.get<any>(`/users/${id}`);
+      return res?.data ?? res ?? null;
+    } catch {
+      return null;
+    }
+  },
 
-  // 2. GET ALL ROLES
-  getAllRoles: async () => {
+  getAllRoles: async (): Promise<Role[]> => {
     const res = await apiClient.get<any>('/roles');
-    
-    // Safe handling for different response formats
-    if (Array.isArray(res.data)) return res.data;
-    if (res.data && Array.isArray(res.data.data)) return res.data.data;
+    if (Array.isArray(res?.data)) return res.data;
+    if (res?.data && Array.isArray(res.data.data)) return res.data.data;
     if (Array.isArray(res)) return res;
     return [];
   },
@@ -75,9 +78,12 @@ getAllUsers: async () => {
     return res.data;
   },
 
-  // 5. UPDATE STATUS
   updateUserStatus: async (id: string, isActive: boolean) => {
     const res = await apiClient.put(`/users/${id}`, { isActive });
     return res.data;
-  }
+  },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await apiClient.delete(`/users/${id}`);
+  },
 };
