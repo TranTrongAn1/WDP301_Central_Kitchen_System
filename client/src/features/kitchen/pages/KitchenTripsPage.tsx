@@ -26,7 +26,9 @@ const container = {
 
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } };
 
-type TripStatusFilter = 'All' | 'Planning' | 'Pending' | 'ReadyForShipping' | 'In_Transit' | 'Completed';
+type TripStatusFilter = 'All' | 'Planning' | 'Transferred_To_Kitchen' | 'Ready_For_Shipping' | 'In_Transit' | 'Completed';
+
+const ITEMS_PER_PAGE = 9;
 
 export default function KitchenTripsPage() {
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export default function KitchenTripsPage() {
   const [statusFilter, setStatusFilter] = useState<TripStatusFilter>('All');
   const [search, setSearch] = useState('');
   const [markingTripId, setMarkingTripId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -50,7 +53,10 @@ export default function KitchenTripsPage() {
           tripRes && typeof tripRes === 'object' && 'data' in tripRes
             ? (tripRes as { data: ITrip[] }).data
             : (tripRes as unknown as ITrip[]) ?? [];
-        setTrips(Array.isArray(tripData) ? tripData : []);
+        const sorted = Array.isArray(tripData)
+          ? tripData.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+          : [];
+        setTrips(sorted);
 
       } catch (err) {
         console.error('Error loading trips for kitchen', err);
@@ -73,7 +79,7 @@ export default function KitchenTripsPage() {
       });
       setTrips((prev) =>
         prev.map((t) =>
-          t._id === tripId ? { ...t, status: 'ReadyForShipping' } : t,
+          t._id === tripId ? { ...t, status: 'Ready_For_Shipping' } : t,
         ),
       );
     } catch (error: any) {
@@ -112,7 +118,7 @@ export default function KitchenTripsPage() {
         </Badge>
       );
     }
-    if (status === 'ReadyForShipping') {
+    if (status === 'Ready_For_Shipping') {
       return (
         <Badge className="bg-emerald-500/10 text-emerald-700 border border-emerald-300 text-xs">
           Sẵn sàng giao
@@ -140,20 +146,61 @@ export default function KitchenTripsPage() {
     );
   };
 
+  const normalizeTripStatus = (rawStatus: string): TripStatusFilter => {
+    const status = (rawStatus || '').trim();
+    if (status === 'Planning' || status === 'Pending') return 'Planning';
+    if (status === 'Transferred_To_Kitchen') return 'Transferred_To_Kitchen';
+    if (status === 'Ready_For_Shipping' || status === 'ReadyForShipping' || status === 'Ready for shipping')
+      return 'Ready_For_Shipping';
+    if (status === 'In_Transit' || status === 'In Transit') return 'In_Transit';
+    if (status === 'Completed') return 'Completed';
+    return 'All';
+  };
+
   const filteredTrips = trips.filter((trip) => {
-    const normalizedStatus = (trip.status as string) || '';
+    const normalized = normalizeTripStatus((trip.status as string) || '');
     const matchesStatus =
       statusFilter === 'All'
         ? true
-        : statusFilter === 'Pending'
-        ? normalizedStatus === 'Pending' ||
-          normalizedStatus === 'Transferred_To_Kitchen'
-        : normalizedStatus === statusFilter;
+        : normalized === statusFilter;
     const code = (trip.tripCode || '').toLowerCase();
     const q = search.trim().toLowerCase();
     const matchesSearch = !q || code.includes(q);
     return matchesStatus && matchesSearch;
   });
+
+  // Reset page khi filter hoặc search thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTrips.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentTrips = filteredTrips.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
 
   const getOrderCount = (trip: ITrip) =>
     Array.isArray(trip.orders) ? trip.orders.length : 0;
@@ -210,21 +257,24 @@ export default function KitchenTripsPage() {
             onValueChange={(v) => setStatusFilter(v as TripStatusFilter)}
             className="mt-3"
           >
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="All" className="text-[11px]">
                 Tất cả
               </TabsTrigger>
               <TabsTrigger value="Planning" className="text-[11px]">
-                Planning
+                Lập kế hoạch
               </TabsTrigger>
-              <TabsTrigger value="Pending" className="text-[11px]">
-                Pending
+              <TabsTrigger value="Transferred_To_Kitchen" className="text-[11px]">
+                Chuyển bếp
               </TabsTrigger>
-              <TabsTrigger value="ReadyForShipping" className="text-[11px]">
-                Ready
+              <TabsTrigger value="Ready_For_Shipping" className="text-[11px]">
+                Sẵn sàng
               </TabsTrigger>
               <TabsTrigger value="In_Transit" className="text-[11px]">
-                In Transit
+                Đang giao
+              </TabsTrigger>
+              <TabsTrigger value="Completed" className="text-[11px]">
+                Hoàn thành
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -238,10 +288,13 @@ export default function KitchenTripsPage() {
             </div>
           ) : (
             <motion.div
+              key={`grid-${statusFilter}-${search}-${currentPage}`}
               className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+              initial="hidden"
+              animate="show"
               variants={container}
             >
-              {filteredTrips.map((trip) => (
+              {currentTrips.map((trip) => (
                 <motion.div
                   key={trip._id}
                   variants={item}
@@ -336,6 +389,50 @@ export default function KitchenTripsPage() {
                 </motion.div>
               ))}
             </motion.div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/50">
+              <span className="text-xs text-muted-foreground">
+                Hiện {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredTrips.length)} / {filteredTrips.length} chuyến
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                >
+                  ‹ Trước
+                </Button>
+                {getPageNumbers().map((page, index) => {
+                  if (page === '...') return <span key={`dots-${index}`} className="px-1.5 text-xs text-muted-foreground">...</span>;
+                  const isActive = currentPage === page;
+                  return (
+                    <Button
+                      key={index}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-8 w-8 p-0 text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                      onClick={() => handlePageChange(page as number)}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                >
+                  Sau ›
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
