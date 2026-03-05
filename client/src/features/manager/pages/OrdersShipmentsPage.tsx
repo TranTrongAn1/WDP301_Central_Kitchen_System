@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardList, Truck, CalendarClock, Loader2, ChevronDown } from 'lucide-react';
+import { ClipboardList, Truck, CalendarClock, Loader2, ChevronDown, Check, X, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -15,7 +16,15 @@ const ITEMS_PER_PAGE = 9;
 
 const OrdersShipmentsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { compactMode } = useUserSettingsStore();
+  const basePath = location.pathname.startsWith('/admin') ? '/admin' : '/manager';
+  const tripDetailBasePath =
+    basePath === '/admin'
+      ? '/admin/shipments'
+      : basePath === '/manager'
+        ? '/manager/shipments'
+        : '/coordinator/shipments';
 
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [trips, setTrips] = useState<ITrip[]>([]);
@@ -24,37 +33,87 @@ const OrdersShipmentsPage = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'trips'>('orders');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [currentPage, setCurrentPage] = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [creatingTrip, setCreatingTrip] = useState(false);
+
+  const fetchAll = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [orderRes, tripRes] = await Promise.all([
+        OrderApi.getAllOrders().catch(() => []),
+        DeliveryTripApi.getAllDeliveryTrips().catch(() => ({ data: [] })),
+      ]);
+      const sortedOrders = Array.isArray(orderRes)
+        ? [...orderRes].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        : [];
+      setOrders(sortedOrders);
+
+      const tripData = Array.isArray((tripRes as { data?: ITrip[] })?.data)
+        ? (tripRes as { data: ITrip[] }).data
+        : [];
+      setTrips(tripData);
+    } catch {
+      setError('Không thể tải dữ liệu đơn hàng & chuyến giao');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [orderRes, tripRes] = await Promise.all([
-          OrderApi.getAllOrders().catch(() => []),
-          DeliveryTripApi.getAllDeliveryTrips().catch(() => ({ data: [] })),
-        ]);
-        const sortedOrders = Array.isArray(orderRes)
-          ? [...orderRes].sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            )
-          : [];
-        setOrders(sortedOrders);
-
-        const tripData = Array.isArray((tripRes as { data?: ITrip[] })?.data)
-          ? (tripRes as { data: ITrip[] }).data
-          : [];
-        setTrips(tripData);
-      } catch {
-        setError('Không thể tải dữ liệu đơn hàng & chuyến giao');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAll();
   }, []);
+
+  const handleApprove = async (orderId: string) => {
+    // Thay vì duyệt nhanh với payload rỗng (thiếu batchId),
+    // điều hướng sang trang chi tiết để duyệt đầy đủ (OrderDetail)
+    navigate(`${basePath}/orders/${orderId}`);
+  };
+
+  const handleReject = async (orderId: string) => {
+    if (!window.confirm('Bạn có chắc muốn từ chối đơn hàng này?')) return;
+    setActionLoading(orderId);
+    try {
+      await OrderApi.rejectOrder(orderId, 'Rejected by manager');
+      toast.success('Đã từ chối đơn hàng');
+      await fetchAll();
+    } catch {
+      toast.error('Không thể từ chối đơn hàng');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCreateTrip = async () => {
+    if (selectedOrderIds.length === 0) {
+      toast.error('Hãy chọn ít nhất 1 đơn hàng đã duyệt');
+      return;
+    }
+    setCreatingTrip(true);
+    try {
+      await DeliveryTripApi.createDeliveryTrip(selectedOrderIds);
+      toast.success('Đã tạo chuyến giao mới');
+      setSelectedOrderIds([]);
+      await fetchAll();
+      setActiveTab('trips');
+    } catch {
+      toast.error('Không thể tạo chuyến giao');
+    } finally {
+      setCreatingTrip(false);
+    }
+  };
+
+  const toggleOrderSelect = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const approvedOrders = orders.filter((o) => o.status === 'Approved');
 
   const filteredOrders =
     filterStatus === 'All'
@@ -312,11 +371,11 @@ const OrdersShipmentsPage = () => {
                             </div>
                             <span className="max-w-[150px] truncate text-xs font-medium text-card-foreground">
                               {typeof order.storeId === 'object' &&
-                              order.storeId?.storeName
+                                order.storeId?.storeName
                                 ? order.storeId.storeName
                                 : typeof order.storeId === 'string'
-                                ? order.storeId.slice(-6).toUpperCase()
-                                : 'N/A'}
+                                  ? order.storeId.slice(-6).toUpperCase()
+                                  : 'N/A'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
@@ -343,17 +402,56 @@ const OrdersShipmentsPage = () => {
                               {formatCurrency(order.totalAmount)}
                             </span>
                           </div>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="h-9 w-9 rounded-full"
-                            onClick={() => navigate(`/coordinator/orders/${order._id}`)}
-                          >
-                            <span className="material-symbols-outlined text-[18px]">
-                              arrow_forward
-                            </span>
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            {order.status === 'Pending' && (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                  disabled={actionLoading === order._id}
+                                  onClick={() => handleApprove(order._id)}
+                                >
+                                  {actionLoading === order._id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                  Duyệt
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                  disabled={actionLoading === order._id}
+                                  onClick={() => handleReject(order._id)}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Từ chối
+                                </Button>
+                              </>
+                            )}
+                            {order.status === 'Approved' && (
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOrderIds.includes(order._id)}
+                                  onChange={() => toggleOrderSelect(order._id)}
+                                  className="rounded"
+                                />
+                                <span className="text-[10px] text-muted-foreground">Gom chuyến</span>
+                              </label>
+                            )}
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 rounded-full"
+                              onClick={() => navigate(`${basePath}/orders/${order._id}`)}
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                arrow_forward
+                              </span>
+                            </Button>
+                          </div>
                         </div>
                       </motion.div>
                     ))}
@@ -416,6 +514,28 @@ const OrdersShipmentsPage = () => {
             </TabsContent>
 
             <TabsContent value="trips" className="mt-0 space-y-4">
+              {/* Create Trip from selected Approved orders */}
+              {approvedOrders.length > 0 && (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-primary/30 bg-primary/5">
+                  <Plus className="h-4 w-4 text-primary" />
+                  <span className="text-xs text-muted-foreground flex-1">
+                    {selectedOrderIds.length > 0
+                      ? `${selectedOrderIds.length} đơn đã chọn để gom chuyến`
+                      : `${approvedOrders.length} đơn đã duyệt – chọn đơn ở tab Đơn hàng rồi tạo chuyến`}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="text-xs"
+                    disabled={selectedOrderIds.length === 0 || creatingTrip}
+                    onClick={handleCreateTrip}
+                  >
+                    {creatingTrip ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                    Tạo chuyến giao
+                  </Button>
+                </div>
+              )}
+
               {trips.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 py-10 text-xs text-muted-foreground">
                   <span className="material-symbols-outlined mb-2 text-4xl text-muted-foreground/70">
@@ -453,7 +573,7 @@ const OrdersShipmentsPage = () => {
                         size="sm"
                         variant="outline"
                         className="h-8 text-xs"
-                        onClick={() => navigate(`/coordinator/shipments/${trip._id}`)}
+                        onClick={() => navigate(`${tripDetailBasePath}/${trip._id}`)}
                       >
                         Xem chi tiết
                       </Button>
