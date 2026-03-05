@@ -30,6 +30,7 @@ const StoreOrdersPage = () => {
     { productId: string; name: string; orderedQuantity: number; receivedQuantity: number; discrepancyReason?: 'Missing' | 'Damaged' | 'Other'; note?: string }[]
   >([]);
   const [isReceiving, setIsReceiving] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -40,9 +41,9 @@ const StoreOrdersPage = () => {
         const storeId = user?.storeId;
         const filtered = storeId
           ? data.filter((o) => {
-              if (typeof o.storeId === 'string') return o.storeId === storeId;
-              return (o.storeId as any)?._id === storeId;
-            })
+            if (typeof o.storeId === 'string') return o.storeId === storeId;
+            return (o.storeId as any)?._id === storeId;
+          })
           : data;
         setOrders(filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
       } catch {
@@ -108,6 +109,27 @@ const StoreOrdersPage = () => {
     return pages;
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      const toastId = toast.loading('Đang hủy đơn hàng...');
+      await OrderApi.rejectOrder(orderId, 'Cancelled by store staff');
+      const data = await OrderApi.getAllOrders();
+      const storeId = user?.storeId;
+      const filtered = storeId
+        ? data.filter((o) => {
+            if (typeof o.storeId === 'string') return o.storeId === storeId;
+            return (o.storeId as any)?._id === storeId;
+          })
+        : data;
+      setOrders(filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+      toast.success('Đã hủy đơn hàng!', { id: toastId });
+    } catch {
+      toast.error('Không thể hủy đơn hàng.');
+    } finally {
+      setConfirmCancelId(null);
+    }
+  };
+
   const openReceiveModal = (order: Order) => {
     if (!order.items || order.items.length === 0) return;
     setReceiveOrderId(order._id);
@@ -134,9 +156,9 @@ const StoreOrdersPage = () => {
       prev.map((item, i) =>
         i === index
           ? {
-              ...item,
-              receivedQuantity: value < 0 ? 0 : value,
-            }
+            ...item,
+            receivedQuantity: value < 0 ? 0 : value,
+          }
           : item
       )
     );
@@ -147,9 +169,9 @@ const StoreOrdersPage = () => {
       prev.map((item, i) =>
         i === index
           ? {
-              ...item,
-              discrepancyReason: value === '' ? undefined : (value as 'Missing' | 'Damaged' | 'Other'),
-            }
+            ...item,
+            discrepancyReason: value === '' ? undefined : (value as 'Missing' | 'Damaged' | 'Other'),
+          }
           : item
       )
     );
@@ -176,9 +198,9 @@ const StoreOrdersPage = () => {
       const storeId = user?.storeId;
       const filtered = storeId
         ? data.filter((o) => {
-            if (typeof o.storeId === 'string') return o.storeId === storeId;
-            return (o.storeId as any)?._id === storeId;
-          })
+          if (typeof o.storeId === 'string') return o.storeId === storeId;
+          return (o.storeId as any)?._id === storeId;
+        })
         : data;
       setOrders(filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
       toast.success('Đã cập nhật trạng thái nhận hàng', { id: toastId });
@@ -257,21 +279,66 @@ const StoreOrdersPage = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Store • Orders
+          </p>
+          <h1 className="mt-1 text-base font-bold text-foreground">
+            Đơn hàng của cửa hàng
+          </h1>
+          <p className="mt-0.5 text-[11px] text-muted-foreground max-w-xl">
+            Theo dõi các đơn đã gửi về trung tâm, trạng thái giao hàng và thực hiện nhận hàng/thanh toán.
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => navigate('/store/orders/new')}
-          className="inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          className="inline-flex items-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-xs font-semibold text-white shadow hover:brightness-105"
         >
-          <span className="material-symbols-outlined text-[16px] mr-1">
+          <span className="material-symbols-outlined text-[18px] mr-1">
             add
           </span>
           Tạo đơn mới
         </button>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Tổng đơn</p>
+            <p className="text-base font-bold text-foreground">{orders.length}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">hourglass_top</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Đang chờ duyệt</p>
+            <p className="text-base font-bold text-foreground">
+              {orders.filter((o) => o.status === 'Pending').length}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">task_alt</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Đã nhận hàng</p>
+            <p className="text-base font-bold text-foreground">
+              {orders.filter((o) => o.status === 'Received').length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 md:p-5">
         {orders.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
             Chưa có đơn hàng nào.
@@ -281,14 +348,14 @@ const StoreOrdersPage = () => {
             {currentOrders.map((order) => (
               <div
                 key={order._id}
-                className="rounded-lg border border-border/60 bg-background/60 px-3 py-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="rounded-xl border border-border/70 bg-background/70 px-3 py-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-primary/30 hover:shadow-sm transition-all"
               >
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[13px] font-semibold">
                       {order.orderCode}
                     </span>
-                    <span className="rounded-full border px-2 py-0.5 text-[11px]">
+                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-secondary/60">
                       {order.status}
                     </span>
                   </div>
@@ -333,6 +400,8 @@ const StoreOrdersPage = () => {
                             Nhận hàng
                           </button>
                         )}
+
+                        {/* Hủy đơn chỉ dành cho Manager/Coordinator/Admin theo backend, nên ẩn ở UI StoreStaff */}
 
                         {!canReceive && order.status === 'In_Transit' && (
                           <span className="text-[10px] text-red-500 font-semibold">
@@ -389,11 +458,10 @@ const StoreOrdersPage = () => {
                         key={idx}
                         type="button"
                         onClick={() => handlePageChange(page as number)}
-                        className={`h-7 min-w-[26px] rounded-lg px-2 font-semibold transition-all ${
-                          currentPage === page
+                        className={`h-7 min-w-[26px] rounded-lg px-2 font-semibold transition-all ${currentPage === page
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>
@@ -476,8 +544,8 @@ const StoreOrdersPage = () => {
                 {isFeedbackSaving
                   ? 'Đang lưu...'
                   : hasFeedback
-                  ? 'Cập nhật'
-                  : 'Gửi feedback'}
+                    ? 'Cập nhật'
+                    : 'Gửi feedback'}
               </button>
             </div>
           </div>
@@ -578,6 +646,36 @@ const StoreOrdersPage = () => {
                 className="h-8 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {isReceiving ? 'Đang lưu...' : 'Xác nhận đã nhận hàng'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmCancelId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-5 space-y-4 text-xs text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-1">
+              <span className="material-symbols-outlined text-[26px]">warning</span>
+            </div>
+            <p className="text-sm font-semibold">Hủy đơn hàng?</p>
+            <p className="text-[11px] text-muted-foreground">
+              Đơn hàng đang ở trạng thái chờ duyệt sẽ bị hủy và không được xử lý tại trung tâm.
+            </p>
+            <div className="flex justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmCancelId(null)}
+                className="flex-1 h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground hover:bg-secondary"
+              >
+                Giữ lại
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancelOrder(confirmCancelId)}
+                className="flex-1 h-8 rounded-lg bg-red-500 px-3 text-xs font-semibold text-white hover:bg-red-600"
+              >
+                Xác nhận hủy
               </button>
             </div>
           </div>
