@@ -46,18 +46,24 @@ const BASE = '/payment';
 export const paymentApi = {
   getWallet: async (storeId: string): Promise<WalletInfo | null> => {
     const res = (await apiClient.get(`${BASE}/wallet/${storeId}`)) as
-      | ApiResponse<WalletInfo>
-      | WalletInfo;
+      | ApiResponse<{ wallet: { id: string; storeId: string; balance: number; status: 'Active' | 'Locked'; currency?: string }; transactions?: WalletTransaction[] }>
+      | { wallet: { id: string; storeId: string; balance: number; status: 'Active' | 'Locked'; currency?: string }; transactions?: WalletTransaction[] }
+      | null;
 
-    if (res && typeof res === 'object' && 'data' in res && (res as any).data) {
-      return (res as ApiResponse<WalletInfo>).data;
-    }
+    const data = res && typeof res === 'object' && 'data' in res ? (res as any).data : res;
+    if (!data || typeof data !== 'object') return null;
 
-    if (res && typeof res === 'object' && 'balance' in res) {
-      return res as WalletInfo;
-    }
+    const wallet = (data as any).wallet;
+    const transactions = (data as any).transactions as WalletTransaction[] | undefined;
+    if (!wallet || typeof wallet.balance !== 'number') return null;
 
-    return null;
+    return {
+      storeId: wallet.storeId,
+      balance: wallet.balance,
+      status: wallet.status,
+      currency: wallet.currency,
+      transactions: Array.isArray(transactions) ? transactions : undefined,
+    };
   },
 
   deposit: (payload: DepositRequest) =>
