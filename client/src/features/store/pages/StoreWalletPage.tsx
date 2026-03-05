@@ -58,10 +58,6 @@ export default function StoreWalletPage() {
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-    const formatDate = (d: string) => {
-        try { return new Date(d).toLocaleString('vi-VN'); } catch { return d; }
-    };
-
     return (
         <div className="p-6 space-y-6 max-w-4xl mx-auto">
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>

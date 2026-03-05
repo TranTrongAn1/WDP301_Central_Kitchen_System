@@ -22,7 +22,6 @@ import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { inventoryApi } from '@/api/InventoryApi';
 import { userApi } from '@/api/UserApi';
 import type { LogisticsOrder } from '@/shared/types/logistics';
-import { useAuthStore } from '@/shared/zustand/authStore';
 import { cn } from '@/shared/lib/utils';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 
@@ -67,7 +66,6 @@ const QUICK_LINKS = [
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const { darkMode } = useThemeStore();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);

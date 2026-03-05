@@ -11,12 +11,10 @@ const StoreOrderDetailPage = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
   const [payingWallet, setPayingWallet] = useState(false);
   const [payingPayOS, setPayingPayOS] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const [requestedDeliveryDate, setRequestedDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -83,21 +81,6 @@ const StoreOrderDetailPage = () => {
       navigate('/store/orders');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCancelOrder = async () => {
-    if (!order || !id || order.status !== 'Pending') return;
-    try {
-      setCancelling(true);
-      await OrderApi.rejectOrder(id, 'Cancelled by store staff');
-      toast.success('Đã hủy đơn hàng!');
-      navigate('/store/orders');
-    } catch {
-      toast.error('Không thể hủy đơn hàng.');
-    } finally {
-      setCancelling(false);
-      setConfirmCancelOpen(false);
     }
   };
 
@@ -388,7 +371,7 @@ const StoreOrderDetailPage = () => {
           </div>
         </div>
       )}
-      {/* Hủy đơn bởi StoreStaff không được backend cho phép (403), nên ẩn confirm UI phía FE */}
+      {/* Hủy đơn bởi StoreStaff không được backend cho phép (403), nên ẩn UI phía FE */}
     </div>
   );
 };
