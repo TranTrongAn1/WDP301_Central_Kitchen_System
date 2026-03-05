@@ -54,9 +54,62 @@ const StoreInventoryPage = () => {
 
   const items: StoreInventoryItem[] = data?.data ?? [];
 
+  const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const nearExpiryCount = items.filter((item) => {
+    if (!item.batchId?.expDate) return false;
+    const exp = new Date(item.batchId.expDate).getTime();
+    const now = Date.now();
+    const diffDays = (exp - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7;
+  }).length;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-4">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Store • Inventory
+          </p>
+          <h1 className="mt-1 text-base font-bold text-foreground">
+            Tồn kho tại cửa hàng
+          </h1>
+          <p className="mt-0.5 text-[11px] text-muted-foreground max-w-xl">
+            Xem nhanh số lượng tồn theo từng lô sản phẩm, hạn sử dụng và chi tiết lô.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Số dòng tồn kho</p>
+            <p className="text-base font-bold text-foreground">{items.length}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">stacked_bar_chart</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Tổng số lượng</p>
+            <p className="text-base font-bold text-foreground">{totalQuantity}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/70 bg-card/80 p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[18px]">warning</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground">Sắp hết hạn (≤ 7 ngày)</p>
+            <p className="text-base font-bold text-foreground">{nearExpiryCount}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 md:p-5">
         {items.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
             Chưa có dữ liệu tồn kho.
