@@ -258,6 +258,9 @@ const completeProductionItem = async (req, res, next) => {
       let totalNeeded = actualQuantity * recipeItem.quantity;
       const ingredientId = recipeItem.ingredientId._id;
 
+      // Track actual amount deducted from batches for data consistency
+      let actualDeductedFromBatches = 0;
+
       // Fetch all active batches sorted by expiryDate (FEFO - First Expired First Out)
       const batches = await IngredientBatch.find({
         ingredientId: ingredientId,
@@ -300,6 +303,8 @@ const completeProductionItem = async (req, res, next) => {
           batchCode: batch.batchCode,
         });
 
+        // Accumulate actual deducted amount
+        actualDeductedFromBatches += deductAmount;
         totalNeeded -= deductAmount;
       }
 
@@ -314,10 +319,9 @@ const completeProductionItem = async (req, res, next) => {
         );
       }
 
-      // Update parent Ingredient totalQuantity
+      // Update parent Ingredient totalQuantity using actual deducted amount
       const ingredient = await Ingredient.findById(ingredientId).session(session);
-      const totalDeducted = actualQuantity * recipeItem.quantity;
-      ingredient.totalQuantity -= totalDeducted;
+      ingredient.totalQuantity -= actualDeductedFromBatches;
 
       if (ingredient.totalQuantity < 0) {
         transactionAborted = true;
