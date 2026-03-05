@@ -9,7 +9,6 @@ import LoginPage from '@/features/auth/pages/LoginPage';
 
 import { HomeLayout } from '@/features/home/components/HomeLayout';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
-import { AdminLayout } from '@/features/admin/AdminLayout';
 import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
 import CategoryPage from '@/features/manager/pages/CategoryPage';
@@ -25,6 +24,11 @@ import ProductsRecipesPage from '@/features/manager/pages/ProductsRecipesPage';
 import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
+import FeedbackListPage from '@/features/manager/pages/FeedbackListPage';
+import UsersRolesPage from '@/features/manager/pages/UsersRolesPage';
+import SuppliersPage from '@/features/manager/pages/SuppliersPage';
+import VehicleTypesPage from '@/features/manager/pages/VehicleTypesPage';
+import ReportsAnalyticsPage from '@/features/manager/pages/ReportsAnalyticsPage';
 import KitchenDashboard from '@/features/kitchen/pages/KitchenDashboard';
 import KitchenProductionQueuePage from '@/features/kitchen/pages/KitchenProductionQueuePage';
 import KitchenTripsPage from '@/features/kitchen/pages/KitchenTripsPage';
@@ -33,6 +37,7 @@ import StoreOrdersPage from '@/features/store/pages/StoreOrdersPage';
 import CreateStoreOrderPage from '@/features/store/pages/CreateStoreOrderPage';
 import StoreInventoryPage from '@/features/store/pages/StoreInventoryPage';
 import StoreOrderDetailPage from '@/features/store/pages/StoreOrderDetailPage';
+import StoreWalletPage from '@/features/store/pages/StoreWalletPage';
 import CoordinatorDashboard from '@/features/coordinator/pages/CoordinatorDashboard';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ProfilePage from '@/features/dashboard/pages/ProfilePage';
@@ -86,10 +91,44 @@ function App() {
               <ProtectedRoute allowedRoles={['Admin']} />
             }
           >
-            <Route element={<AdminLayout />}>
+            <Route element={<DashboardLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/account" element={<AccountManagement />} />
               <Route path="/admin/stores" element={<StoreManagment />} />
+              <Route path="/admin/feedback" element={<FeedbackListPage />} />
+              <Route path="/admin/suppliers" element={<SuppliersPage />} />
+              <Route path="/admin/vehicle-types" element={<VehicleTypesPage />} />
+
+              {/* Products & Categories */}
+              <Route path="/admin/products" element={<ProductsRecipesPage />} />
+              <Route path="/admin/products/:id" element={<ProductDetailPage />} />
+              <Route path="/admin/categories" element={<CategoryPage />} />
+
+              {/* Ingredients */}
+              <Route path="/admin/ingredients" element={<IngredientPage />} />
+
+              {/* Production */}
+              <Route path="/admin/production" element={<ProductionPlansPage />} />
+              <Route path="/admin/production/:id" element={<ProductionPlanDetailPage />} />
+              <Route path="/admin/production/batches" element={<BatchesPage />} />
+              <Route path="/admin/production/batches/:id" element={<BatchDetailPage />} />
+
+              {/* Inventory */}
+              <Route path="/admin/inventory" element={<InventoryReportsPage />} />
+
+              {/* Orders & Shipments */}
+              <Route path="/admin/orders" element={<OrdersShipmentsPage />} />
+              <Route path="/admin/orders/:id" element={<OrderDetail />} />
+              <Route path="/admin/shipments/:id" element={<ShipmentDetail />} />
+
+              {/* Transfers */}
+              <Route path="/admin/transfers" element={<OrdersShipmentsPage />} />
+
+              {/* System Settings */}
+              <Route path="/admin/settings" element={<SettingsPage />} />
+
+              {/* Payment & Wallet */}
+              <Route path="/admin/payment" element={<StoresPage />} />
             </Route>
           </Route>
 
@@ -124,10 +163,16 @@ function App() {
 
               {/* Transfers/Orders */}
               <Route path="/manager/orders" element={<OrdersShipmentsPage />} />
-              <Route path="/manager/orders/:id" element={<TransferDetailPage />} />
+              <Route path="/manager/orders/:id" element={<OrderDetail />} />
+              <Route path="/manager/shipments/:id" element={<ShipmentDetail />} />
 
               {/* Admin settings */}
               <Route path="/manager/settings" element={<SettingsPage />} />
+              <Route path="/manager/feedback" element={<FeedbackListPage />} />
+              <Route path="/manager/users" element={<UsersRolesPage />} />
+              <Route path="/manager/suppliers" element={<SuppliersPage />} />
+              <Route path="/manager/vehicle-types" element={<VehicleTypesPage />} />
+              <Route path="/manager/reports" element={<ReportsAnalyticsPage />} />
             </Route>
           </Route>
 
@@ -146,6 +191,9 @@ function App() {
               <Route path="/kitchen/production/batches/:id" element={<BatchDetailPage />} />
               <Route path="/kitchen/trips" element={<KitchenTripsPage />} />
               <Route path="/kitchen/trips/:id" element={<ShipmentDetail />} />
+              {/* View-only: ingredients & suppliers */}
+              <Route path="/kitchen/ingredients" element={<IngredientPage />} />
+              <Route path="/kitchen/suppliers" element={<SuppliersPage />} />
             </Route>
           </Route>
 
@@ -160,6 +208,7 @@ function App() {
               <Route path="/store/orders/new" element={<CreateStoreOrderPage />} />
               <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />
               <Route path="/store/inventory" element={<StoreInventoryPage />} />
+              <Route path="/store/wallet" element={<StoreWalletPage />} />
             </Route>
           </Route>
 
@@ -170,9 +219,9 @@ function App() {
           >
             <Route element={<DashboardLayout />}>
               <Route path="/coordinator/dashboard" element={<CoordinatorDashboard />} />
-              <Route path="/coordinator/orders" element={<Order/>} />
+              <Route path="/coordinator/orders" element={<Order />} />
               <Route path="/coordinator/orders/:id" element={<OrderDetail />} />
-              <Route path="/coordinator/shipments" element={<Shipment/>} />
+              <Route path="/coordinator/shipments" element={<Shipment />} />
               <Route path="/coordinator/shipments/:id" element={<ShipmentDetail />} />
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
