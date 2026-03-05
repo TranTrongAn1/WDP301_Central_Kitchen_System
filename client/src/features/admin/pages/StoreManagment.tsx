@@ -25,10 +25,11 @@ const StoreManagment = () => {
     const [formLoading, setFormLoading] = useState(false);
 
     const [formData, setFormData] = useState<CreateStoreRequest>({
-        name: '',
-        store_code: '',
+        storeName: '',
+        storeCode: '',
         address: '',
-        phone_number: '',
+        phone: '',
+        standardDeliveryMinutes: 30,
         status: 'Active'
     });
 
@@ -53,10 +54,11 @@ const StoreManagment = () => {
 
     const resetForm = () => {
         setFormData({
-            name: '',
-            store_code: '',
+            storeName: '',
+            storeCode: '',
             address: '',
-            phone_number: '',
+            phone: '',
+            standardDeliveryMinutes: 30,
             status: 'Active'
         });
     };
@@ -112,10 +114,11 @@ const StoreManagment = () => {
     const openEditModal = (store: Store) => {
         setSelectedStore(store);
         setFormData({
-            name: store.name || store.storeName || '',
-            store_code: store.store_code || '',
+            storeName: store.name || store.storeName || '',
+            storeCode: store.store_code || store.storeCode || '',
             address: store.address || store.adress || '',
-            phone_number: store.phone_number || '',
+            phone: store.phone_number || store.phone || '',
+            standardDeliveryMinutes: store.standardDeliveryMinutes ?? 30,
             status: store.status === 'Active' || store.status === true ? 'Active' : 'Inactive'
         });
         setIsEditModalOpen(true);
@@ -133,7 +136,7 @@ const StoreManagment = () => {
 
     const filteredStores = stores.filter(store =>
         (store.name || store.storeName)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store.store_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (store.store_code || store.storeCode)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (store.address || store.adress)?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -164,16 +167,16 @@ const StoreManagment = () => {
                 <label className="text-sm font-medium mb-1 block">Store Name *</label>
                 <Input
                     placeholder="Enter store name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.storeName}
+                    onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                 />
             </div>
             <div>
                 <label className="text-sm font-medium mb-1 block">Store Code *</label>
                 <Input
                     placeholder="e.g. KD-D1-001"
-                    value={formData.store_code}
-                    onChange={(e) => setFormData({ ...formData, store_code: e.target.value })}
+                    value={formData.storeCode}
+                    onChange={(e) => setFormData({ ...formData, storeCode: e.target.value })}
                 />
             </div>
             <div>
@@ -185,11 +188,22 @@ const StoreManagment = () => {
                 />
             </div>
             <div>
-                <label className="text-sm font-medium mb-1 block">Phone Number *</label>
+                <label className="text-sm font-medium mb-1 block">Phone *</label>
                 <Input
                     placeholder="e.g. 0901234567"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+            </div>
+            <div>
+                <label className="text-sm font-medium mb-1 block">Thời gian giao chuẩn (phút)</label>
+                <Input
+                    type="number"
+                    min={1}
+                    max={120}
+                    placeholder="30"
+                    value={formData.standardDeliveryMinutes ?? ''}
+                    onChange={(e) => setFormData({ ...formData, standardDeliveryMinutes: e.target.value ? parseInt(e.target.value, 10) : undefined })}
                 />
             </div>
             <div>
@@ -314,7 +328,7 @@ const StoreManagment = () => {
                                                 </div>
                                                 <div>
                                                     <h4 className="font-semibold">{storeName}</h4>
-                                                    <p className="text-sm text-muted-foreground">{store.store_code}</p>
+                                                    <p className="text-sm text-muted-foreground">{store.store_code || store.storeCode}</p>
                                                 </div>
                                             </div>
                                             <Badge variant={isActive ? 'success' : 'secondary'}>
@@ -381,7 +395,7 @@ const StoreManagment = () => {
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleCreateStore}
-                            disabled={formLoading || !formData.name || !formData.store_code}
+                            disabled={formLoading || !formData.storeName || !formData.storeCode}
                         >
                             {formLoading ? 'Creating...' : 'Create Store'}
                         </Button>
@@ -449,7 +463,7 @@ const StoreManagment = () => {
                             </div>
                             <div>
                                 <h3 className="text-xl font-semibold">{selectedStore.name || selectedStore.storeName}</h3>
-                                <p className="text-muted-foreground">{selectedStore.store_code}</p>
+                                <p className="text-muted-foreground">{selectedStore.store_code || selectedStore.storeCode}</p>
                                 <Badge variant={(selectedStore.status === 'Active' || selectedStore.status === true) ? 'success' : 'secondary'}>
                                     {(selectedStore.status === 'Active' || selectedStore.status === true) ? 'Active' : 'Inactive'}
                                 </Badge>

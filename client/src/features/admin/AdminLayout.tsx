@@ -3,11 +3,17 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AdminSidebar } from './components/AdminSidebar';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore'; 
+import { authApi } from '@/api/AuthApi';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
     "/admin": { name: "Dashboard", desc: "Tổng quan hệ thống" },
+    "/admin/dashboard": { name: "Dashboard", desc: "Tổng quan hệ thống" },
     "/admin/users": { name: "User Management", desc: "Quản lý người dùng & phân quyền" },
     "/admin/stores": { name: "Store Management", desc: "Quản lý danh sách cửa hàng" },
+    "/admin/account": { name: "Accounts", desc: "Quản lý tài khoản" },
+    "/admin/feedback": { name: "Feedback", desc: "Danh sách phản hồi từ khách hàng" },
+    "/admin/suppliers": { name: "Suppliers", desc: "Quản lý nhà cung cấp" },
+    "/admin/vehicle-types": { name: "Vehicle Types", desc: "Quản lý loại xe" },
     "/admin/settings": { name: "Settings", desc: "Cài đặt hệ thống" },
 };
 
@@ -42,8 +48,13 @@ export const AdminLayout = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleLogout = () => {
-        if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+    const handleLogout = async () => {
+        if (!window.confirm('Bạn có chắc chắn muốn đăng xuất?')) return;
+        try {
+            await authApi.logout();
+        } catch {
+            // Ignore BE logout errors; FE vẫn logout để tránh kẹt phiên.
+        } finally {
             logout(); 
             navigate('/login');
         }

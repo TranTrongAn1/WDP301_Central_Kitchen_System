@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { userApi } from '../../../api/UserApi';
 import { storeApi } from '../../../api/StoreApi';
 import type { User, Role, CreateUserPayload } from '../../../api/UserApi';
 import type { Store } from '../../../api/StoreApi';
 import UpdateUserModal from '../components/UpdateUserModal';
+import { ConfirmModal } from '../../manager/components/ui/Modal';
 
 export const AccountManagement = () => {
     const { darkMode } = useThemeStore();
@@ -36,6 +38,11 @@ export const AccountManagement = () => {
     });
     const ITEMS_PER_PAGE = 10;
     const [currentPage, setCurrentPage] = useState(1);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        type: 'toggleStatus' | 'deleteUser';
+        user: User | null;
+    } | null>(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
 
     const getRoleName = (roleId: any) => {
     if (typeof roleId === 'object' && roleId !== null) {
@@ -96,11 +103,11 @@ export const AccountManagement = () => {
         e.preventDefault();
         try {
             if (!newUser.roleId) {
-                alert('Please select a role');
+                toast.error('Please select a role');
                 return;
             }
             await userApi.createUser(newUser);
-            alert('User created successfully!');
+            toast.success('User created successfully!');
             setShowAddModal(false);
             fetchData();
             
@@ -115,7 +122,7 @@ export const AccountManagement = () => {
             });
         } catch (error: any) {
             console.error(error);
-            alert(error.response?.data?.message || 'Failed to create user');
+            toast.error(error.response?.data?.message || 'Failed to create user');
         }
     };
 
@@ -136,21 +143,53 @@ export const AccountManagement = () => {
         }
     };
 
-    const handleToggleStatus = async (user: User) => {
-        setOpenMenuId(null);
-        if (!window.confirm(`Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} this user?`)) return;
+    const performToggleStatus = async (user: User) => {
         try {
+            setConfirmLoading(true);
             await userApi.updateUserStatus(user._id, !user.isActive);
             setUsers(users.map(u => u._id === user._id ? { ...u, isActive: !u.isActive } : u));
+            toast.success(user.isActive ? 'Đã chuyển user sang Inactive' : 'Đã kích hoạt user');
         } catch (error) {
-            alert('Cannot update status');
+            console.error(error);
+            toast.error('Cannot update status');
+        } finally {
+            setConfirmLoading(false);
         }
     };
 
-    // Open Update Modal
-    const handleEditUser = (user: User) => {
+    const performDeleteUser = async (user: User) => {
+        try {
+            setConfirmLoading(true);
+            await userApi.deleteUser(user._id);
+            setUsers(users.filter(u => u._id !== user._id));
+            toast.success('Đã xóa tài khoản.');
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error?.response?.data?.message || 'Không thể xóa tài khoản.');
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const handleToggleStatus = (user: User) => {
         setOpenMenuId(null);
-        setSelectedUser(user);
+        setConfirmConfig({ type: 'toggleStatus', user });
+    };
+
+    const handleDeleteUser = (user: User) => {
+        setOpenMenuId(null);
+        setConfirmConfig({ type: 'deleteUser', user });
+    };
+
+    // Open Update Modal
+    const handleEditUser = async (user: User) => {
+        setOpenMenuId(null);
+        try {
+            const fresh = await userApi.getById(user._id);
+            setSelectedUser(fresh ?? user);
+        } catch {
+            setSelectedUser(user);
+        }
         setShowUpdateModal(true);
     };
 
@@ -158,12 +197,12 @@ export const AccountManagement = () => {
     const onUpdateUserSubmit = async (id: string, data: any) => {
         try {
             await userApi.updateUser(id, data);
-            alert('User updated successfully!');
+            toast.success('User updated successfully!');
             setShowUpdateModal(false);
             fetchData();
         } catch (error: any) {
             console.error(error);
-            alert(error.response?.data?.message || 'Failed to update user');
+            toast.error(error.response?.data?.message || 'Failed to update user');
         }
     };
     const getRoleBadgeColor = (roleName: string | undefined) => {
@@ -316,6 +355,13 @@ export const AccountManagement = () => {
                                                         <span className="material-symbols-outlined text-[18px]">{user.isActive ? 'lock' : 'lock_open'}</span>
                                                         {user.isActive ? 'Inactive' : 'Active'}
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${darkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'}`}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        Delete
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
@@ -427,7 +473,7 @@ export const AccountManagement = () => {
                                     <label className="block text-sm font-medium mb-1.5">Store</label>
                                     <select className={`w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21] ${!isStoreStaffSelected() ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}`} value={newUser.storeId} onChange={e => setNewUser({ ...newUser, storeId: e.target.value })} disabled={!isStoreStaffSelected()}>
                                         {!isStoreStaffSelected() ? (<option value="">Central Kitchen (HQ)</option>) : (<option value="">-- Select a Store --</option>)}
-                                        {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName}</option>))}
+                                        {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName || store.name || store._id}</option>))}
                                     </select>
                                 </div>
                             </div>
@@ -448,6 +494,40 @@ export const AccountManagement = () => {
                 roles={roles}
                 stores={stores}
                 darkMode={darkMode}
+            />
+            <ConfirmModal
+                isOpen={!!confirmConfig}
+                onClose={() => setConfirmConfig(null)}
+                onConfirm={async () => {
+                    if (!confirmConfig || !confirmConfig.user) return;
+                    if (confirmConfig.type === 'toggleStatus') {
+                        await performToggleStatus(confirmConfig.user);
+                    } else {
+                        await performDeleteUser(confirmConfig.user);
+                    }
+                    setConfirmConfig(null);
+                }}
+                title={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? confirmConfig.user?.isActive
+                            ? 'Deactivate user?'
+                            : 'Activate user?'
+                        : 'Delete user?'
+                }
+                message={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? `Bạn có chắc muốn ${confirmConfig.user?.isActive ? 'deactivate' : 'activate'} tài khoản "${confirmConfig.user?.fullName}" (@${confirmConfig.user?.username})?`
+                        : `Xóa tài khoản "${confirmConfig?.user?.fullName}" (@${confirmConfig?.user?.username})? Thao tác này là soft-delete.`
+                }
+                confirmLabel={
+                    confirmConfig?.type === 'toggleStatus'
+                        ? confirmConfig.user?.isActive
+                            ? 'Deactivate'
+                            : 'Activate'
+                        : 'Delete'
+                }
+                variant={confirmConfig?.type === 'deleteUser' ? 'danger' : 'default'}
+                loading={confirmLoading}
             />
         </div>
     );
