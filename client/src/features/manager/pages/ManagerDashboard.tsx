@@ -129,14 +129,14 @@ export default function ManagerDashboard() {
 
   const planStatusData = [
     { key: 'Planned', label: 'Planned', value: plans.filter((p) => p.status === 'Planned').length, fill: 'hsl(var(--chart-1))' },
-    { key: 'In_Progress', label: 'In Progress', value: plans.filter((p) => p.status === 'In_Progress').length, fill: 'hsl(var(--chart-2))' },
+    { key: 'In_Progress', label: 'In Progress', value: plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length, fill: 'hsl(var(--chart-2))' },
     { key: 'Completed', label: 'Completed', value: plans.filter((p) => p.status === 'Completed').length, fill: 'hsl(var(--chart-3))' },
     { key: 'Cancelled', label: 'Cancelled', value: plans.filter((p) => p.status === 'Cancelled').length, fill: 'hsl(var(--chart-4))' },
   ];
 
   const recentPlans = plans.slice(0, 5);
   const recentTrips = trips.slice(0, 5);
-  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress').length;
+  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length;
 
   const statCards = [
     { label: 'Kế hoạch sản xuất', value: loading ? 0 : plans.length, icon: ChefHat, gradient: 'from-amber-500 to-orange-600', href: '/manager/production' },
