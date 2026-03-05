@@ -1303,9 +1303,13 @@ paths:
         - Production
       summary: Complete production item and auto-create finished batch
       description: |
-        Mark a production item as complete and automatically create a finished goods batch.
+        Mark a production item as complete. 
         
-        **CRITICAL:** This creates the traceability link: Production Plan → Finished Batch
+        **MAGIC HAPPENS HERE:**
+        1. System reads the product's recipe.
+        2. System finds raw ingredients in the warehouse.
+        3. System auto-deducts ingredient batches using **FEFO (First-Expired-First-Out)** logic.
+        4. System creates a new Finished Goods Batch and links the used raw materials for full traceability.
       security:
         - BearerAuth: []
       parameters:
@@ -1331,10 +1335,10 @@ paths:
                 actualQuantity:
                   type: number
                   example: 100
-                  description: 'Actual quantity produced'
+                  description: 'Actual quantity of cakes/products produced'
       responses:
         '201':
-          description: Item completed and batch created successfully
+          description: Item completed, ingredients deducted, and batch created successfully
           content:
             application/json:
               schema:
@@ -1342,17 +1346,38 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
                   message:
                     type: string
+                    example: 'Production item completed successfully'
                   data:
                     type: object
                     properties:
-                      productionPlan:
+                      plan:
                         $ref: '#/components/schemas/ProductionPlan'
                       batch:
                         $ref: '#/components/schemas/FinishedBatch'
+                      traceability:
+                        type: object
+                        properties:
+                          ingredientBatchesUsed:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                ingredientBatchId:
+                                  type: string
+                                quantityUsed:
+                                  type: number
+                                ingredientName:
+                                  type: string
+                                batchCode:
+                                  type: string
+                          message:
+                            type: string
+                            example: 'Ingredients deducted using FEFO logic'
         '400':
-          description: Invalid input or item already completed
+          description: Invalid input, already completed, or Insufficient ingredient stock
         '404':
           description: Plan or product not found
 
