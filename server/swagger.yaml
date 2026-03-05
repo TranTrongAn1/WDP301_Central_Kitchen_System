@@ -1688,7 +1688,19 @@ paths:
       tags:
         - Logistics
       summary: Get all orders
-      # ... (giữ nguyên phần get của bạn)
+      description: |
+        Retrieve all orders with optional status filtering.
+        
+        **Use Case:** Mobile app can filter by 'Received' status to show orders eligible for feedback.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
+          description: 'Filter orders by their current status (e.g., Received)'
       responses:
         '200':
           description: Successfully retrieved orders
@@ -1699,6 +1711,8 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  count:
+                    type: integer
                   data:
                     type: array
                     items:
