@@ -3,6 +3,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { useAuthStore } from "@/shared/zustand/authStore";
+import { authApi } from "@/api/AuthApi";
 import { useThemeStore } from "@/shared/zustand/themeStore";
 import { useUserSettingsStore } from "@/shared/zustand/userSettingsStore";
 import { cn } from "@/shared/lib/utils";
@@ -24,6 +25,7 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_NAME: Record<string, { name: string; title: string }> = {
+  // Manager
   "/manager/dashboard": { name: "Dashboard", title: "Tổng quan hệ thống" },
   "/manager/orders": { name: "Orders & Shipments", title: "Quản lý đơn hàng & giao hàng" },
   "/manager/production": { name: "Production Plans", title: "Kế hoạch sản xuất" },
@@ -38,6 +40,25 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/manager/reports": { name: "Reports & Analytics", title: "Báo cáo & Phân tích" },
   "/manager/users": { name: "Users & Roles", title: "Quản lý người dùng" },
   "/manager/settings": { name: "Settings", title: "Cài đặt hệ thống" },
+  "/manager/feedback": { name: "Feedback", title: "Danh sách phản hồi" },
+  "/manager/suppliers": { name: "Suppliers", title: "Quản lý nhà cung cấp" },
+  "/manager/vehicle-types": { name: "Vehicle Types", title: "Quản lý loại xe" },
+  // Admin
+  "/admin/dashboard": { name: "Admin Dashboard", title: "Tổng quan hệ thống" },
+  "/admin/account": { name: "Accounts", title: "Quản lý tài khoản" },
+  "/admin/stores": { name: "Stores", title: "Quản lý danh sách cửa hàng" },
+  "/admin/orders": { name: "Orders & Shipments", title: "Quản lý đơn hàng & chuyến giao" },
+  "/admin/production": { name: "Production Plans", title: "Kế hoạch sản xuất" },
+  "/admin/production/batches": { name: "Finished Batches", title: "Lô thành phẩm" },
+  "/admin/inventory": { name: "Inventory & Batches", title: "Kho & Lô hàng" },
+  "/admin/products": { name: "Products & Recipes", title: "Sản phẩm & Công thức" },
+  "/admin/categories": { name: "Categories", title: "Danh mục sản phẩm" },
+  "/admin/ingredients": { name: "Ingredients", title: "Nguyên liệu" },
+  "/admin/suppliers": { name: "Suppliers", title: "Nhà cung cấp" },
+  "/admin/vehicle-types": { name: "Vehicle Types", title: "Loại xe vận chuyển" },
+  "/admin/payment": { name: "Payment & Wallet", title: "Thanh toán & Ví cửa hàng" },
+  "/admin/feedback": { name: "Feedback", title: "Danh sách phản hồi" },
+  "/admin/settings": { name: "Settings", title: "Cài đặt hệ thống" },
   "/coordinator/dashboard": { name: "Logistics Dashboard", title: "Tổng quan vận chuyển & điều phối" },
   "/coordinator/orders": { name: "Store Orders", title: "Đơn hàng từ cửa hàng" },
   "/coordinator/orders/:id": { name: "Order Detail", title: "Chi tiết đơn hàng" },
@@ -60,7 +81,7 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
 };
 
 export const DashboardHeader = ({
-  isSidebarCollapsed: _isSidebarCollapsed,
+  isSidebarCollapsed,
   onMenuClick,
 }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
@@ -108,16 +129,27 @@ export const DashboardHeader = ({
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Đăng xuất thành công!");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Nếu BE không hỗ trợ logout hoặc lỗi mạng, vẫn cho đăng xuất FE.
+    } finally {
+      logout();
+      toast.success("Đăng xuất thành công!");
+      navigate("/login");
+    }
   };
 
   const playNotificationSound = () => {
     if (typeof window === "undefined" || !enableSoundEffects) return;
     try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      void isSidebarCollapsed;
+      const w = window as unknown as {
+        AudioContext?: typeof AudioContext;
+        webkitAudioContext?: typeof AudioContext;
+      };
+      const AudioCtx = w.AudioContext || w.webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       const osc = ctx.createOscillator();

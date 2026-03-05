@@ -13,12 +13,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
-import { systemSettingApi, type SystemSetting } from '@/api/SystemSettingApi';
+import { systemSettingApi, type SystemSetting, type CreateSystemSettingPayload } from '@/api/SystemSettingApi';
 
 import {
   Card,
@@ -66,58 +68,57 @@ const SettingsPage = () => {
     string | null
   >(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newSetting, setNewSetting] = useState<CreateSystemSettingPayload>({
+    key: '',
+    value: '',
+    description: '',
+    isPublic: false,
+  });
+  const [creating, setCreating] = useState(false);
 
   const isAdmin = user?.role === 'Admin';
+  const canManageSystem = user?.role === 'Admin' || user?.role === 'Manager';
+
+  const fetchSystemSettings = async () => {
+    if (!canManageSystem) return;
+    setIsLoadingSystemSettings(true);
+    setSystemSettingsError(null);
+    try {
+      const res = await systemSettingApi.getAll();
+      if (res?.success && Array.isArray(res.data)) {
+        setSystemSettings(res.data);
+      } else {
+        setSystemSettings([]);
+        setSystemSettingsError(
+          res?.message ||
+          'Không thể tải System Settings. Kiểm tra cấu hình backend.'
+        );
+      }
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        setSystemSettingsError(
+          'API /api/system-settings hiện chưa được backend mount. Hãy thêm app.use("/api/system-settings", systemSettingRoutes) trong server để sử dụng trang này.'
+        );
+      } else {
+        setSystemSettingsError(
+          err?.response?.data?.message ||
+          err?.message ||
+          'Đã xảy ra lỗi khi tải System Settings.'
+        );
+      }
+      setSystemSettings([]);
+    } finally {
+      setIsLoadingSystemSettings(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isAdmin) return;
-
-    let isMounted = true;
-
-    const fetchSystemSettings = async () => {
-      setIsLoadingSystemSettings(true);
-      setSystemSettingsError(null);
-      try {
-        const res = await systemSettingApi.getAll();
-        if (!isMounted) return;
-
-        if (res?.success && Array.isArray(res.data)) {
-          setSystemSettings(res.data);
-        } else {
-          setSystemSettings([]);
-          setSystemSettingsError(
-            res?.message ||
-              'Không thể tải System Settings. Kiểm tra cấu hình backend.'
-          );
-        }
-      } catch (err: any) {
-        if (!isMounted) return;
-        const status = err?.response?.status;
-        if (status === 404) {
-          setSystemSettingsError(
-            'API /api/system-settings hiện chưa được backend mount. Hãy thêm app.use("/api/system-settings", systemSettingRoutes) trong server để sử dụng trang này.'
-          );
-        } else {
-          setSystemSettingsError(
-            err?.response?.data?.message ||
-              err?.message ||
-              'Đã xảy ra lỗi khi tải System Settings.'
-          );
-        }
-        setSystemSettings([]);
-      } finally {
-        if (isMounted) {
-          setIsLoadingSystemSettings(false);
-        }
-      }
-    };
-
-    fetchSystemSettings();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isAdmin]);
+    if (canManageSystem) fetchSystemSettings();
+  }, [canManageSystem]);
 
   const handleSystemSettingChange = (
     key: string,
@@ -143,8 +144,8 @@ const SettingsPage = () => {
         setSystemSettings((prev) =>
           prev
             ? prev.map((s) =>
-                s.key === setting.key ? { ...s, ...res.data } : s
-              )
+              s.key === setting.key ? { ...s, ...res.data } : s
+            )
             : prev
         );
       } else {
@@ -155,11 +156,61 @@ const SettingsPage = () => {
     } catch (err: any) {
       setSystemSettingsError(
         err?.response?.data?.message ||
-          err?.message ||
-          'Đã xảy ra lỗi khi lưu System Setting.'
+        err?.message ||
+        'Đã xảy ra lỗi khi lưu System Setting.'
       );
     } finally {
       setSavingKey(null);
+    }
+  };
+
+  const handleSeed = async () => {
+    if (!window.confirm('Seed lại System Settings mặc định? Có thể ghi đè giá trị hiện có.')) return;
+    setSeeding(true);
+    setSystemSettingsError(null);
+    try {
+      const res = await systemSettingApi.seed();
+      if (res?.success && Array.isArray(res.data)) {
+        setSystemSettings(res.data);
+      } else {
+        await fetchSystemSettings();
+      }
+    } catch (err: any) {
+      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Seed thất bại.');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleDeleteSetting = async (key: string) => {
+    if (!window.confirm(`Xóa setting "${key}"?`)) return;
+    setDeletingKey(key);
+    try {
+      await systemSettingApi.delete(key);
+      setSystemSettings((prev) => (prev ?? []).filter((s) => s.key !== key));
+    } catch (err: any) {
+      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Xóa thất bại.');
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const handleCreateSetting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSetting.key.trim()) return;
+    setCreating(true);
+    setSystemSettingsError(null);
+    try {
+      const res = await systemSettingApi.create(newSetting);
+      if (res?.success && res.data) {
+        setSystemSettings((prev) => (prev ?? []).concat(res.data));
+        setIsCreateModalOpen(false);
+        setNewSetting({ key: '', value: '', description: '', isPublic: false });
+      }
+    } catch (err: any) {
+      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Tạo mới thất bại.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -218,7 +269,7 @@ const SettingsPage = () => {
                 <TabsTrigger value="notifications">
                   Thông báo
                 </TabsTrigger>
-                {isAdmin && (
+                {canManageSystem && (
                   <TabsTrigger value="system">
                     Hệ thống
                   </TabsTrigger>
@@ -477,6 +528,27 @@ const SettingsPage = () => {
                   </Card>
                 )}
 
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSeed}
+                    disabled={seeding}
+                  >
+                    {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Seed mặc định
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsCreateModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Thêm setting
+                  </Button>
+                </div>
+
                 <div className="space-y-3">
                   {isLoadingSystemSettings && (
                     <Card>
@@ -558,15 +630,81 @@ const SettingsPage = () => {
                               size="sm"
                               variant="default"
                               className="flex-shrink-0"
-                              isLoading={savingKey === setting.key}
+                              disabled={savingKey === setting.key || deletingKey === setting.key}
                               onClick={() => handleSaveSystemSetting(setting)}
                             >
-                              Lưu thay đổi
+                              {savingKey === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Lưu thay đổi'}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="flex-shrink-0 text-destructive hover:bg-destructive/10"
+                              disabled={deletingKey === setting.key}
+                              onClick={() => handleDeleteSetting(setting.key)}
+                            >
+                              {deletingKey === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                             </Button>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
+
+                  {isCreateModalOpen && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Thêm System Setting</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleCreateSetting} className="space-y-3">
+                          <div>
+                            <Label className="text-xs">Key *</Label>
+                            <Input
+                              value={newSetting.key}
+                              onChange={(e) => setNewSetting((p) => ({ ...p, key: e.target.value }))}
+                              placeholder="VD: SHIPPING_COST_BASE"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Value *</Label>
+                            <Input
+                              value={newSetting.value}
+                              onChange={(e) => setNewSetting((p) => ({ ...p, value: e.target.value }))}
+                              placeholder="VD: 50000"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Description</Label>
+                            <Input
+                              value={newSetting.description ?? ''}
+                              onChange={(e) => setNewSetting((p) => ({ ...p, description: e.target.value }))}
+                              placeholder="Mô tả ngắn"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="new-setting-public"
+                              checked={newSetting.isPublic ?? false}
+                              onChange={(e) => setNewSetting((p) => ({ ...p, isPublic: e.target.checked }))}
+                            />
+                            <Label htmlFor="new-setting-public" className="text-xs">Public (FE đọc được)</Label>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button type="submit" size="sm" disabled={creating}>
+                              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                              Tạo
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
+                              Hủy
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </TabsContent>
             )}
@@ -610,16 +748,14 @@ const SettingToggle = ({
         )}
       </div>
       <div
-        className={`relative h-6 w-11 rounded-full border transition-colors ${
-          checked
-            ? 'border-primary bg-primary/90'
-            : 'border-border bg-muted/80'
-        }`}
+        className={`relative h-6 w-11 rounded-full border transition-colors ${checked
+          ? 'border-primary bg-primary/90'
+          : 'border-border bg-muted/80'
+          }`}
       >
         <div
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked ? 'translate-x-5' : 'translate-x-0.5'
-          }`}
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
         />
       </div>
     </button>
