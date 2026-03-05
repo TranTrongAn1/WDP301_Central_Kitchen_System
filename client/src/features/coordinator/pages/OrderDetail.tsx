@@ -5,7 +5,6 @@ import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
 import { batchApi, type Batch } from '@/api/BatchApi';
 import { feedbackApi } from '@/api/FeedbackApi';
-import { invoiceApi } from '@/api/InvoiceApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import toast from 'react-hot-toast';
 
@@ -43,12 +42,6 @@ const OrderDetail = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
-  const [isPayingWithWallet, setIsPayingWithWallet] = useState(false);
-  const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
-  const [paymentUnavailable, setPaymentUnavailable] = useState(false);
-  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
-  const [cashAmount, setCashAmount] = useState<number>(0);
-  const [isRecordingCash, setIsRecordingCash] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -284,93 +277,7 @@ const OrderDetail = () => {
     }
   };
 
-  const handlePayWithWallet = async () => {
-    if (!order) return;
-    const storeId =
-      typeof order.storeId === 'string'
-        ? order.storeId
-        : ((order.storeId as any)?._id as string | undefined);
-    if (!storeId) {
-      toast.error('Không xác định được cửa hàng để thanh toán.');
-      return;
-    }
-    try {
-      setIsPayingWithWallet(true);
-      const inv = await invoiceApi.getFirstByOrderId(order._id);
-      if (!inv?._id) {
-        toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể thanh toán lúc này.');
-        return;
-      }
-      await invoiceApi.payWithWalletForInvoice(inv._id, storeId, order.totalAmount);
-      toast.success('Đã gửi yêu cầu thanh toán bằng ví.');
-    } catch (error: any) {
-      console.error(error);
-      if (error?.response?.status === 404) {
-        setPaymentUnavailable(true);
-      }
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Thanh toán bằng ví thất bại.';
-      toast.error(message);
-    } finally {
-      setIsPayingWithWallet(false);
-    }
-  };
-
-  const handleCreatePayOSLink = async () => {
-    if (!order) return;
-    try {
-      setIsCreatingPayOS(true);
-      const inv = await invoiceApi.getFirstByOrderId(order._id);
-      if (!inv?._id) {
-        toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể tạo link PayOS lúc này.');
-        return;
-      }
-      const origin = window.location.origin;
-      const url = await invoiceApi.createPayOSLinkForInvoice(
-        inv._id,
-        `${origin}/dashboard`,
-        `${origin}/dashboard`
-      );
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      } else {
-        toast.error('Không tạo được link thanh toán.');
-      }
-    } catch (error: any) {
-      console.error(error);
-      if (error?.response?.status === 404) {
-        setPaymentUnavailable(true);
-      }
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Lỗi khi tạo link PayOS.';
-      toast.error(message);
-    } finally {
-      setIsCreatingPayOS(false);
-    }
-  };
-
-  const handleRecordCashPayment = async () => {
-    if (!order || cashAmount <= 0) {
-      toast.error('Nhập số tiền thanh toán tiền mặt (lớn hơn 0).');
-      return;
-    }
-    try {
-      setIsRecordingCash(true);
-      await invoiceApi.recordPayment(order._id, { method: 'Cash', amount: cashAmount });
-      toast.success('Đã ghi nhận thanh toán tiền mặt.');
-      setIsCashModalOpen(false);
-      setCashAmount(0);
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'Ghi nhận thất bại.');
-    } finally {
-      setIsRecordingCash(false);
-    }
-  };
+  // Các handler thanh toán trực tiếp bằng ví/PayOS/cash đã được loại bỏ khỏi UI trong MVP web.
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -617,6 +524,14 @@ const OrderDetail = () => {
                 <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Phí vận chuyển:</span>
                 <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>{formatCurrency(0)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Hình thức thanh toán:</span>
+                <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>
+                  {order.paymentMethod === 'Wallet'
+                    ? 'Ví cửa hàng (đã trừ khi tạo đơn nếu đủ điều kiện)'
+                    : order.paymentMethod || 'Khác'}
+                </span>
+              </div>
             </div>
 
             <div className={`h-px w-full my-4 border-dashed ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
@@ -628,64 +543,10 @@ const OrderDetail = () => {
               </span>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handlePayWithWallet}
-                disabled={isPayingWithWallet || paymentUnavailable}
-                className="h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1 hover:bg-primary/90 disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {isPayingWithWallet ? 'progress_activity' : 'account_balance_wallet'}
-                </span>
-                {isPayingWithWallet ? 'Đang thanh toán bằng ví...' : 'Thanh toán bằng ví cửa hàng'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCreatePayOSLink}
-                disabled={isCreatingPayOS || paymentUnavailable}
-                className="h-9 rounded-lg border border-border text-xs font-semibold flex items-center justify-center gap-1 hover:bg-secondary disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {isCreatingPayOS ? 'progress_activity' : 'link'}
-                </span>
-                {isCreatingPayOS ? 'Đang tạo link PayOS...' : 'Tạo link thanh toán PayOS'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setCashAmount(order?.totalAmount ?? 0); setIsCashModalOpen(true); }}
-                className="h-9 rounded-lg border border-border text-xs font-semibold flex items-center justify-center gap-1 hover:bg-secondary"
-              >
-                <span className="material-symbols-outlined text-[16px]">payments</span>
-                Ghi nhận thanh toán tiền mặt
-              </button>
-              {isCashModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !isRecordingCash && setIsCashModalOpen(false)}>
-                  <div className={`rounded-xl border p-6 w-full max-w-sm shadow-xl ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
-                    <h4 className="font-bold mb-3">Ghi nhận thanh toán tiền mặt</h4>
-                    <input
-                      type="number"
-                      min={1}
-                      value={cashAmount || ''}
-                      onChange={(e) => setCashAmount(Number(e.target.value) || 0)}
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent mb-4"
-                      placeholder="Số tiền (VND)"
-                    />
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setIsCashModalOpen(false)} className="flex-1 py-2 rounded-lg border text-sm font-medium">Hủy</button>
-                      <button type="button" onClick={handleRecordCashPayment} disabled={isRecordingCash || cashAmount <= 0} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium disabled:opacity-50">
-                        {isRecordingCash ? 'Đang ghi nhận...' : 'Xác nhận'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {paymentUnavailable && (
-                <p className="mt-1 text-[11px] text-red-500">
-                  Các endpoint thanh toán chưa được bật trên môi trường hiện tại (404). Vui lòng dùng phương thức khác hoặc liên hệ backend.
-                </p>
-              )}
-            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Theo thiết kế hiện tại, việc trừ ví hoặc thanh toán PayOS được xử lý khi tạo đơn
+              (paymentMethod) hoặc qua các hệ thống khác. Màn hình này chỉ hiển thị thông tin, không thực hiện thanh toán lại.
+            </p>
           </div>
 
           {/* SỬA: DÙNG CANCELLATION REASON THAY CHO NOTES */}

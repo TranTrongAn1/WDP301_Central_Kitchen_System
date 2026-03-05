@@ -146,7 +146,7 @@ export default function KitchenTripsPage() {
     );
   };
 
-  const normalizeTripStatus = (rawStatus: string): TripStatus => {
+  const normalizeTripStatus = (rawStatus: string): TripStatusFilter => {
     const status = (rawStatus || '').trim();
     if (status === 'Planning' || status === 'Pending') return 'Planning';
     if (status === 'Transferred_To_Kitchen') return 'Transferred_To_Kitchen';

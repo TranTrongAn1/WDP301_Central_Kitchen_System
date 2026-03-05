@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { OrderApi, type Order, type UpdateOrderPayload } from '@/api/OrderApi';
-import { invoiceApi } from '@/api/InvoiceApi';
-import { paymentApi } from '@/api/PaymentApi';
 import toast from 'react-hot-toast';
 
 const StoreOrderDetailPage = () => {
@@ -11,13 +9,7 @@ const StoreOrderDetailPage = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [payingWallet, setPayingWallet] = useState(false);
-  const [payingPayOS, setPayingPayOS] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const [requestedDeliveryDate, setRequestedDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -46,35 +38,7 @@ const StoreOrderDetailPage = () => {
     fetchOrder();
   }, [id]);
 
-  // Fetch wallet balance when order is received (for payment)
-  useEffect(() => {
-    const fetchWallet = async () => {
-      if (!order || order.status !== 'Received') return;
-      const storeId = typeof order.storeId === 'object' ? order.storeId._id : order.storeId;
-      if (!storeId) return;
-      try {
-        const wallet = await paymentApi.getWallet(storeId);
-        setWalletBalance(wallet?.balance ?? 0);
-      } catch {
-        setWalletBalance(null);
-      }
-    };
-    fetchWallet();
-  }, [order]);
-
-  // Resolve invoiceId from backend invoices (source of truth)
-  useEffect(() => {
-    const resolveInvoice = async () => {
-      if (!id) return;
-      try {
-        const inv = await invoiceApi.getFirstByOrderId(id);
-        setInvoiceId(inv?._id ?? null);
-      } catch {
-        setInvoiceId(null);
-      }
-    };
-    resolveInvoice();
-  }, [id]);
+  // Không fetch ví/invoice ở detail – thanh toán hiện xử lý theo paymentMethod khi tạo đơn.
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', {
@@ -101,67 +65,7 @@ const StoreOrderDetailPage = () => {
     }
   };
 
-  const handleCancelOrder = async () => {
-    if (!order || !id || order.status !== 'Pending') return;
-    try {
-      setCancelling(true);
-      await OrderApi.rejectOrder(id, 'Cancelled by store staff');
-      toast.success('Đã hủy đơn hàng!');
-      navigate('/store/orders');
-    } catch {
-      toast.error('Không thể hủy đơn hàng.');
-    } finally {
-      setCancelling(false);
-      setConfirmCancelOpen(false);
-    }
-  };
-
-  const handlePayWithWallet = async () => {
-    if (!order || !id) return;
-    const storeId = typeof order.storeId === 'object' ? order.storeId._id : order.storeId;
-    if (!storeId) return;
-    if (!invoiceId) {
-      toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể thanh toán lúc này.');
-      return;
-    }
-    try {
-      setPayingWallet(true);
-      await invoiceApi.payWithWalletForInvoice(invoiceId, storeId, order.totalAmount ?? 0);
-      toast.success('Thanh toán bằng ví thành công!');
-      // Refresh order
-      const updated = await OrderApi.getOrderById(id);
-      setOrder(updated);
-    } catch {
-      toast.error('Thanh toán thất bại. Kiểm tra số dư ví.');
-    } finally {
-      setPayingWallet(false);
-    }
-  };
-
-  const handlePayWithPayOS = async () => {
-    if (!order || !id) return;
-    if (!invoiceId) {
-      toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể tạo link PayOS lúc này.');
-      return;
-    }
-    try {
-      setPayingPayOS(true);
-      const checkoutUrl = await invoiceApi.createPayOSLinkForInvoice(
-        invoiceId,
-        window.location.href,
-        window.location.href,
-      );
-      if (checkoutUrl) {
-        window.open(checkoutUrl, '_blank');
-      } else {
-        toast.error('Không tạo được link thanh toán.');
-      }
-    } catch {
-      toast.error('Lỗi tạo link thanh toán PayOS.');
-    } finally {
-      setPayingPayOS(false);
-    }
-  };
+  // Hủy/Thanh toán sau được xử lý bởi role khác; StoreStaff chỉ chỉnh sửa thông tin trước khi đơn được duyệt.
 
   if (loading) {
     return (
@@ -360,56 +264,8 @@ const StoreOrderDetailPage = () => {
         </div>
       </div>
 
-      {/* Invoice Payment Section – shown for Received orders */}
-      {order.status === 'Received' && (
-        <div className="rounded-xl border bg-card p-4 space-y-4">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Thanh toán đơn hàng
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
-              <p className="text-xs font-semibold">Thanh toán bằng Ví</p>
-              {walletBalance !== null && (
-                <p className="text-xs text-muted-foreground">
-                  Số dư ví: <span className="font-semibold text-primary">{formatCurrency(walletBalance)}</span>
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Số tiền: <span className="font-semibold">{formatCurrency(order.totalAmount ?? 0)}</span>
-              </p>
-              <button
-                type="button"
-                onClick={handlePayWithWallet}
-                disabled={payingWallet || (walletBalance !== null && walletBalance < (order.totalAmount ?? 0))}
-                className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-60"
-              >
-                {payingWallet ? 'Đang xử lý...' : 'Thanh toán bằng Ví'}
-              </button>
-              {walletBalance !== null && walletBalance < (order.totalAmount ?? 0) && (
-                <p className="text-[10px] text-red-500">Số dư ví không đủ. Vui lòng nạp thêm.</p>
-              )}
-            </div>
-            <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/10 p-4 space-y-2">
-              <p className="text-xs font-semibold">Thanh toán qua PayOS</p>
-              <p className="text-xs text-muted-foreground">
-                Thanh toán trực tuyến qua cổng PayOS
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Số tiền: <span className="font-semibold">{formatCurrency(order.totalAmount ?? 0)}</span>
-              </p>
-              <button
-                type="button"
-                onClick={handlePayWithPayOS}
-                disabled={payingPayOS}
-                className="w-full h-9 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-60"
-              >
-                {payingPayOS ? 'Đang tạo link...' : 'Thanh toán PayOS'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Hủy đơn bởi StoreStaff không được backend cho phép (403), nên ẩn confirm UI phía FE */}
+      {/* Theo luồng mobile: thanh toán bằng ví được xử lý khi tạo đơn (paymentMethod = 'Wallet').
+          Tại màn chi tiết, chỉ hiển thị thông tin, không cho thanh toán lại. */}
     </div>
   );
 };
