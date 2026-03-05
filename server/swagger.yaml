@@ -58,6 +58,8 @@ tags:
     description: Order feedback and rating management
   - name: Payment
     description: Payment gateway integration using PayOS
+  - name: System Settings
+    description: Global system configurations (Shipping fees, Tax rates, etc.). Used by Mobile App to fetch dynamic prices.
 
 paths:
   /health:
@@ -3600,6 +3602,341 @@ paths:
         '404':
           description: User not found
 
+  # ============================================================
+  # SYSTEM SETTINGS MANAGEMENT
+  # ============================================================
+  /api/system-settings:
+    get:
+      tags:
+        - System Settings
+      summary: Get all system settings
+      description: |
+        Retrieve all system settings with optional filtering.
+        
+        **Access Control:**
+        - If user is authenticated: Returns all settings
+        - If not authenticated OR publicOnly=true: Returns only settings where isPublic=true
+        
+        **Use Case:** Mobile app fetches public settings (shipping fees, tax rates) without authentication.
+      parameters:
+        - in: query
+          name: publicOnly
+          schema:
+            type: boolean
+          description: 'If true, return only public settings'
+          example: true
+      responses:
+        '200':
+          description: Successfully retrieved settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SystemSetting'
+
+    post:
+      tags:
+        - System Settings
+      summary: Create a new system setting
+      description: |
+        Create a new global system setting.
+        
+        **Requirements:**
+        - key and value are required
+        - key will be automatically converted to uppercase
+        - isPublic defaults to false if not specified
+        
+        **Access:** Admin only
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingInput'
+            example:
+              key: 'SHIPPING_COST_BASE'
+              value: '50000'
+              description: 'Base shipping cost for deliveries (VND)'
+              isPublic: true
+      responses:
+        '201':
+          description: System setting created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'System setting created successfully'
+                  data:
+                    $ref: '#/components/schemas/SystemSetting'
+        '400':
+          description: Invalid input or duplicate key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    success: false
+                    message: 'Please provide key and value'
+                duplicate:
+                  summary: Duplicate key
+                  value:
+                    success: false
+                    message: "Setting with key 'SHIPPING_COST_BASE' already exists"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/system-settings/seed:
+    post:
+      tags:
+        - System Settings
+      summary: Seed default system settings
+      description: |
+        Automatically populate default system settings if they don't exist.
+        
+        **Default Settings:**
+        - SHIPPING_COST_BASE: '50000' (VND)
+        - TAX_RATE: '0.08' (8%)
+        
+        **Behavior:**
+        - Only creates settings that don't already exist
+        - Skips existing settings without updating them
+        - Returns list of seeded and skipped settings
+        
+        **Access:** Admin only
+        
+        **Use Case:** Initial system setup or post-deployment configuration.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Default settings seeded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Default settings seeded successfully'
+                  data:
+                    type: object
+                    properties:
+                      seeded:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SystemSetting'
+                      skipped:
+                        type: array
+                        items:
+                          type: string
+                        example: ['SHIPPING_COST_BASE']
+                      seededCount:
+                        type: integer
+                        example: 1
+                      skippedCount:
+                        type: integer
+                        example: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/system-settings/{key}:
+    get:
+      tags:
+        - System Settings
+      summary: Get a specific setting by key
+      description: |
+        Retrieve a single system setting by its key.
+        
+        **Access Control:**
+        - Public settings (isPublic=true): Accessible without authentication
+        - Private settings (isPublic=false): Requires authentication
+        
+        **Key Format:** Case-insensitive (automatically converted to uppercase)
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+          description: 'Setting key (case-insensitive)'
+          example: 'SHIPPING_COST_BASE'
+      responses:
+        '200':
+          description: Successfully retrieved setting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/SystemSetting'
+        '403':
+          description: Forbidden - Setting is private and user not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Access denied. This setting is private.'
+        '404':
+          description: System setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'System setting not found'
+
+    put:
+      tags:
+        - System Settings
+      summary: Update a system setting
+      description: |
+        Update an existing system setting.
+        
+        **Updatable Fields:**
+        - value: New value for the setting
+        - description: Updated description
+        - isPublic: Change public accessibility
+        
+        **Note:** The key cannot be updated. To change a key, delete and recreate the setting.
+        
+        **Access:** Admin only
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+          description: 'Setting key (case-insensitive)'
+          example: 'SHIPPING_COST_BASE'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingUpdate'
+            example:
+              value: '60000'
+              description: 'Updated base shipping cost for 2026'
+              isPublic: true
+      responses:
+        '200':
+          description: System setting updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'System setting updated successfully'
+                  data:
+                    $ref: '#/components/schemas/SystemSetting'
+        '404':
+          description: System setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'System setting not found'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    delete:
+      tags:
+        - System Settings
+      summary: Delete a system setting
+      description: |
+        Permanently delete a system setting from the database.
+        
+        **Warning:** This is a hard delete operation and cannot be undone.
+        
+        **Use Case:** Remove deprecated or unused settings.
+        
+        **Access:** Admin only
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+          description: 'Setting key (case-insensitive)'
+          example: 'OLD_SETTING'
+      responses:
+        '200':
+          description: System setting deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'System setting deleted successfully'
+                  data:
+                    $ref: '#/components/schemas/SystemSetting'
+        '404':
+          description: System setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'System setting not found'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -4387,6 +4724,120 @@ components:
         isActive:
           type: boolean
           description: 'Dùng để kích hoạt lại hoặc tạm khóa loại xe'
+
+    # ============================================================
+    # SYSTEM SETTINGS SCHEMAS
+    # ============================================================
+    SystemSetting:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        _id:
+          type: string
+          example: '60d5ec49f1b2c8b1f8e4e1a1'
+        key:
+          type: string
+          description: 'Unique setting key in uppercase (e.g., SHIPPING_COST_BASE)'
+          example: 'SHIPPING_COST_BASE'
+        value:
+          type: string
+          description: 'Setting value (stored as string)'
+          example: '50000'
+        description:
+          type: string
+          description: 'Human-readable description of the setting'
+          example: 'Base shipping cost for deliveries (VND)'
+        isPublic:
+          type: boolean
+          description: 'Whether this setting is publicly accessible without authentication'
+          default: false
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SystemSettingInput:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: 'Setting key (will be converted to uppercase)'
+          example: 'SHIPPING_COST_BASE'
+        value:
+          type: string
+          description: 'Setting value'
+          example: '50000'
+        description:
+          type: string
+          description: 'Description of the setting'
+          example: 'Base shipping cost for deliveries (VND)'
+        isPublic:
+          type: boolean
+          description: 'Make this setting publicly accessible'
+          default: false
+          example: true
+
+    SystemSettingUpdate:
+      type: object
+      properties:
+        value:
+          type: string
+          description: 'New value for the setting'
+          example: '60000'
+        description:
+          type: string
+          description: 'Updated description'
+          example: 'Updated base shipping cost'
+        isPublic:
+          type: boolean
+          description: 'Change public accessibility'
+          example: false
+
+  # ============================================================
+  # REUSABLE RESPONSES
+  # ============================================================
+  responses:
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: 'Not authorized, token failed'
+    
+    Forbidden:
+      description: Forbidden - User does not have required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: 'Not authorized as Admin'
+    
+    BadRequest:
+      description: Bad Request - Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Not Found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
 # SAU ĐÓ, BẠN CẦN QUAY LÊN PHẦN PATHS ĐỂ THÊM CÁC ENDPOINT NÀY:
 # (Dán đoạn này vào dưới mục paths:)
