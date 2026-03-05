@@ -57,12 +57,12 @@ const DeliveryTripApi = {
 
   createDeliveryTrip: async (
     orderIds: string[],
-    notes?: string,
-    vehicleTypeId?: string
+    options?: { notes?: string; vehicleTypeId?: string; plannedShipDate?: string }
   ): Promise<LogisticsApiResponse<CreateTripResponseData>> => {
-    const body: any = { orderIds };
-    if (notes != null && notes.trim() !== '') body.notes = notes.trim().slice(0, 500);
-    if (vehicleTypeId) body.vehicleTypeId = vehicleTypeId;
+    const body: Record<string, unknown> = { orderIds };
+    if (options?.notes != null && options.notes.trim() !== '') body.notes = options.notes.trim().slice(0, 500);
+    if (options?.vehicleTypeId) body.vehicleTypeId = options.vehicleTypeId;
+    if (options?.plannedShipDate) body.plannedShipDate = options.plannedShipDate;
     const res = await apiClient.post('/logistics/trips/create', body);
     return res as unknown as LogisticsApiResponse<CreateTripResponseData>;
   },

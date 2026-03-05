@@ -76,8 +76,17 @@ export interface ReceiveOrderPayload {
   receivedEvidenceImageURL?: string;
 }
 
-export interface ApproveOrderItemPayload {
+export interface ApproveOrderBatchItem {
   batchId: string;
+  quantity: number;
+}
+
+export interface ApproveOrderItemPayload {
+  productId: string;
+  approvedQuantity: number;
+  batches: ApproveOrderBatchItem[];
+  /** Một số BE có thể đọc batchId trực tiếp trên item, nên cho phép thêm field này để tương thích */
+  batchId?: string;
 }
 
 export interface ApproveOrderPayload {

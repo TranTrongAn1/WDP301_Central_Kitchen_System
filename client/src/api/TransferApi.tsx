@@ -32,7 +32,8 @@ export interface Transfer {
         username: string;
         email?: string;
     } | string;
-    status: 'Pending' | 'Shipped' | 'Received' | 'Cancelled';
+    /** BE trả InTransit/Completed; FE cũng dùng Shipped/Received - chấp nhận cả hai */
+    status: 'Pending' | 'Shipped' | 'Received' | 'Cancelled' | 'InTransit' | 'Completed';
     shippedDate?: string;
     receivedDate?: string;
     items: TransferItem[];
@@ -65,9 +66,20 @@ export interface ApiResponse<T> {
     data: T;
 }
 
+/** Backend dùng InTransit/Completed; FE dùng Shipped/Received - map khi gửi */
+function toBackendTransferStatus(s: string): string {
+    if (s === 'Shipped') return 'InTransit';
+    if (s === 'Received') return 'Completed';
+    return s;
+}
+
 export const transferApi = {
-    getAll: (params?: TransferQueryParams) =>
-        apiClient.get<ApiResponse<Transfer[]>>('/transfers', { params }),
+    getAll: (params?: TransferQueryParams) => {
+        const backendParams = params?.status
+            ? { ...params, status: toBackendTransferStatus(params.status) }
+            : params;
+        return apiClient.get<ApiResponse<Transfer[]>>('/transfers', { params: backendParams });
+    },
 
     getById: (id: string) =>
         apiClient.get<ApiResponse<Transfer>>(`/transfers/${id}`),
@@ -76,7 +88,9 @@ export const transferApi = {
         apiClient.post<ApiResponse<Transfer>>('/transfers', data),
 
     updateStatus: (id: string, data: UpdateTransferStatusRequest) =>
-        apiClient.put<ApiResponse<Transfer>>(`/transfers/${id}/status`, data),
+        apiClient.put<ApiResponse<Transfer>>(`/transfers/${id}/status`, {
+            status: toBackendTransferStatus(data.status),
+        }),
 
     delete: (id: string) =>
         apiClient.delete<ApiResponse<null>>(`/transfers/${id}`),

@@ -8,7 +8,7 @@ export interface FeedbackPayload {
 
 export interface Feedback extends FeedbackPayload {
   _id: string;
-  orderId: string;
+  orderId: string | { _id: string; orderCode?: string };
   createdBy: {
     _id: string;
     fullName?: string;
@@ -16,6 +16,12 @@ export interface Feedback extends FeedbackPayload {
   } | string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FeedbackListParams {
+  page?: number;
+  limit?: number;
+  orderId?: string;
 }
 
 export interface ApiResponse<T> {
@@ -27,6 +33,13 @@ export interface ApiResponse<T> {
 const BASE = '/feedback';
 
 export const feedbackApi = {
+  /** GET /api/feedback - Admin, Manager: danh sách toàn bộ phản hồi */
+  getList: async (params?: FeedbackListParams): Promise<Feedback[]> => {
+    const res = (await apiClient.get(BASE, { params })) as ApiResponse<Feedback[]> | { data: Feedback[] };
+    const data = (res as any)?.data ?? res;
+    return Array.isArray(data) ? data : [];
+  },
+
   getByOrderId: async (orderId: string): Promise<Feedback | null> => {
     try {
       const res = (await apiClient.get(`${BASE}/${orderId}`)) as

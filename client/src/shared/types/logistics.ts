@@ -42,11 +42,18 @@ export interface OrderItem {
   unitPrice: number;
   subtotal: number;
   batchId?: string;
+  quantityRequested?: number;
+  approvedQuantity?: number;
+  receivedQuantity?: number;
+  discrepancyReason?: 'Missing' | 'Damaged' | 'Other' | string;
+  discrepancyImageURL?: string;
+  note?: string;
 }
 
 export interface LogisticsOrder {
   _id: string;
   orderCode: string;
+  orderNumber?: string;
   storeId: StoreRef | string;
   createdBy: UserRef | string;
   status: OrderStatus;
@@ -56,6 +63,7 @@ export interface LogisticsOrder {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  receivedDate?: string;
   // Optional fields used in store flows
   recipientName?: string;
   recipientPhone?: string;

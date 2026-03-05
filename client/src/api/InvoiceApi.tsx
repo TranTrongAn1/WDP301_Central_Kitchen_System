@@ -1,3 +1,4 @@
+import apiClient from './Client';
 import { paymentApi } from './PaymentApi';
 
 export interface InvoicePaymentResult {
@@ -5,7 +6,18 @@ export interface InvoicePaymentResult {
   message?: string;
 }
 
+export interface RecordInvoicePaymentPayload {
+  method: 'Wallet' | 'PayOS' | 'Cash';
+  amount: number;
+}
+
 export const invoiceApi = {
+  /** POST /api/logistics/invoices/:id/payment - Ghi nhận thanh toán (Wallet/PayOS/Cash) */
+  recordPayment: async (invoiceId: string, payload: RecordInvoicePaymentPayload): Promise<InvoicePaymentResult> => {
+    const res = await apiClient.post(`/logistics/invoices/${invoiceId}/payment`, payload);
+    return (res as any)?.success ? { success: true } : { success: false, message: (res as any)?.message };
+  },
+
   payWithWalletForInvoice: async (
     invoiceId: string,
     storeId: string,

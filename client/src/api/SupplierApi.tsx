@@ -50,4 +50,8 @@ export const supplierApi = {
 
     delete: (id: string) =>
         apiClient.delete<ApiResponse<null>>(`/suppliers/${id}`),
+
+    /** Xóa vĩnh viễn – chỉ Admin */
+    deletePermanent: (id: string) =>
+        apiClient.delete<ApiResponse<null>>(`/suppliers/${id}/permanent`),
 };
