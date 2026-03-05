@@ -143,6 +143,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="kitchen/batch/[id]"
+        options={{
+          href: null, // Ẩn khỏi thanh Tab Bar
+          title: "Chi tiết lô hàng",
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Cài đặt",
