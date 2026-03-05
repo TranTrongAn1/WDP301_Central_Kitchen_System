@@ -145,10 +145,6 @@ export default function CartTabScreen() {
       clearCart();
       setSubmitError(null);
 
-      // backend currently returns only the order; invoice may need to be fetched separately
-      const currentOrderId = res.data._id;
-      orderRef.current = currentOrderId;
-
       let invoice: Invoice | null = null;
       try {
         const invRes = await invoicesApi.getByOrder(currentOrderId, token);

@@ -72,15 +72,36 @@ const StoreDashboard = () => {
     try {
       setIsDepositing(true);
       const toastId = toast.loading('Đang nạp ví cửa hàng...');
-      await paymentApi.deposit({
+      const before = wallet?.balance ?? 0;
+      const res = await paymentApi.deposit({
         storeId: user.storeId,
         amount: depositAmount,
         description: 'Top-up from store dashboard',
       });
-      const updated = await paymentApi.getWallet(user.storeId);
-      setWallet(updated);
+      const maybeWallet = (res as any)?.data;
+      if (maybeWallet && typeof maybeWallet.balance === 'number') {
+        setWallet(maybeWallet as WalletInfo);
+      }
+
+      // Nếu BE cập nhật số dư async (webhook), poll nhẹ rồi mới kết luận
+      const delaysMs = [800, 1200, 2000, 3000, 5000];
+      let changed = false;
+      for (const d of delaysMs) {
+        await new Promise((r) => setTimeout(r, d));
+        const next = await paymentApi.getWallet(user.storeId).catch(() => null);
+        if (next && typeof next.balance === 'number') {
+          setWallet(next);
+          if (next.balance !== before) {
+            changed = true;
+            break;
+          }
+        }
+      }
       setDepositAmount(0);
-      toast.success('Nạp ví thành công', { id: toastId });
+      toast.success(
+        changed ? 'Nạp ví thành công' : 'Đã gửi yêu cầu nạp tiền (đang chờ hệ thống xác nhận)',
+        { id: toastId }
+      );
     } finally {
       setIsDepositing(false);
       if (depositAmount <= 0) toast.dismiss();

@@ -15,6 +15,20 @@ export default function StoreWalletPage() {
     const [depositAmount, setDepositAmount] = useState('');
     const [showDeposit, setShowDeposit] = useState(false);
 
+    const pollWalletUntilChanged = async (storeId: string, prevBalance: number) => {
+        // Nếu BE cập nhật số dư bất đồng bộ (webhook), poll nhẹ để UX tốt hơn
+        const delaysMs = [800, 1200, 2000, 3000, 5000];
+        for (const d of delaysMs) {
+            await new Promise((r) => setTimeout(r, d));
+            const next = await paymentApi.getWallet(storeId);
+            if (next && typeof next.balance === 'number' && next.balance !== prevBalance) {
+                setWallet(next);
+                return true;
+            }
+        }
+        return false;
+    };
+
     const fetchWallet = async () => {
         setLoading(true);
         try {
@@ -42,14 +56,26 @@ export default function StoreWalletPage() {
         setDepositing(true);
         try {
             const storeId = (user as any)?.storeId?._id || (user as any)?.storeId || '';
-            await paymentApi.deposit({ storeId, amount });
-            toast.success('Đã gửi yêu cầu nạp tiền');
+            const before = wallet?.balance ?? 0;
+            const res = await paymentApi.deposit({ storeId, amount });
+            // apiClient đã trả response.data; wallet mới (nếu BE trả) thường nằm ở res.data
+            const maybeWallet = (res as any)?.data;
+            if (maybeWallet && typeof maybeWallet.balance === 'number') {
+                setWallet(maybeWallet as WalletInfo);
+            }
             setShowDeposit(false);
             setDepositAmount('');
-            // Sau khi nạp, refetch ví để tránh 0đ / NaN nếu backend đã cập nhật
-            await fetchWallet();
+            // Nếu chưa thấy cập nhật ngay, poll thêm vài lần (trường hợp BE cập nhật async)
+            const changed = await pollWalletUntilChanged(storeId, before);
+            if (changed) {
+                toast.success('Nạp ví thành công');
+            } else {
+                toast.success('Đã gửi yêu cầu nạp tiền (đang chờ hệ thống xác nhận)');
+                // vẫn refetch lần nữa để đồng bộ UI
+                await fetchWallet();
+            }
         } catch {
-            toast.error('Không thể tạo liên kết nạp tiền');
+            toast.error('Không thể tạo yêu cầu nạp tiền');
         } finally {
             setDepositing(false);
         }
@@ -57,6 +83,10 @@ export default function StoreWalletPage() {
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
+    const formatDate = (d: string) => {
+        try { return new Date(d).toLocaleString('vi-VN'); } catch { return d; }
+    };
 
     return (
         <div className="p-6 space-y-6 max-w-4xl mx-auto">

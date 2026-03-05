@@ -296,7 +296,12 @@ const OrderDetail = () => {
     }
     try {
       setIsPayingWithWallet(true);
-      await invoiceApi.payWithWalletForInvoice(order._id, storeId, order.totalAmount);
+      const inv = await invoiceApi.getFirstByOrderId(order._id);
+      if (!inv?._id) {
+        toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể thanh toán lúc này.');
+        return;
+      }
+      await invoiceApi.payWithWalletForInvoice(inv._id, storeId, order.totalAmount);
       toast.success('Đã gửi yêu cầu thanh toán bằng ví.');
     } catch (error: any) {
       console.error(error);
@@ -317,9 +322,14 @@ const OrderDetail = () => {
     if (!order) return;
     try {
       setIsCreatingPayOS(true);
+      const inv = await invoiceApi.getFirstByOrderId(order._id);
+      if (!inv?._id) {
+        toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể tạo link PayOS lúc này.');
+        return;
+      }
       const origin = window.location.origin;
       const url = await invoiceApi.createPayOSLinkForInvoice(
-        order._id,
+        inv._id,
         `${origin}/dashboard`,
         `${origin}/dashboard`
       );

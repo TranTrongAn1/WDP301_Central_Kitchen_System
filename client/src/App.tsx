@@ -19,6 +19,7 @@ import BatchesPage from '@/features/manager/pages/BatchesPage';
 import BatchDetailPage from '@/features/manager/pages/BatchDetailPage';
 import InventoryReportsPage from '@/features/manager/pages/InventoryReportsPage';
 import OrdersShipmentsPage from '@/features/manager/pages/OrdersShipmentsPage';
+import TransferDetailPage from '@/features/manager/pages/TransferDetailPage';
 import ProductsRecipesPage from '@/features/manager/pages/ProductsRecipesPage';
 import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';

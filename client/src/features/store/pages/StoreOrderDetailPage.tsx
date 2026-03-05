@@ -11,10 +11,13 @@ const StoreOrderDetailPage = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [payingWallet, setPayingWallet] = useState(false);
   const [payingPayOS, setPayingPayOS] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const [requestedDeliveryDate, setRequestedDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -59,6 +62,20 @@ const StoreOrderDetailPage = () => {
     fetchWallet();
   }, [order]);
 
+  // Resolve invoiceId from backend invoices (source of truth)
+  useEffect(() => {
+    const resolveInvoice = async () => {
+      if (!id) return;
+      try {
+        const inv = await invoiceApi.getFirstByOrderId(id);
+        setInvoiceId(inv?._id ?? null);
+      } catch {
+        setInvoiceId(null);
+      }
+    };
+    resolveInvoice();
+  }, [id]);
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -84,11 +101,29 @@ const StoreOrderDetailPage = () => {
     }
   };
 
+  const handleCancelOrder = async () => {
+    if (!order || !id || order.status !== 'Pending') return;
+    try {
+      setCancelling(true);
+      await OrderApi.rejectOrder(id, 'Cancelled by store staff');
+      toast.success('Đã hủy đơn hàng!');
+      navigate('/store/orders');
+    } catch {
+      toast.error('Không thể hủy đơn hàng.');
+    } finally {
+      setCancelling(false);
+      setConfirmCancelOpen(false);
+    }
+  };
+
   const handlePayWithWallet = async () => {
     if (!order || !id) return;
     const storeId = typeof order.storeId === 'object' ? order.storeId._id : order.storeId;
-    const invoiceId = (order as any).invoiceId?._id ?? (order as any).invoiceId ?? id;
     if (!storeId) return;
+    if (!invoiceId) {
+      toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể thanh toán lúc này.');
+      return;
+    }
     try {
       setPayingWallet(true);
       await invoiceApi.payWithWalletForInvoice(invoiceId, storeId, order.totalAmount ?? 0);
@@ -105,7 +140,10 @@ const StoreOrderDetailPage = () => {
 
   const handlePayWithPayOS = async () => {
     if (!order || !id) return;
-    const invoiceId = (order as any).invoiceId?._id ?? (order as any).invoiceId ?? id;
+    if (!invoiceId) {
+      toast.error('Đơn hàng chưa có hóa đơn (invoice). Không thể tạo link PayOS lúc này.');
+      return;
+    }
     try {
       setPayingPayOS(true);
       const checkoutUrl = await invoiceApi.createPayOSLinkForInvoice(
@@ -371,7 +409,7 @@ const StoreOrderDetailPage = () => {
           </div>
         </div>
       )}
-      {/* Hủy đơn bởi StoreStaff không được backend cho phép (403), nên ẩn UI phía FE */}
+      {/* Hủy đơn bởi StoreStaff không được backend cho phép (403), nên ẩn confirm UI phía FE */}
     </div>
   );
 };

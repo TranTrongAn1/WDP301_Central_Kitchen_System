@@ -146,7 +146,7 @@ export default function KitchenTripsPage() {
     );
   };
 
-  const normalizeTripStatus = (rawStatus: string): TripStatusFilter => {
+  const normalizeTripStatus = (rawStatus: string): TripStatus => {
     const status = (rawStatus || '').trim();
     if (status === 'Planning' || status === 'Pending') return 'Planning';
     if (status === 'Transferred_To_Kitchen') return 'Transferred_To_Kitchen';
@@ -288,10 +288,7 @@ export default function KitchenTripsPage() {
             </div>
           ) : (
             <motion.div
-              key={`grid-${statusFilter}-${search}-${currentPage}`}
               className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
-              initial="hidden"
-              animate="show"
               variants={container}
             >
               {currentTrips.map((trip) => (
