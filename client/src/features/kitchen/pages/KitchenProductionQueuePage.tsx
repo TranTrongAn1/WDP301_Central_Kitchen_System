@@ -62,7 +62,7 @@ export default function KitchenProductionQueuePage() {
       const status = (p.status as string) || '';
       const isQueueStatus =
         status === 'Planned' ||
-        status === 'In_Progress' ||
+        (status === 'In_Progress' || status === 'InProgress') ||
         status === 'Pending';
       return sameDay(p.planDate) && isQueueStatus;
     });
@@ -113,7 +113,7 @@ export default function KitchenProductionQueuePage() {
   };
 
   const renderStatusBadge = (status: ProductionPlan['status']) => {
-    if (status === 'In_Progress') {
+    if (status === 'In_Progress' || status === 'InProgress') {
       return (
         <Badge className="bg-orange-500 text-white">
           <Play className="mr-1 h-3 w-3" />
@@ -327,7 +327,7 @@ export default function KitchenProductionQueuePage() {
                                   Bắt đầu
                                 </Button>
                               )}
-                              {plan.status === 'In_Progress' && (
+                              {(plan.status === 'In_Progress' || plan.status === 'InProgress') && (
                                 <Button
                                   size="sm"
                                   className="bg-gradient-to-r from-emerald-500 to-teal-600 text-[11px] h-7 px-2"

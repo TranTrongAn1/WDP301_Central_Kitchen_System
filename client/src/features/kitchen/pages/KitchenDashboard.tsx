@@ -89,7 +89,7 @@ const KitchenDashboard = () => {
     }
   });
 
-  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress').length;
+  const inProgressPlans = plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length;
   const activeBatches = batches;
   const expiringSoonBatches = activeBatches.filter((b) => {
     const exp = new Date(b.expDate);
@@ -407,14 +407,14 @@ const KitchenDashboard = () => {
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             plan.status === 'Completed'
                               ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                              : plan.status === 'In_Progress'
+                              : plan.status === 'In_Progress' || plan.status === 'InProgress'
                               ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
                               : 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200'
                           }`}
                         >
                           {plan.status === 'Completed'
                             ? 'Hoàn thành'
-                            : plan.status === 'In_Progress'
+                            : plan.status === 'In_Progress' || plan.status === 'InProgress'
                             ? 'Đang làm'
                             : 'Đã lên kế hoạch'}
                         </span>
