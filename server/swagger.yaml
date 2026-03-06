@@ -1868,6 +1868,54 @@ paths:
           description: Cannot update - order already approved or shipped
         '404':
           description: Order not found
+  
+  /api/orders/{orderId}/status:
+    patch:
+      tags:
+        - Logistics
+      summary: Update Order Status (Trigger Inventory Update)
+      description: |
+        Cập nhật trạng thái đơn hàng. 
+        **Đặc biệt:** Khi status chuyển sang `Received`, hệ thống sẽ tự động cộng số lượng sản phẩm vào kho của cửa hàng (`StoreInventory`) dựa trên các `batchId` có trong đơn hàng.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: ID của đơn hàng cần cập nhật
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Pending, Approved, Shipped, Received, Cancelled]
+                  example: Received
+      responses:
+        '200':
+          description: Cập nhật thành công. Nếu là "Received", kho đã được cộng dồn.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: "Order received and inventory updated"
+        '404':
+          description: Không tìm thấy đơn hàng
+        '500':
+          description: Lỗi hệ thống hoặc lỗi trong quá trình Transaction kho
 
   /api/logistics/orders/{orderId}/approve:
     post:
@@ -3293,6 +3341,166 @@ paths:
       responses:
         '200':
           description: Successfully retrieved expiring items
+          /api/inventory:
+    get:
+      tags:
+        - Inventory
+      summary: Get all inventory across all stores (Admin/Manager)
+      description: Retrieve a grouped list of inventory items for all stores.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by product ID
+      responses:
+        '200':
+          description: Successfully retrieved all inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  storeCount:
+                    type: number
+                  totalItems:
+                    type: number
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        store:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            address: { type: string }
+                        items:
+                          type: array
+                          items: { type: object }
+                        totalQuantity:
+                          type: number
+
+  /api/inventory/store/{storeId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get store inventory
+      description: |
+        View current inventory for a specific store with batch-level traceability.
+        Includes a summary by product and detailed batch data.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: storeId
+          required: true
+          schema:
+            type: string
+          description: Store ID
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by specific product ID
+      responses:
+        '200':
+          description: Successfully retrieved inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  store:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      address: { type: string }
+                  summary:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId: { type: string }
+                        productName: { type: string }
+                        productSku: { type: string }
+                        totalQuantity: { type: number }
+                        batches: { type: number }
+                  count:
+                    type: number
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StoreInventory'
+        '404':
+          description: Store not found
+        '403':
+          description: Unauthorized - StoreStaff can only view their own store
+
+  /api/inventory/{id}:
+    put:
+      tags:
+        - Inventory
+      summary: Update inventory quantity (Stock adjustment)
+      description: Manually adjust the quantity of a specific inventory item (batch) in a store.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Inventory Record ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: number
+                  example: 50
+      responses:
+        '200':
+          description: Quantity updated successfully
+        '404':
+          description: Inventory item not found
+        '403':
+          description: Forbidden - Unauthorized to update this store
+
+    delete:
+      tags:
+        - Inventory
+      summary: Delete inventory record (Admin only)
+      description: Completely remove an inventory record from the store.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Inventory Record ID
+      responses:
+        '200':
+          description: Record deleted successfully
+        '403':
+          description: Forbidden - Only Admin can delete records
+        '404':
+          description: Inventory item not found
 
   # ============================================================
   # FEATURE 1: STORES MANAGEMENT
