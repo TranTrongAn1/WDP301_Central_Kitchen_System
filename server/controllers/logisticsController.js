@@ -1693,7 +1693,17 @@ const recordPayment = async (req, res, next) => {
  */
 const getOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find()
+    // Extract status from query parameters
+    const { status } = req.query;
+
+    // Build filter object
+    const filter = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    // Fetch orders with filter
+    const orders = await Order.find(filter)
       .populate('storeId', 'storeName storeCode')
       .populate('items.productId', 'name sku')
       .populate('createdBy', 'fullName email')
