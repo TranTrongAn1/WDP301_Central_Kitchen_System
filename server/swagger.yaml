@@ -3459,13 +3459,13 @@ paths:
                       properties:
                         _id:
                           type: string
-                        name:
+                        storeName:
                           type: string
                         address:
                           type: string
-                        phone_number:
+                        phone:
                           type: string
-                        store_code:
+                        storeCode:
                           type: string
                         status:
                           type: string
@@ -3484,21 +3484,21 @@ paths:
             schema:
               type: object
               required:
-                - name
+                - storeName
                 - address
-                - phone_number
-                - store_code
+                - phone
+                - storeCode
               properties:
-                name:
+                storeName:
                   type: string
                   example: 'Kendo Mooncake - District 1'
                 address:
                   type: string
                   example: '123 Nguyen Hue Street, District 1, HCMC'
-                phone_number:
+                phone:
                   type: string
                   example: '0901234567'
-                store_code:
+                storeCode:
                   type: string
                   example: 'KD-D1-001'
                 status:
@@ -3554,13 +3554,13 @@ paths:
             schema:
               type: object
               properties:
-                name:
+                storeName:
                   type: string
                 address:
                   type: string
-                phone_number:
+                phone:
                   type: string
-                store_code:
+                storeCode:
                   type: string
                 status:
                   type: string
