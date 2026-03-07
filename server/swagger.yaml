@@ -825,6 +825,73 @@ paths:
           description: Batch not found
 
   # ============================================================
+  # INGREDIENT USAGE (Production Audit Log)
+  # ============================================================
+  /api/ingredient-usages:
+    get:
+      tags:
+        - Production
+      summary: Get ingredient usage history
+      description: Retrieve the audit log of ingredient batch usage during production. Supports filtering by plan, product, ingredient, batch, and date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: productionPlanId
+          schema:
+            type: string
+          description: Filter by Production Plan ID
+        - in: query
+          name: productId
+          schema:
+            type: string
+          description: Filter by Product ID
+        - in: query
+          name: ingredientId
+          schema:
+            type: string
+          description: Filter by Ingredient ID
+        - in: query
+          name: ingredientBatchId
+          schema:
+            type: string
+          description: Filter by Ingredient Batch ID
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter records on or after this date (inclusive, based on recordedAt)'
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: 'Filter records on or before this date (inclusive, full day)'
+      responses:
+        '200':
+          description: Successfully retrieved ingredient usage records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientUsage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================
   # FEATURE 3: PRODUCTS (with Recipe & Bundles)
   # ============================================================
 
@@ -4104,6 +4171,78 @@ components:
         isEmpty:
           type: boolean
           description: 'Virtual field: true if currentQuantity <= 0'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # INGREDIENT USAGE SCHEMA (Production Audit Log)
+    # ============================================================
+    IngredientUsage:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: '60d5ecb74f421b2d4c2c3e4f'
+        productionPlanId:
+          type: object
+          description: 'Populated Production Plan reference'
+          properties:
+            _id:
+              type: string
+            planCode:
+              type: string
+              example: 'PP-2026-001'
+        productId:
+          type: object
+          description: 'Populated Product reference'
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+              example: 'Bánh Nướng Đậu Xanh'
+            sku:
+              type: string
+              example: 'BN-DX-001'
+        ingredientId:
+          type: object
+          description: 'Populated Ingredient reference'
+          properties:
+            _id:
+              type: string
+            ingredientName:
+              type: string
+              example: 'Bột mì'
+            unit:
+              type: string
+              example: 'kg'
+        ingredientBatchId:
+          type: object
+          description: 'Populated Ingredient Batch reference (specific batch chosen by kitchen)'
+          properties:
+            _id:
+              type: string
+            batchCode:
+              type: string
+              example: 'IB-FLOUR-20260129-001'
+        quantityUsed:
+          type: number
+          minimum: 0
+          example: 12.5
+          description: 'Amount of ingredient consumed from this batch'
+        note:
+          type: string
+          nullable: true
+          example: 'Used for making bean paste'
+          description: 'Optional note about the usage'
+        recordedAt:
+          type: string
+          format: date-time
+          description: 'When the usage was recorded (may differ from createdAt if backdated)'
         createdAt:
           type: string
           format: date-time
