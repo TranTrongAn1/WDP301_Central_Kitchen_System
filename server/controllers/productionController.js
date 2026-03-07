@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const ProductionPlan = require('../models/ProductionPlan');
 const Product = require('../models/Product');
 const Batch = require('../models/BatchModel');
+const Ingredient = require('../models/Ingredient');
+const IngredientBatch = require('../models/IngredientBatch');
+const IngredientUsage = require('../models/IngredientUsage');
 
 const getProductionPlans = async (req, res, next) => {
   try {
@@ -145,7 +148,6 @@ const deleteProductionPlan = async (req, res, next) => {
 };
 
 const completeProductionItem = async (req, res, next) => {
-  // Start a transaction session for data consistency
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -153,7 +155,7 @@ const completeProductionItem = async (req, res, next) => {
 
   try {
     const { planId } = req.params;
-    const { productId, actualQuantity } = req.body;
+    const { productId, actualQuantity, usedIngredients } = req.body;
 
     // ========================================
     // STEP 1: Validation
@@ -163,6 +165,13 @@ const completeProductionItem = async (req, res, next) => {
       await session.abortTransaction();
       res.status(400);
       throw new Error('Product ID and valid actual quantity are required');
+    }
+
+    if (!usedIngredients || !Array.isArray(usedIngredients) || usedIngredients.length === 0) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error('usedIngredients must be a non-empty array');
     }
 
     const plan = await ProductionPlan.findById(planId).session(session);
@@ -177,9 +186,7 @@ const completeProductionItem = async (req, res, next) => {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      throw new Error(
-        `Cannot complete items for plan with status '${plan.status}'`
-      );
+      throw new Error(`Cannot complete items for plan with status '${plan.status}'`);
     }
 
     const detailIndex = plan.details.findIndex(
@@ -201,12 +208,9 @@ const completeProductionItem = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 2: Fetch Product with Recipe
+    // STEP 2: Fetch Product
     // ========================================
-    const product = await Product.findById(productId)
-      .populate('recipe.ingredientId')
-      .session(session);
-
+    const product = await Product.findById(productId).session(session);
     if (!product) {
       transactionAborted = true;
       await session.abortTransaction();
@@ -214,136 +218,99 @@ const completeProductionItem = async (req, res, next) => {
       throw new Error('Product not found');
     }
 
-    if (!product.recipe || product.recipe.length === 0) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Product has no recipe defined. Cannot complete production.');
-    }
-
     // ========================================
-    // STEP 3: Check Ingredient Availability
+    // STEP 3: Manual Deduction + IngredientUsage records
     // ========================================
-    const Ingredient = require('../models/Ingredient');
-    const IngredientBatch = require('../models/IngredientBatch');
+    const ingredientBatchesUsed = [];
 
-    for (const recipeItem of product.recipe) {
-      const totalNeeded = actualQuantity * recipeItem.quantity;
-      const ingredient = await Ingredient.findById(recipeItem.ingredientId._id).session(session);
+    for (const item of usedIngredients) {
+      const { ingredientBatchId, quantityUsed, note } = item;
 
+      if (!ingredientBatchId || !quantityUsed || quantityUsed <= 0) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(400);
+        throw new Error(
+          'Each usedIngredients item must have ingredientBatchId and a positive quantityUsed'
+        );
+      }
+
+      // Find the batch
+      const batch = await IngredientBatch.findById(ingredientBatchId).session(session);
+      if (!batch) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(404);
+        throw new Error(`Ingredient batch not found: ${ingredientBatchId}`);
+      }
+
+      // Check sufficient quantity
+      if (batch.currentQuantity < quantityUsed) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(400);
+        throw new Error(
+          `Insufficient quantity in batch '${batch.batchCode}'. ` +
+          `Available: ${batch.currentQuantity}, Requested: ${quantityUsed}`
+        );
+      }
+
+      // Deduct from batch
+      batch.currentQuantity -= quantityUsed;
+      if (batch.currentQuantity === 0) {
+        batch.isActive = false;
+      }
+      await batch.save({ session });
+
+      // Deduct from parent Ingredient totalQuantity
+      const ingredient = await Ingredient.findById(batch.ingredientId).session(session);
       if (!ingredient) {
         transactionAborted = true;
         await session.abortTransaction();
         res.status(404);
-        throw new Error(`Ingredient not found: ${recipeItem.ingredientId.ingredientName}`);
+        throw new Error(`Parent ingredient not found for batch '${batch.batchCode}'`);
       }
 
-      if (ingredient.totalQuantity < totalNeeded) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `Insufficient inventory for ingredient '${ingredient.ingredientName}'. ` +
-          `Required: ${totalNeeded} ${ingredient.unit}, Available: ${ingredient.totalQuantity} ${ingredient.unit}`
-        );
-      }
-    }
-
-    // ========================================
-    // STEP 4: FEFO Deduction Logic
-    // ========================================
-    const ingredientBatchesUsed = [];
-
-    for (const recipeItem of product.recipe) {
-      let totalNeeded = actualQuantity * recipeItem.quantity;
-      const ingredientId = recipeItem.ingredientId._id;
-
-      // Track actual amount deducted from batches for data consistency
-      let actualDeductedFromBatches = 0;
-
-      // Fetch all active batches sorted by expiryDate (FEFO - First Expired First Out)
-      const batches = await IngredientBatch.find({
-        ingredientId: ingredientId,
-        isActive: true,
-        currentQuantity: { $gt: 0 },
-      })
-        .sort({ expiryDate: 1 }) // Ascending: oldest expiry date first
-        .session(session);
-
-      if (batches.length === 0) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `No active batches found for ingredient '${recipeItem.ingredientId.ingredientName}'`
-        );
-      }
-
-      // Deduct from batches using FEFO logic
-      for (const batch of batches) {
-        if (totalNeeded <= 0) break;
-
-        const deductAmount = Math.min(batch.currentQuantity, totalNeeded);
-
-        // Update batch current quantity
-        batch.currentQuantity -= deductAmount;
-
-        // If batch is fully consumed, mark as inactive
-        if (batch.currentQuantity === 0) {
-          batch.isActive = false;
-        }
-
-        await batch.save({ session });
-
-        // Track traceability
-        ingredientBatchesUsed.push({
-          ingredientBatchId: batch._id,
-          quantityUsed: deductAmount,
-          ingredientName: recipeItem.ingredientId.ingredientName,
-          batchCode: batch.batchCode,
-        });
-
-        // Accumulate actual deducted amount
-        actualDeductedFromBatches += deductAmount;
-        totalNeeded -= deductAmount;
-      }
-
-      // Double-check: Ensure we deducted enough
-      if (totalNeeded > 0) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `Failed to deduct sufficient quantity for ingredient '${recipeItem.ingredientId.ingredientName}'. ` +
-          `Remaining needed: ${totalNeeded}`
-        );
-      }
-
-      // Update parent Ingredient totalQuantity using actual deducted amount
-      const ingredient = await Ingredient.findById(ingredientId).session(session);
-      ingredient.totalQuantity -= actualDeductedFromBatches;
-
+      ingredient.totalQuantity -= quantityUsed;
       if (ingredient.totalQuantity < 0) {
         transactionAborted = true;
         await session.abortTransaction();
         res.status(500);
         throw new Error(
-          `Data inconsistency detected for ingredient '${ingredient.ingredientName}'. ` +
-          `Total quantity became negative.`
+          `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
         );
       }
-
       await ingredient.save({ session });
+
+      // Create IngredientUsage audit record
+      await IngredientUsage.create(
+        [
+          {
+            productionPlanId: planId,
+            productId,
+            ingredientId: batch.ingredientId,
+            ingredientBatchId,
+            quantityUsed,
+            note: note || null,
+          },
+        ],
+        { session }
+      );
+
+      // Collect for finished batch traceability
+      ingredientBatchesUsed.push({
+        ingredientBatchId: batch._id,
+        quantityUsed,
+      });
     }
 
     // ========================================
-    // STEP 5: Create Finished Product Batch
+    // STEP 4: Create Finished Product Batch
     // ========================================
     const mfgDate = new Date();
     const expDate = new Date();
-    expDate.setDate(expDate.getDate() + product.shelfLifeDays);
+    expDate.setDate(expDate.getDate() + (product.shelfLifeDays || 0));
 
-    // Generate batch code: BATCH-YYYYMMDD-SKU
     const dateStr = mfgDate.toISOString().split('T')[0].replace(/-/g, '');
     let batchCode = `BATCH-${dateStr}-${product.sku}`;
 
@@ -355,42 +322,34 @@ const completeProductionItem = async (req, res, next) => {
       counter++;
     }
 
-    // Create the finished product batch with traceability
-    const batch = await Batch.create(
+    const finishedBatch = await Batch.create(
       [
         {
           batchCode: finalBatchCode,
           productionPlanId: planId,
-          productId: productId,
-          mfgDate: mfgDate,
-          expDate: expDate,
+          productId,
+          mfgDate,
+          expDate,
           initialQuantity: actualQuantity,
           currentQuantity: actualQuantity,
           status: 'Active',
-          ingredientBatchesUsed: ingredientBatchesUsed.map((item) => ({
-            ingredientBatchId: item.ingredientBatchId,
-            quantityUsed: item.quantityUsed,
-          })),
+          ingredientBatchesUsed,
         },
       ],
       { session }
     );
 
     // ========================================
-    // STEP 6: Update Production Plan
+    // STEP 5: Update Production Plan
     // ========================================
     plan.details[detailIndex].actualQuantity = actualQuantity;
     plan.details[detailIndex].status = 'Completed';
 
-    // Update plan status to In_Progress if it was Planned
     if (plan.status === 'Planned') {
       plan.status = 'In_Progress';
     }
 
-    // Check if all details are completed
-    const allCompleted = plan.details.every(
-      (detail) => detail.status === 'Completed'
-    );
+    const allCompleted = plan.details.every((detail) => detail.status === 'Completed');
     if (allCompleted) {
       plan.status = 'Completed';
     }
@@ -401,31 +360,26 @@ const completeProductionItem = async (req, res, next) => {
     await session.commitTransaction();
 
     // ========================================
-    // STEP 7: Populate and Return Response
+    // STEP 6: Populate and Return Response
     // ========================================
     await plan.populate('details.productId', 'name sku price shelfLifeDays');
-    await batch[0].populate('productId', 'name sku categoryId');
+    await finishedBatch[0].populate('productId', 'name sku categoryId');
 
     res.status(201).json({
       success: true,
       message: 'Production item completed successfully',
       data: {
-        plan: plan,
-        batch: batch[0],
-        traceability: {
-          ingredientBatchesUsed: ingredientBatchesUsed,
-          message: 'Ingredients deducted using FEFO (First Expired First Out) logic',
-        },
+        plan,
+        batch: finishedBatch[0],
+        ingredientBatchesUsed,
       },
     });
   } catch (error) {
-    // Rollback transaction on error (only if not already aborted)
     if (!transactionAborted) {
       await session.abortTransaction();
     }
     next(error);
   } finally {
-    // End session
     session.endSession();
   }
 };

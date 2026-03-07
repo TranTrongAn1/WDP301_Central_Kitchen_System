@@ -2004,6 +2004,55 @@ const aggregateDailyDemand = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update delivery trip (vehicleType and/or notes)
+ * @route   PATCH /api/logistics/trips/:id
+ * @access  Private (Coordinator, Manager, Admin)
+ */
+const updateDeliveryTrip = async (req, res, next) => {
+  try {
+    const { vehicleTypeId, notes } = req.body;
+
+    const trip = await DeliveryTrip.findById(req.params.id);
+    if (!trip) {
+      res.status(404);
+      return next(new Error('Delivery trip not found'));
+    }
+
+    const nonEditableStatuses = ['In_Transit', 'Completed'];
+    if (nonEditableStatuses.includes(trip.status)) {
+      res.status(400);
+      return next(
+        new Error(
+          `Cannot update a delivery trip with status '${trip.status}'`
+        )
+      );
+    }
+
+    if (vehicleTypeId !== undefined) {
+      trip.vehicleType = vehicleTypeId;
+    }
+    if (notes !== undefined) {
+      trip.notes = notes;
+    }
+
+    await trip.save();
+
+    await trip.populate([
+      { path: 'vehicleType', select: 'name description' },
+      { path: 'orders', select: 'orderNumber status storeId' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery trip updated successfully',
+      data: trip,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Hard delete a delivery trip (only if status is Planning)
  * @route   DELETE /api/logistics/trips/:id
  * @access  Private (Coordinator, Manager, Admin)
@@ -2086,6 +2135,7 @@ module.exports = {
   createDeliveryTrip,
   getTrips,
   getTripById,
+  updateDeliveryTrip,
   addOrdersToTrip,
   removeOrdersFromTrip,
   finalizeDeliveryPlan,

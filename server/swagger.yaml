@@ -1368,15 +1368,16 @@ paths:
     post:
       tags:
         - Production
-      summary: Complete production item and auto-create finished batch
+      summary: Complete production item and create finished batch
       description: |
-        Mark a production item as complete. 
+        Mark a production item as complete. Kitchen staff manually selects which ingredient batches were used.
         
-        **MAGIC HAPPENS HERE:**
-        1. System reads the product's recipe.
-        2. System finds raw ingredients in the warehouse.
-        3. System auto-deducts ingredient batches using **FEFO (First-Expired-First-Out)** logic.
-        4. System creates a new Finished Goods Batch and links the used raw materials for full traceability.
+        **Workflow:**
+        1. Kitchen staff selects batches and quantities from the `usedIngredients` array.
+        2. System validates each batch has sufficient quantity.
+        3. System deducts quantities from the selected batches and updates parent ingredient totals.
+        4. System creates an `IngredientUsage` audit record for each batch used.
+        5. System creates a new Finished Goods Batch linked to this production plan.
       security:
         - BearerAuth: []
       parameters:
@@ -1395,6 +1396,7 @@ paths:
               required:
                 - productId
                 - actualQuantity
+                - usedIngredients
               properties:
                 productId:
                   type: string
@@ -1402,7 +1404,31 @@ paths:
                 actualQuantity:
                   type: number
                   example: 100
-                  description: 'Actual quantity of cakes/products produced'
+                  description: 'Actual quantity of finished products produced'
+                usedIngredients:
+                  type: array
+                  description: 'Ingredient batches manually selected by kitchen staff'
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - ingredientBatchId
+                      - quantityUsed
+                    properties:
+                      ingredientBatchId:
+                        type: string
+                        example: '60d5ecb74f421b2d4c2c3e4f'
+                        description: 'ID of the specific IngredientBatch chosen by the kitchen'
+                      quantityUsed:
+                        type: number
+                        minimum: 0
+                        example: 12.5
+                        description: 'Amount consumed from this batch'
+                      note:
+                        type: string
+                        nullable: true
+                        example: 'Used for making bean paste'
+                        description: 'Optional note about this specific usage'
       responses:
         '201':
           description: Item completed, ingredients deducted, and batch created successfully
@@ -2219,7 +2245,51 @@ paths:
                     $ref: '#/components/schemas/DeliveryTrip'
         '404':
           description: Delivery trip not found
-    
+
+    patch:
+      tags:
+        - Logistics
+      summary: Update delivery trip
+      description: |
+        Update `vehicleType` and/or `notes` for a delivery trip.
+        
+        **Allowed statuses:** `Planning`, `Ready_For_Shipping`
+        
+        **Blocked statuses:** `In_Transit`, `Completed` — returns 400 to prevent changes to an active or finalized shipment.
+        
+        **Access:** Coordinator, Manager, Admin only
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicleTypeId:
+                  type: string
+                  example: '60d5ec49f1b2c8b1f8e4e1a5'
+                  description: 'ID of the VehicleType to assign to this trip'
+                notes:
+                  type: string
+                  maxLength: 500
+                  example: 'Handle with care — mooncakes are fragile'
+      responses:
+        '200':
+          description: Delivery trip updated successfully
+        '400':
+          description: Cannot update — trip is In_Transit or Completed
+        '404':
+          description: Delivery trip not found
+
     delete:
       tags:
         - Logistics
