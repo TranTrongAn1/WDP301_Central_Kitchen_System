@@ -18,6 +18,11 @@ import type {
   InvoicesResponse,
   PaymentLinkResponse,
 } from "@/lib/invoices";
+import type {
+  CreateFeedbackPayload,
+  FeedbackResponse,
+  UpdateFeedbackPayload,
+} from "@/lib/feedback";
 import type { CreateOrderPayload, OrderResponse, OrdersResponse } from "@/lib/orders";
 import type {
   ProductionPlanResponse,
@@ -331,6 +336,10 @@ export const invoicesApi = {
     request<InvoiceResponse>(`/api/logistics/invoices/${id}`, {
       headers: withAuth(token),
     }),
+  getByOrder: (orderId: string, token?: string | null) =>
+    request<InvoicesResponse>(`/api/logistics/invoices?orderId=${encodeURIComponent(orderId)}`, {
+      headers: withAuth(token),
+    }),
 };
 
 export const paymentApi = {
@@ -340,6 +349,31 @@ export const paymentApi = {
       headers: withAuth(token),
       body: JSON.stringify({ invoiceId }),
     }),
+};
+
+/** Feedback API – đánh giá đơn hàng (chỉ khi order status = Received) */
+export const feedbackApi = {
+  getByOrderId: (orderId: string, token?: string | null) =>
+    request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      headers: withAuth(token),
+    }),
+  create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) =>
+    request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+  update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) =>
+    request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      method: "PUT",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+  delete: (orderId: string, token?: string | null) =>
+    request<{ success: boolean; message?: string; data?: Record<string, unknown> }>(
+      `/api/feedback/${orderId}`,
+      { method: "DELETE", headers: withAuth(token) }
+    ),
 };
 
 // store endpoints used by client to prefill order recipient fields
