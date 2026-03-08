@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +18,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cardShadowSmall } from "@/constants/theme";
 import { useNotification } from "@/context/notification-context";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  isFeedbackAuthor,
+  useFeedback,
+} from "@/hooks/use-feedback";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import type { Invoice } from "@/lib/invoices";
 import type { Order, OrderItem } from "@/lib/orders";
@@ -54,6 +59,20 @@ export default function OrderDetailScreen() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
 
+  const {
+    feedback,
+    isLoading: feedbackLoading,
+    create: createFeedback,
+    update: updateFeedback,
+    remove: deleteFeedback,
+    refetch: refetchFeedback,
+  } = useFeedback(id);
+  const { user } = useAuth();
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackEditMode, setFeedbackEditMode] = useState(false);
+
   const load = useCallback(async () => {
     if (!id || !token) return;
     setLoading(true);
@@ -87,6 +106,9 @@ export default function OrderDetailScreen() {
   }, [load]);
 
   const canReceive = order?.status === "Shipped" && id && token;
+  const showFeedbackSection = order?.status === "Received" && id && token;
+  const canCreateFeedback = showFeedbackSection && !feedback && !feedbackEditMode;
+  const canEditFeedback = showFeedbackSection && feedback && isFeedbackAuthor(feedback, user?.id);
   const canPayOnline =
     invoice &&
     invoice.totalAmount > 0 &&
@@ -163,6 +185,71 @@ export default function OrderDetailScreen() {
     } finally {
       setPaying(false);
     }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!id || !token || feedbackRating < 1 || feedbackRating > 5) return;
+    setFeedbackSubmitting(true);
+    try {
+      await createFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
+      setFeedbackContent("");
+      setFeedbackRating(5);
+      showToast("Đã gửi đánh giá.");
+    } catch (e) {
+      const err = e as Error & { status?: number };
+      if (err.status === 400) {
+        showToast(err.message ?? "Đơn chưa nhận hoặc đã có đánh giá.", "error");
+      } else if (err.status !== 401 && err.status !== 500) {
+        showToast(err instanceof Error ? err.message : "Không gửi được đánh giá.", "error");
+      }
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
+  const handleUpdateFeedback = async () => {
+    if (!id || !token || feedbackRating < 1 || feedbackRating > 5) return;
+    setFeedbackSubmitting(true);
+    try {
+      await updateFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
+      setFeedbackEditMode(false);
+      showToast("Đã cập nhật đánh giá.");
+    } catch (e) {
+      const err = e as Error & { status?: number };
+      if (err.status === 403) {
+        showToast("Bạn không có quyền sửa đánh giá này.", "error");
+      } else if (err.status !== 401 && err.status !== 500) {
+        showToast(err instanceof Error ? err.message : "Không cập nhật được.", "error");
+      }
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
+  const handleDeleteFeedback = () => {
+    Alert.alert("Xóa đánh giá", "Bạn có chắc muốn xóa đánh giá này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          setFeedbackSubmitting(true);
+          try {
+            await deleteFeedback();
+            showToast("Đã xóa đánh giá.");
+          } catch (e) {
+            const err = e as Error & { status?: number };
+            if (err.status === 403) {
+              showToast("Bạn không có quyền xóa đánh giá này.", "error");
+            } else if (err.status !== 401 && err.status !== 500) {
+              showToast(err instanceof Error ? err.message : "Không xóa được.", "error");
+            }
+          } finally {
+            setFeedbackSubmitting(false);
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -410,6 +497,161 @@ export default function OrderDetailScreen() {
           </Pressable>
         )
       }
+
+      {/* Feedback section – chỉ khi đơn đã Received */}
+      {showFeedbackSection ? (
+        <View style={[styles.feedbackCard, cardShadowSmall]}>
+          <Text style={styles.sectionTitle}>Đánh giá đơn hàng</Text>
+          {feedbackLoading ? (
+            <View style={styles.feedbackLoading}>
+              <ActivityIndicator color="#D91E18" size="small" />
+              <Text style={styles.feedbackLoadingText}>Đang tải đánh giá...</Text>
+            </View>
+          ) : canCreateFeedback ? (
+            /* Form tạo feedback */
+            <View style={styles.feedbackForm}>
+              <Text style={styles.feedbackLabel}>Điểm đánh giá (1–5)</Text>
+              <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Pressable
+                    key={star}
+                    onPress={() => setFeedbackRating(star)}
+                    style={styles.starBtn}
+                  >
+                    <Text style={feedbackRating >= star ? styles.starFilled : styles.starEmpty}>
+                      ★
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.feedbackLabel}>Nội dung (tùy chọn)</Text>
+              <TextInput
+                style={styles.feedbackInput}
+                value={feedbackContent}
+                onChangeText={setFeedbackContent}
+                placeholder="Nhận xét về đơn hàng..."
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                maxLength={1000}
+                editable={!feedbackSubmitting}
+              />
+              <Pressable
+                style={[styles.feedbackSubmitBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}
+                onPress={handleSubmitFeedback}
+                disabled={feedbackSubmitting}
+              >
+                {feedbackSubmitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.feedbackSubmitText}>Gửi đánh giá</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : feedback && !feedbackEditMode ? (
+            /* Hiển thị feedback đã có */
+            <View style={styles.feedbackDisplay}>
+              <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Text
+                    key={star}
+                    style={feedback.rating >= star ? styles.starFilled : styles.starEmpty}
+                  >
+                    ★
+                  </Text>
+                ))}
+              </View>
+              {feedback.content ? (
+                <Text style={styles.feedbackContentText}>{feedback.content}</Text>
+              ) : null}
+              {(feedback.images ?? []).length > 0 ? (
+                <View style={styles.feedbackImages}>
+                  {(feedback.images ?? []).slice(0, 5).map((uri, idx) => (
+                    <Image key={idx} source={{ uri }} style={styles.feedbackThumb} />
+                  ))}
+                </View>
+              ) : null}
+              <Text style={styles.feedbackDate}>
+                {formatDateTime(feedback.createdAt)}
+              </Text>
+              {canEditFeedback && !feedbackSubmitting ? (
+                <View style={styles.feedbackActions}>
+                  <Pressable
+                    style={styles.feedbackActionBtn}
+                    onPress={() => {
+                      setFeedbackRating(feedback.rating);
+                      setFeedbackContent(feedback.content ?? "");
+                      setFeedbackEditMode(true);
+                    }}
+                  >
+                    <Text style={styles.feedbackActionText}>Sửa</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.feedbackActionBtn, styles.feedbackDeleteBtn]}
+                    onPress={handleDeleteFeedback}
+                  >
+                    <Text style={styles.feedbackDeleteText}>Xóa</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          ) : feedback && feedbackEditMode ? (
+            /* Form sửa feedback */
+            <View style={styles.feedbackForm}>
+              <Text style={styles.feedbackLabel}>Điểm đánh giá (1–5)</Text>
+              <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Pressable
+                    key={star}
+                    onPress={() => setFeedbackRating(star)}
+                    style={styles.starBtn}
+                  >
+                    <Text style={feedbackRating >= star ? styles.starFilled : styles.starEmpty}>
+                      ★
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.feedbackLabel}>Nội dung</Text>
+              <TextInput
+                style={styles.feedbackInput}
+                value={feedbackContent}
+                onChangeText={setFeedbackContent}
+                placeholder="Nhận xét về đơn hàng..."
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                maxLength={1000}
+                editable={!feedbackSubmitting}
+              />
+              <View style={styles.feedbackEditActions}>
+                <Pressable
+                  style={[styles.feedbackUpdateBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}
+                  onPress={handleUpdateFeedback}
+                  disabled={feedbackSubmitting}
+                >
+                  {feedbackSubmitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.feedbackSubmitText}>Lưu</Text>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={styles.feedbackCancelBtn}
+                  onPress={() => {
+                    setFeedbackEditMode(false);
+                    setFeedbackRating(feedback.rating);
+                    setFeedbackContent(feedback.content ?? "");
+                  }}
+                  disabled={feedbackSubmitting}
+                >
+                  <Text style={styles.feedbackCancelText}>Hủy</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </ScrollView >
   );
 }
@@ -653,5 +895,142 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     marginBottom: 8,
+  },
+  feedbackCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FFE1E1",
+  },
+  feedbackLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 20,
+  },
+  feedbackLoadingText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  feedbackForm: {
+    marginTop: 8,
+  },
+  feedbackLabel: {
+    fontSize: 12,
+    color: "#8C8C8C",
+    marginBottom: 6,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 16,
+  },
+  starBtn: {
+    padding: 4,
+  },
+  starFilled: {
+    fontSize: 28,
+    color: "#FFB800",
+  },
+  starEmpty: {
+    fontSize: 28,
+    color: "#FFE1E1",
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: "#FFE1E1",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: "#2A2A2A",
+    backgroundColor: "#FFF4F4",
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  feedbackSubmitBtn: {
+    backgroundColor: "#D91E18",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  feedbackBtnDisabled: { opacity: 0.7 },
+  feedbackSubmitText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  feedbackDisplay: {
+    marginTop: 8,
+  },
+  feedbackContentText: {
+    fontSize: 14,
+    color: "#2A2A2A",
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  feedbackImages: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  feedbackThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+  },
+  feedbackDate: {
+    fontSize: 12,
+    color: "#8C8C8C",
+    marginBottom: 12,
+  },
+  feedbackActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  feedbackActionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#FFE1E1",
+  },
+  feedbackActionText: {
+    color: "#9B0F0F",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  feedbackDeleteBtn: {
+    backgroundColor: "#FFD6D6",
+  },
+  feedbackDeleteText: {
+    color: "#D91E18",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  feedbackEditActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  feedbackUpdateBtn: {
+    flex: 1,
+    backgroundColor: "#D91E18",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  feedbackCancelBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFE1E1",
+    justifyContent: "center",
+  },
+  feedbackCancelText: {
+    color: "#9B0F0F",
+    fontWeight: "600",
+    fontSize: 14,
   },
 });

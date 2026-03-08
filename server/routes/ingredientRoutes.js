@@ -6,8 +6,8 @@ const {
   updateIngredient,
   deleteIngredient,
   addBatch,
-  getBatchesByIngredient,
 } = require('../controllers/ingredientController');
+const { getBatchesByIngredientId } = require('../controllers/ingredientBatchController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -19,7 +19,7 @@ router.get('/:id', getIngredientById);
 
 // Batch Management Routes
 router.post('/:id/batches', authorize('Admin', 'Kitchen_Manager', 'Manager'), addBatch);
-router.get('/:id/batches', getBatchesByIngredient);
+router.get('/:id/batches', getBatchesByIngredientId);
 
 router.post('/', authorize('Admin', 'Kitchen_Manager', 'Manager'), createIngredient);
 router.put('/:id', authorize('Admin', 'Kitchen_Manager', 'Manager'), updateIngredient);

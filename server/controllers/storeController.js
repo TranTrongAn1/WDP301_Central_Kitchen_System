@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Store = require('../models/Store');
+const Wallet = require('../models/Wallet');
 
 /**
  * @desc    Get all stores
@@ -48,12 +50,19 @@ const getStoreById = async (req, res, next) => {
  * @access  Private (Admin, Manager)
  */
 const createStore = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let transactionAborted = false;
+
   try {
     const { storeName, storeCode, address, phone, standardDeliveryMinutes, status } = req.body;
 
     // Check if store name already exists
     const existingStore = await Store.findOne({ storeName });
     if (existingStore) {
+      transactionAborted = true;
+      await session.abortTransaction();
       res.status(400);
       return next(new Error('Store with this name already exists'));
     }
@@ -61,18 +70,23 @@ const createStore = async (req, res, next) => {
     // Check if store code already exists
     const existingStoreCode = await Store.findOne({ storeCode });
     if (existingStoreCode) {
+      transactionAborted = true;
+      await session.abortTransaction();
       res.status(400);
       return next(new Error('Store with this code already exists'));
     }
 
-    const store = await Store.create({
-      storeName,
-      storeCode,
-      address,
-      phone,
-      standardDeliveryMinutes,
-      status,
-    });
+    const [store] = await Store.create(
+      [{ storeName, storeCode, address, phone, standardDeliveryMinutes, status }],
+      { session }
+    );
+
+    await Wallet.create(
+      [{ storeId: store._id, balance: 0, status: 'Active' }],
+      { session }
+    );
+
+    await session.commitTransaction();
 
     res.status(201).json({
       success: true,
@@ -80,7 +94,12 @@ const createStore = async (req, res, next) => {
       data: store,
     });
   } catch (error) {
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 

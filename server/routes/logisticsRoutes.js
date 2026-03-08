@@ -10,6 +10,7 @@ const {
   getOrderById,
   getTrips,
   getTripById,
+  updateDeliveryTrip,
   aggregateDailyDemand,
   recordPayment,
   addOrdersToTrip,
@@ -117,6 +118,13 @@ router.get('/trips', getTrips);
 
 // Get single delivery trip by ID
 router.get('/trips/:id', getTripById);
+
+// Update delivery trip vehicleType and/or notes (Coordinator, Manager, Admin)
+router.patch(
+  '/trips/:id',
+  authorize('Coordinator', 'Manager', 'Admin'),
+  updateDeliveryTrip
+);
 
 // Delete delivery trip (only if status is Planning) (Coordinator, Manager, Admin)
 router.delete(
