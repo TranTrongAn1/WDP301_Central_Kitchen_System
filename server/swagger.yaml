@@ -3985,6 +3985,110 @@ paths:
           description: User deactivated successfully
         '404':
           description: User not found
+          
+    /api/ingredient-requests:
+    get:
+      tags:
+        - Ingredient Requests
+      summary: Get all ingredient requests (Kitchen, Coordinator, Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [ALL, PENDING, APPROVED, REJECTED, COMPLETED]
+          description: Filter requests by status
+      responses:
+        '200':
+          description: Successfully retrieved list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientRequest'
+    post:
+      tags:
+        - Ingredient Requests
+      summary: Create new ingredient request (Kitchen, Admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngredientRequestInput'
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/IngredientRequest'
+
+  /api/ingredient-requests/{id}/status:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: ID of the ingredient request
+    put:
+      tags:
+        - Ingredient Requests
+      summary: Approve or Reject a request (Coordinator, Admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngredientRequestStatusUpdate'
+      responses:
+        '200':
+          description: Status updated successfully
+
+  /api/ingredient-requests/{id}/complete:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: ID of the ingredient request
+    put:
+      tags:
+        - Ingredient Requests
+      summary: Complete request and input actual cost (Kitchen, Coordinator, Admin)
+      description: This endpoint will also auto-update the ingredient inventory.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngredientRequestComplete'
+      responses:
+        '200':
+          description: Completed successfully and inventory updated
 
   # ============================================================
   # SYSTEM SETTINGS MANAGEMENT
@@ -5257,6 +5361,72 @@ components:
           description: 'Change public accessibility'
           example: false
 
+    IngredientRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+        ingredientId:
+          type: string
+        quantityRequested:
+          type: number
+        unit:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, COMPLETED]
+        note:
+          type: string
+        actualCost:
+          type: number
+        requestedBy:
+          type: string
+        approvedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    IngredientRequestInput:
+      type: object
+      required:
+        - ingredientId
+        - quantityRequested
+      properties:
+        ingredientId:
+          type: string
+          description: MongoDB ObjectId of the ingredient
+        quantityRequested:
+          type: number
+        unit:
+          type: string
+          default: "kg"
+        note:
+          type: string
+          description: Reason for requesting
+
+    IngredientRequestStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [APPROVED, REJECTED]
+          description: Target status
+
+    IngredientRequestComplete:
+      type: object
+      required:
+        - actualCost
+      properties:
+        actualCost:
+          type: number
+          description: The actual money spent to buy the ingredients (in VND)
+
   # ============================================================
   # REUSABLE RESPONSES
   # ============================================================
@@ -5388,3 +5558,5 @@ paths:
       responses:
         '200':
           description: Deactivated successfully
+
+    
