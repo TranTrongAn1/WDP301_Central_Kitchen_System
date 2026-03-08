@@ -3986,7 +3986,7 @@ paths:
         '404':
           description: User not found
           
-    /api/ingredient-requests:
+  /api/ingredient-requests:
     get:
       tags:
         - Ingredient Requests
