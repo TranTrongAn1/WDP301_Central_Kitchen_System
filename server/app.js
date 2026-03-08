@@ -98,6 +98,7 @@ app.use('/api/ingredient-batches', require('./routes/ingredientBatchRoutes'));
 app.use('/api/ingredient-usages', require('./routes/ingredientUsageRoutes'));
 app.use('/api/vehicle-types', require('./routes/vehicleTypeRoutes'));
 app.use('/api/system-settings', require('./routes/systemSettingRoutes'));
+app.use('/api/ingredient-requests', require('./routes/IngredientRequestRoutes'));
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
