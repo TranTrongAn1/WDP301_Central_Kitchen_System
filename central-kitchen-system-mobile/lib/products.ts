@@ -1,3 +1,12 @@
+export type RecipeIngredient = {
+  ingredientId: {
+    _id: string;
+    ingredientName: string;
+    unit: string;
+  };
+  quantity: number; // quantity per unit (e.g., per cake)
+};
+
 export type Product = {
   _id: string;
   id?: string;
@@ -8,6 +17,7 @@ export type Product = {
   unit?: string;
   shelfLifeDays?: number;
   image?: string;
+  recipe?: RecipeIngredient[];
 };
 
 export type ProductsResponse = {

@@ -15,8 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cardShadow, cardShadowSmall } from '@/constants/theme';
 import { useIngredient } from '@/hooks/use-ingredient';
 import { useIngredientBatches } from '@/hooks/use-ingredient-batches';
-import type { Ingredient } from '@/lib/ingredients';
 import type { IngredientBatch } from '@/lib/ingredient-batches';
+import type { Ingredient } from '@/lib/ingredients';
 
 const formatValue = (value: number | string | null | undefined) =>
     value === null || value === undefined ? '--' : String(value);
@@ -30,7 +30,7 @@ export default function IngredientDetailScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
-    
+
 
     const { item, isLoading, error, update, remove } = useIngredient(id);
     const { items: batches, isLoading: isBatchesLoading } = useIngredientBatches(id);
@@ -95,10 +95,10 @@ export default function IngredientDetailScreen() {
     };
 
     return (
-        <ScrollView 
+        <ScrollView
             contentContainerStyle={[
-                styles.content, 
-                { paddingTop: insets.top + 20 } 
+                styles.content,
+                { paddingTop: insets.top + 20 }
             ]}
         >
             <View style={styles.headerContainer}>
@@ -129,11 +129,12 @@ export default function IngredientDetailScreen() {
                                 onChangeText={(value) => setForm((prev) => ({ ...prev, unit: value }))}
                                 style={styles.input}
                             />
-                             <Text style={styles.label}>Giá vốn</Text>
+                            <Text style={styles.label}>Giá vốn</Text>
                             <TextInput
                                 value={merged.costPrice !== undefined ? String(merged.costPrice) : ''}
                                 onChangeText={(value) => setForm((prev) => ({ ...prev, costPrice: Number(value) || 0 }))}
-                                keyboardType="numeric"
+                                keyboardType="decimal-pad"
+                                placeholder="Ví dụ: 25000 hoặc 25000.5"
                                 style={styles.input}
                             />
                         </>
@@ -144,20 +145,20 @@ export default function IngredientDetailScreen() {
                                 <Text style={styles.value}>{formatValue(item.name ?? item.ingredientName)}</Text>
                             </View>
                             <View style={styles.row}>
-                    <Text style={styles.label}>Giá vốn</Text>
-                    <Text style={styles.value}>
-                        {typeof item.costPrice === 'number' 
-                            ? `${item.costPrice.toLocaleString('vi-VN')} đ` 
-                            : formatValue(item.costPrice)}
-                    </Text>
-                </View>
+                                <Text style={styles.label}>Giá vốn</Text>
+                                <Text style={styles.value}>
+                                    {typeof item.costPrice === 'number'
+                                        ? `${item.costPrice.toLocaleString('vi-VN')} đ`
+                                        : formatValue(item.costPrice)}
+                                </Text>
+                            </View>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Tồn kho tổng</Text>
                                 <Text style={[styles.value, styles.totalStockText]}>
                                     {Number(item.totalQuantity || 0).toFixed(2)} {item.unit}
                                 </Text>
                             </View>
-                            
+
                         </>
                     )}
                 </View>
@@ -167,7 +168,7 @@ export default function IngredientDetailScreen() {
                 <View style={styles.batchSection}>
                     <View style={styles.batchHeader}>
                         <Text style={styles.sectionTitle}>Danh sách lô hàng</Text>
-                        <Pressable 
+                        <Pressable
                             style={styles.addButton}
                             onPress={() => router.push({ pathname: "/ingredient/[id]/batches/create", params: { id } } as any)}
                         >
@@ -179,8 +180,8 @@ export default function IngredientDetailScreen() {
                         <ActivityIndicator color="#D91E18" />
                     ) : batches.length > 0 ? (
                         batches.map((batch: IngredientBatch) => (
-                            <Pressable 
-                                key={batch._id} 
+                            <Pressable
+                                key={batch._id}
                                 style={[styles.batchCard, batch.isExpired && styles.batchExpired]}
                                 // Đã sửa đường dẫn khớp với cấu trúc kitchen/batch/[id]
                                 onPress={() => router.push(`/kitchen/batch/${batch._id}` as any)}
@@ -201,16 +202,16 @@ export default function IngredientDetailScreen() {
                 </View>
             )}
             <View style={styles.buttonRow}>
-                <Pressable 
-                    onPress={isEditing ? handleSave : startEdit} 
+                <Pressable
+                    onPress={isEditing ? handleSave : startEdit}
                     style={[styles.flexButton, styles.primaryButton, isSubmitting && styles.buttonDisabled]}
                     disabled={isSubmitting}
                 >
                     <Text style={styles.primaryButtonText}>{isEditing ? 'Lưu' : 'Cập nhật'}</Text>
                 </Pressable>
 
-                <Pressable 
-                    onPress={isEditing ? () => setIsEditing(false) : handleDelete} 
+                <Pressable
+                    onPress={isEditing ? () => setIsEditing(false) : handleDelete}
                     style={[styles.flexButton, isEditing ? styles.secondaryButton : styles.dangerButton]}
                 >
                     <Text style={isEditing ? styles.secondaryButtonText : styles.dangerButtonText}>

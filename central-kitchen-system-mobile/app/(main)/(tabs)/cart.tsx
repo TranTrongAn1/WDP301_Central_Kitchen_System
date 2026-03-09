@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useStore } from "@/hooks/use-store";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import type { Invoice } from "@/lib/invoices";
+import { CreateOrderData, Order } from "@/lib/orders";
 
 function formatDate(date: Date) {
   const y = date.getFullYear();
@@ -140,7 +141,7 @@ export default function CartTabScreen() {
       const creationData: CreateOrderData = res.data;
       const orderObj: Order = creationData.order;
       const currentOrderId = orderObj._id;
-      setOrderId(currentOrderId);
+      setOrderId(currentOrderId); 
       orderRef.current = currentOrderId;
       clearCart();
       setSubmitError(null);

@@ -16,7 +16,7 @@ export default function MainLayout() {
       />
       <Stack.Screen name="ingredient/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="ingredient/create" options={{ headerShown: false }} />
-      <Stack.Screen name="orders/index" options={{ headerShown: false }} />
+      <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="orders/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="orders/create" options={{ headerShown: false }} />
       <Stack.Screen name="product/[id]" options={{ headerShown: false }} />

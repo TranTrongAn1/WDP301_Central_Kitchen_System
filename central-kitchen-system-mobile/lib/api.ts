@@ -23,8 +23,10 @@ import type {
   FeedbackResponse,
   UpdateFeedbackPayload,
 } from "@/lib/feedback";
-import type { CreateOrderPayload, OrderResponse, OrdersResponse } from "@/lib/orders";
+import type { CreateOrderPayload, CreateOrderResponse, OrderResponse, OrdersResponse } from "@/lib/orders";
 import type {
+  CompleteItemPayload,
+  ProductionPlan,
   ProductionPlanResponse,
   ProductionPlansResponse,
 } from "@/lib/production-plans";
@@ -211,15 +213,15 @@ export const productionPlansApi = {
     request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
       headers: withAuth(token),
     }),
-  updateStatus: (id: string, status: string, token?: string | null) =>
+  updateStatus: (id: string, payload: Partial<ProductionPlan>, token?: string | null) =>
     request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: withAuth(token),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     }),
   completeItem: (
     planId: string,
-    payload: { productId: string; actualQuantity: number },
+    payload: CompleteItemPayload,
     token?: string | null
   ) =>
     request<{

@@ -22,6 +22,18 @@ export type ProductionPlanDetail = {
   status?: ProductionPlanDetailStatus;
 };
 
+export type UsedIngredientItem = {
+  ingredientBatchId: string;
+  quantityUsed: number;
+  note?: string;
+};
+
+export type CompleteItemPayload = {
+  productId: string;
+  actualQuantity: number;
+  usedIngredients?: UsedIngredientItem[];
+};
+
 export type ProductionPlan = {
   _id: string;
   planCode: string;
