@@ -446,7 +446,19 @@ const ProductionPlansPage = () => {
                 <div>
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={() => navigate('/manager/production/batches')} variant="outline">
+                    <Button
+                        onClick={() => {
+                            const role = user?.role;
+                            if (role === 'KitchenStaff') {
+                                navigate('/kitchen/production/batches');
+                            } else if (role === 'Admin') {
+                                navigate('/admin/production/batches');
+                            } else {
+                                navigate('/manager/production/batches');
+                            }
+                        }}
+                        variant="outline"
+                    >
                         <Package className="w-4 h-4 mr-2" />
                         View Batches
                     </Button>
