@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { cardShadow } from '@/constants/theme';
@@ -65,7 +65,8 @@ export default function IngredientCreateScreen() {
         <TextInput
           value={costPrice}
           onChangeText={setCostPrice}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
+          placeholder="Ví dụ: 25000 hoặc 25000.5"
           style={styles.input}
         />
 
@@ -73,7 +74,8 @@ export default function IngredientCreateScreen() {
         <TextInput
           value={warningThreshold}
           onChangeText={setWarningThreshold}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
+          placeholder="Ví dụ: 100 hoặc 0.5"
           style={styles.input}
         />
 

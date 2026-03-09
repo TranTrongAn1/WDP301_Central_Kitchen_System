@@ -204,8 +204,26 @@ export default function KitchenProductionDetailScreen() {
         const actual = detail.actualQuantity ?? 0;
         const isItemCompleted = detail.status === "Completed";
 
+        const handleNavigateToRecipe = () => {
+          if (isItemCompleted) return; // Don't navigate if completed
+          router.push({
+            pathname: "/kitchen/production/recipe",
+            params: {
+              planId: plan._id,
+              productId: productId,
+              plannedQuantity: String(planned),
+              productName: productName(detail),
+            },
+          });
+        };
+
         return (
-          <View key={productId ?? index} style={styles.itemCard}>
+          <Pressable
+            key={productId ?? index}
+            style={[styles.itemCard, isItemCompleted && styles.itemCardCompleted]}
+            onPress={handleNavigateToRecipe}
+            disabled={isItemCompleted}
+          >
             <Text style={styles.itemName}>{productName(detail)}</Text>
             <View style={styles.itemRow}>
               <Text style={styles.itemLabel}>Kế hoạch</Text>
@@ -228,7 +246,7 @@ export default function KitchenProductionDetailScreen() {
                 <Text style={styles.primaryBtnText}>Hoàn thành mẻ</Text>
               </Pressable>
             )}
-          </View>
+          </Pressable>
         );
       })}
 
@@ -308,6 +326,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: "#FFE1E1",
+  },
+  itemCardCompleted: {
+    opacity: 0.6,
+    backgroundColor: "#F5F5F5",
   },
   itemName: { fontSize: 15, fontWeight: "700", color: "#2A2A2A", marginBottom: 8 },
   itemRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
