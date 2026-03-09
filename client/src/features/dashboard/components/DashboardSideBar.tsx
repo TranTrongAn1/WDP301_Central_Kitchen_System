@@ -17,6 +17,7 @@ import {
   Truck,
   Car,
   BarChart3,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/zustand/authStore";
@@ -134,6 +135,13 @@ export const DashboardSideBar = ({
         end: true,
       },
       {
+        icon: ShoppingCart,
+        label: "Phiếu xin mua",
+        subLabel: "Xin mua nguyên liệu",
+        path: "/kitchen/ingredient-requests",
+        end: true,
+      },
+      {
         icon: Truck,
         label: "Suppliers",
         subLabel: "Nhà cung cấp",
@@ -206,6 +214,13 @@ export const DashboardSideBar = ({
           label: "Ingredients",
           subLabel: "Nguyên liệu",
           path: "/admin/ingredients",
+          end: true,
+        },
+        {
+          icon: ShoppingCart,
+          label: "Phiếu xin mua",
+          subLabel: "Xin mua nguyên liệu",
+          path: "/admin/ingredient-requests",
           end: true,
         },
         {
