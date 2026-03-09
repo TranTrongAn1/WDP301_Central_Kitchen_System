@@ -78,10 +78,7 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/help": { name: "Trợ giúp", title: "Hướng dẫn sử dụng và kênh hỗ trợ" },
 };
 
-export const DashboardHeader = ({
-  isSidebarCollapsed,
-  onMenuClick,
-}: DashboardHeaderProps) => {
+export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
   const { darkMode, toggleDarkMode } = useThemeStore();
   const location = useLocation();
