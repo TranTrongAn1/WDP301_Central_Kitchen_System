@@ -94,20 +94,20 @@ const SettingsPage = () => {
         setSystemSettings([]);
         setSystemSettingsError(
           res?.message ||
-          'Không thể tải System Settings. Kiểm tra cấu hình backend.'
+          'Không thể tải cài đặt hệ thống. Vui lòng thử lại sau hoặc liên hệ quản trị.'
         );
       }
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 404) {
         setSystemSettingsError(
-          'API /api/system-settings hiện chưa được backend mount. Hãy thêm app.use("/api/system-settings", systemSettingRoutes) trong server để sử dụng trang này.'
+          'Tính năng cài đặt hệ thống tạm thời chưa khả dụng. Vui lòng thử lại sau hoặc liên hệ quản trị.'
         );
       } else {
         setSystemSettingsError(
           err?.response?.data?.message ||
           err?.message ||
-          'Đã xảy ra lỗi khi tải System Settings.'
+          'Đã xảy ra lỗi khi tải cài đặt hệ thống.'
         );
       }
       setSystemSettings([]);
@@ -165,7 +165,7 @@ const SettingsPage = () => {
   };
 
   const handleSeed = async () => {
-    if (!window.confirm('Seed lại System Settings mặc định? Có thể ghi đè giá trị hiện có.')) return;
+    if (!window.confirm('Seed lại cài đặt hệ thống mặc định? Có thể ghi đè giá trị hiện có.')) return;
     setSeeding(true);
     setSystemSettingsError(null);
     try {
@@ -321,7 +321,7 @@ const SettingsPage = () => {
                         </div>
                         <p className="text-[11px] text-muted-foreground">
                           Ngôn ngữ được lưu tại trình duyệt. Nội dung dữ liệu
-                          (tên sản phẩm, báo cáo, …) vẫn phụ thuộc backend.
+                          (tên sản phẩm, báo cáo, …) do hệ thống quản lý.
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -459,21 +459,21 @@ const SettingsPage = () => {
                       Email & kênh khác
                     </CardTitle>
                     <CardDescription className="text-xs md:text-sm">
-                      Các lựa chọn này sẽ được sử dụng khi backend bổ sung cơ
-                      chế gửi email/push notification.
+                      Các lựa chọn này sẽ được áp dụng khi hệ thống bật gửi
+                      email hoặc thông báo đẩy.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <SettingToggle
                       checked={enableEmailNotifications}
                       label="Gửi tóm tắt qua email"
-                      description="Nhận email tóm tắt cuối ngày về đơn hàng, sản xuất và tồn kho (khi backend hỗ trợ)."
+                      description="Nhận email tóm tắt cuối ngày về đơn hàng, sản xuất và tồn kho (khi tính năng được bật)."
                       onToggle={toggleEmailNotifications}
                       iconOn={<Mail className="h-4 w-4" />}
                     />
                     <p className="text-[11px] text-muted-foreground">
                       Hiện tại hệ thống chưa kích hoạt tính năng gửi email tự
-                      động. Đây là bước chuẩn bị để khi backend sẵn sàng, bạn
+                      động. Đây là bước chuẩn bị để khi tính năng được bật, bạn
                       không cần cấu hình lại.
                     </p>
                   </CardContent>
@@ -488,7 +488,7 @@ const SettingsPage = () => {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Database className="h-4 w-4 text-primary" />
-                      System Settings (cho Admin)
+                      Cài đặt hệ thống (cho Admin)
                     </CardTitle>
                     <CardDescription className="text-xs md:text-sm">
                       Các tham số này ảnh hưởng tới toàn bộ hệ thống: phí giao
@@ -497,19 +497,8 @@ const SettingsPage = () => {
                   </CardHeader>
                   <CardContent className="text-[11px] text-muted-foreground space-y-2">
                     <p>
-                      Endpoint sử dụng:{' '}
-                      <code className="rounded-md bg-black/5 px-1.5 py-0.5 text-[10px]">
-                        GET /api/system-settings
-                      </code>{' '}
-                      &amp;{' '}
-                      <code className="rounded-md bg-black/5 px-1.5 py-0.5 text-[10px]">
-                        PUT /api/system-settings/:key
-                      </code>
-                      .
-                    </p>
-                    <p>
-                      Nếu bạn không thấy dữ liệu bên dưới, hãy kiểm tra lại việc
-                      mount route trong backend.
+                      Cài đặt được đồng bộ với máy chủ. Nếu không tải được dữ
+                      liệu bên dưới, vui lòng thử lại sau hoặc liên hệ quản trị.
                     </p>
                   </CardContent>
                 </Card>
@@ -519,7 +508,7 @@ const SettingsPage = () => {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs md:text-sm flex items-center gap-2 text-amber-800 dark:text-amber-100">
                         <AlertCircle className="h-4 w-4" />
-                        Không thể tải System Settings
+                        Không thể tải cài đặt hệ thống
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="text-[11px] md:text-xs text-amber-900/90 dark:text-amber-100/90 space-y-1.5">
@@ -554,7 +543,7 @@ const SettingsPage = () => {
                     <Card>
                       <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Đang tải danh sách System Settings...
+                        Đang tải danh sách cài đặt hệ thống...
                       </CardContent>
                     </Card>
                   )}
@@ -565,12 +554,8 @@ const SettingsPage = () => {
                       <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          Chưa có System Settings nào hoặc dữ liệu rỗng. Bạn có
-                          thể seed dữ liệu mặc định bằng API{' '}
-                          <code className="rounded-md bg-black/5 px-1.5 py-0.5 text-[10px]">
-                            POST /api/system-settings/seed
-                          </code>
-                          .
+                          Chưa có cài đặt hệ thống nào. Bạn có thể dùng nút
+                          &quot;Seed mặc định&quot; bên trên để tạo dữ liệu mẫu.
                         </CardContent>
                       </Card>
                     )}

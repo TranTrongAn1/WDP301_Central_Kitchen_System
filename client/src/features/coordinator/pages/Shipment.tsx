@@ -100,6 +100,34 @@ const Shipments = () => {
         return pages;
     };
 
+    const getTripStatusLabel = (status: string) => {
+        const s = (status || '').trim();
+        const map: Record<string, string> = {
+            Planning: 'Lên kế hoạch',
+            Pending: 'Chờ xử lý',
+            Transferred_To_Kitchen: 'Đã chuyển bếp',
+            ReadyForShipping: 'Sẵn sàng giao',
+            Ready_For_Shipping: 'Sẵn sàng giao',
+            'Ready for shipping': 'Sẵn sàng giao',
+            In_Transit: 'Đang giao',
+            'In Transit': 'Đang giao',
+            Completed: 'Hoàn thành',
+            Cancelled: 'Đã hủy',
+        };
+        return map[s] ?? 'Trạng thái khác';
+    };
+
+    const getTripStatusBadgeClass = (status: string) => {
+        const s = (status || '').trim();
+        if (s === 'Planning' || s === 'Pending') return 'bg-muted text-muted-foreground border-border';
+        if (s === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
+        if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+        if (s === 'In_Transit' || s === 'In Transit') return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+        if (s === 'Completed') return 'bg-green-500/10 text-green-600 border-green-500/20';
+        if (s === 'Cancelled') return 'bg-red-500/10 text-red-600 border-red-500/20';
+        return 'bg-muted text-muted-foreground border-border';
+    };
+
     const availableOrders = allOrders.filter(order => {
         const isApproved = order.status === 'Approved';
         const notInAnyTrip = !trips.some(trip =>
@@ -230,11 +258,9 @@ const Shipments = () => {
                                 </div>
                                 <span className={cn(
                                     "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                                    trip.status === "Planning" && "bg-muted text-muted-foreground border-border",
-                                    trip.status === "In_Transit" && "bg-blue-500/10 text-blue-600 border-blue-500/20",
-                                    trip.status === "Completed" && "bg-green-500/10 text-green-600 border-green-500/20"
+                                    getTripStatusBadgeClass(trip.status as string)
                                 )}>
-                                    {trip.status.replace(/_/g, " ")}
+                                    {getTripStatusLabel(trip.status as string)}
                                 </span>
                             </div>
 

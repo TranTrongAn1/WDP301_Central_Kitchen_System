@@ -242,7 +242,7 @@ export default function KitchenProductionQueuePage() {
                 </CardTitle>
               </div>
               <Badge variant="secondary" className="text-[11px]">
-                Drag & drop chỉ thay đổi thứ tự hiển thị (frontend)
+                Kéo thả để sắp xếp thứ tự hiển thị trên màn hình
               </Badge>
             </CardHeader>
             <CardContent>

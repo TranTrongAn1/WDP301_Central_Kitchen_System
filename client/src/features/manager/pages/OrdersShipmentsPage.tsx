@@ -36,6 +36,8 @@ const OrdersShipmentsPage = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [creatingTrip, setCreatingTrip] = useState(false);
+  const [rejectConfirmOrderId, setRejectConfirmOrderId] = useState<string | null>(null);
+  const [createTripConfirmOpen, setCreateTripConfirmOpen] = useState(false);
 
   const fetchAll = async () => {
     try {
@@ -75,11 +77,11 @@ const OrdersShipmentsPage = () => {
   };
 
   const handleReject = async (orderId: string) => {
-    if (!window.confirm('Bạn có chắc muốn từ chối đơn hàng này?')) return;
     setActionLoading(orderId);
     try {
       await OrderApi.rejectOrder(orderId, 'Rejected by manager');
       toast.success('Đã từ chối đơn hàng');
+      setRejectConfirmOrderId(null);
       await fetchAll();
     } catch {
       toast.error('Không thể từ chối đơn hàng');
@@ -97,6 +99,7 @@ const OrdersShipmentsPage = () => {
     try {
       await DeliveryTripApi.createDeliveryTrip(selectedOrderIds);
       toast.success('Đã tạo chuyến giao mới');
+      setCreateTripConfirmOpen(false);
       setSelectedOrderIds([]);
       await fetchAll();
       setActiveTab('trips');
@@ -183,14 +186,28 @@ const OrdersShipmentsPage = () => {
   };
 
   const getTripStatusLabel = (status: string) => {
-    if (status === 'Planning') return 'Đang lập kế hoạch';
-    if (status === 'Pending') return 'Chờ bếp chuẩn bị';
-    if (status === 'Transferred_To_Kitchen') return 'Đã chuyển cho bếp';
-    if (status === 'ReadyForShipping') return 'Sẵn sàng giao';
-    if (status === 'In_Transit') return 'Đang giao';
-    if (status === 'Completed') return 'Đã hoàn thành';
-    if (status === 'Cancelled') return 'Đã hủy';
-    return status;
+    const s = (status || '').trim();
+    if (s === 'Planning') return 'Đang lập kế hoạch';
+    if (s === 'Pending') return 'Chờ bếp chuẩn bị';
+    if (s === 'Transferred_To_Kitchen') return 'Đã chuyển cho bếp';
+    if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'Sẵn sàng giao';
+    if (s === 'In_Transit' || s === 'In Transit') return 'Đang giao';
+    if (s === 'Completed') return 'Đã hoàn thành';
+    if (s === 'Cancelled') return 'Đã hủy';
+    return 'Trạng thái khác';
+  };
+
+  const getOrderStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      Pending: 'Chờ duyệt',
+      Approved: 'Đã duyệt',
+      In_Transit: 'Đang giao',
+      'In Transit': 'Đang giao',
+      Received: 'Đã nhận',
+      Cancelled: 'Đã hủy',
+      Shipped: 'Đã giao',
+    };
+    return map[(status || '').trim()] ?? 'Trạng thái khác';
   };
 
   if (loading) {
@@ -346,7 +363,7 @@ const OrdersShipmentsPage = () => {
                             </span>
                           </div>
                           <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-500/5 border-blue-200">
-                            {order.status}
+                            {getOrderStatusLabel(order.status)}
                           </span>
                         </div>
 
@@ -409,7 +426,7 @@ const OrdersShipmentsPage = () => {
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="h-8 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                  className="h-8 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-500/20 hover:text-emerald-700 hover:border-emerald-300"
                                   disabled={actionLoading === order._id}
                                   onClick={() => handleApprove(order._id)}
                                 >
@@ -420,9 +437,9 @@ const OrdersShipmentsPage = () => {
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                  className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-500/20 hover:text-red-700 hover:border-red-300"
                                   disabled={actionLoading === order._id}
-                                  onClick={() => handleReject(order._id)}
+                                  onClick={() => setRejectConfirmOrderId(order._id)}
                                 >
                                   <X className="h-3 w-3 mr-1" />
                                   Từ chối
@@ -528,7 +545,7 @@ const OrdersShipmentsPage = () => {
                     size="sm"
                     className="text-xs"
                     disabled={selectedOrderIds.length === 0 || creatingTrip}
-                    onClick={handleCreateTrip}
+                    onClick={() => setCreateTripConfirmOpen(true)}
                   >
                     {creatingTrip ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
                     Tạo chuyến giao
@@ -585,6 +602,49 @@ const OrdersShipmentsPage = () => {
           </CardContent>
         </Card>
       </Tabs>
+
+      {rejectConfirmOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground mb-2">Từ chối đơn hàng?</h3>
+            <p className="text-sm text-muted-foreground mb-6">Bạn có chắc muốn từ chối đơn hàng này? Đơn sẽ chuyển sang trạng thái Đã hủy.</p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setRejectConfirmOrderId(null)}>Hủy</Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={actionLoading === rejectConfirmOrderId}
+                onClick={() => handleReject(rejectConfirmOrderId)}
+              >
+                {actionLoading === rejectConfirmOrderId ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-1" />}
+                Xác nhận từ chối
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createTripConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground mb-2">Tạo chuyến giao?</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Bạn có chắc muốn tạo chuyến giao mới với <strong>{selectedOrderIds.length}</strong> đơn đã chọn?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setCreateTripConfirmOpen(false)}>Hủy</Button>
+              <Button
+                size="sm"
+                disabled={creatingTrip}
+                onClick={() => handleCreateTrip()}
+              >
+                {creatingTrip ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                Xác nhận tạo chuyến
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

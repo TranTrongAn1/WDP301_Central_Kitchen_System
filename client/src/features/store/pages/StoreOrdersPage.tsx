@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { OrderApi, type Order, type ReceiveOrderPayload } from '@/api/OrderApi';
 import { feedbackApi } from '@/api/FeedbackApi';
+import { StarRating } from '@/shared/components/StarRating';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -22,6 +23,7 @@ const StoreOrdersPage = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [receiveOrderId, setReceiveOrderId] = useState<string | null>(null);
@@ -219,21 +221,21 @@ const StoreOrdersPage = () => {
   const openFeedbackModal = async (orderId: string) => {
     setFeedbackOrderId(orderId);
     setFeedbackModalOpen(true);
+    setFeedbackLoading(true);
+    setFeedbackContent('');
+    setFeedbackRating(5);
+    setHasFeedback(false);
     try {
       const fb = await feedbackApi.getByOrderId(orderId);
       if (fb) {
         setFeedbackContent(fb.content);
         setFeedbackRating(fb.rating);
         setHasFeedback(true);
-      } else {
-        setFeedbackContent('');
-        setFeedbackRating(5);
-        setHasFeedback(false);
       }
     } catch {
-      setFeedbackContent('');
-      setFeedbackRating(5);
-      setHasFeedback(false);
+      // keep defaults
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -502,19 +504,18 @@ const StoreOrdersPage = () => {
             </div>
             <div className="space-y-2 text-xs">
               <div>
-                <label className="font-medium">Đánh giá (1–5)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={feedbackRating}
-                  onChange={(e) =>
-                    setFeedbackRating(
-                      Math.min(5, Math.max(1, Number(e.target.value) || 1))
-                    )
-                  }
-                  className="mt-1 h-8 w-20 rounded-lg border border-input bg-background px-2 text-xs"
-                />
+                <label className="font-medium">Đánh giá</label>
+                {feedbackLoading ? (
+                  <div className="mt-2 flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <span key={i} className="w-7 h-7 rounded bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2">
+                    <StarRating value={feedbackRating} onChange={setFeedbackRating} size="md" />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="font-medium">Nội dung</label>

@@ -87,6 +87,19 @@ const Order = () => {
     }
   };
 
+  const getOrderStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      Pending: 'Chờ duyệt',
+      Approved: 'Đã duyệt',
+      In_Transit: 'Đang giao',
+      'In Transit': 'Đang giao',
+      Received: 'Đã nhận',
+      Cancelled: 'Đã hủy',
+      Shipped: 'Đã giao',
+    };
+    return map[(status || '').trim()] ?? 'Trạng thái khác';
+  };
+
   const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   
   const formatDate = (dateString: string) => {
@@ -146,7 +159,7 @@ const Order = () => {
                   <span className="text-xs font-semibold uppercase tracking-wider mb-1 text-muted-foreground">Mã đơn hàng</span>
                   <span className="text-base font-bold font-mono text-card-foreground">{order.orderCode}</span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(order.status)}`}>{order.status}</span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(order.status)}`}>{getOrderStatusLabel(order.status)}</span>
               </div>
               
               <div className="h-px w-full mb-4 bg-border" />
