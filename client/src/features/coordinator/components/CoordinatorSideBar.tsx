@@ -8,6 +8,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useThemeStore } from "@/shared/zustand/themeStore";
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: ClipboardList, label: "Store Orders", subLabel: "Đơn hàng cửa hàng", path: "/coordinator/orders", end: false },
   { icon: Truck, label: "Shipments", subLabel: "Chuyến giao hàng", path: "/coordinator/shipments", end: false },
   { icon: Package, label: "Finished Goods", subLabel: "Kho thành phẩm", path: "/coordinator/inventory", end: true },
+  { icon: ShoppingCart, label: "Phiếu xin mua", subLabel: "Xin mua nguyên liệu", path: "/coordinator/ingredient-requests", end: true },
   { icon: AlertCircle, label: "Issues & Returns", subLabel: "Sự cố & Đổi trả", path: "/coordinator/issues", end: true },
 ];
 

@@ -52,6 +52,7 @@ import Inventory from './features/coordinator/pages/Inventory';
 import IssuseReport from './features/coordinator/pages/IssuseReport';
 import OrderDetail from './features/coordinator/pages/OrderDetail';
 import ShipmentDetail from './features/coordinator/pages/ShipmentDetail';
+import IngredientRequestListPage from './features/ingredient-request/pages/IngredientRequestListPage';
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && user) {
@@ -105,6 +106,7 @@ function App() {
 
               {/* Ingredients */}
               <Route path="/admin/ingredients" element={<IngredientPage />} />
+              <Route path="/admin/ingredient-requests" element={<IngredientRequestListPage />} />
 
               {/* Production */}
               <Route path="/admin/production" element={<ProductionPlansPage />} />
@@ -192,6 +194,7 @@ function App() {
               <Route path="/kitchen/trips/:id" element={<ShipmentDetail />} />
               {/* View-only: ingredients & suppliers */}
               <Route path="/kitchen/ingredients" element={<IngredientPage />} />
+              <Route path="/kitchen/ingredient-requests" element={<IngredientRequestListPage />} />
               <Route path="/kitchen/suppliers" element={<SuppliersPage />} />
             </Route>
           </Route>
@@ -223,6 +226,7 @@ function App() {
               <Route path="/coordinator/shipments" element={<Shipment />} />
               <Route path="/coordinator/shipments/:id" element={<ShipmentDetail />} />
               <Route path="/coordinator/inventory" element={<Inventory />} />
+              <Route path="/coordinator/ingredient-requests" element={<IngredientRequestListPage />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
             </Route>
           </Route>
