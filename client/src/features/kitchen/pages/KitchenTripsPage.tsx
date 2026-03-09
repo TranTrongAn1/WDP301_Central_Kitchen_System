@@ -288,7 +288,10 @@ export default function KitchenTripsPage() {
             </div>
           ) : (
             <motion.div
+              key={`grid-${statusFilter}-${search}-${currentPage}`}
               className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+              initial="hidden"
+              animate="show"
               variants={container}
             >
               {currentTrips.map((trip) => (
@@ -346,10 +349,8 @@ export default function KitchenTripsPage() {
                     <div className="flex items-center gap-1">
                       {(() => {
                         const status = (trip.status as string) || '';
-                        const canMarkReady =
-                          status === 'Planning' ||
-                          status === 'Pending' ||
-                          status === 'Transferred_To_Kitchen';
+                        // Backend chỉ cho phép mark ready khi trip ở trạng thái Transferred_To_Kitchen
+                        const canMarkReady = status === 'Transferred_To_Kitchen';
                         if (!canMarkReady) return null;
                         return (
                           <Button

@@ -29,9 +29,7 @@ export const AdminLayout = () => {
     const roleName = user?.role || 'Admin';
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isNotiOpen, setIsNotiOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
-    const notiRef = useRef<HTMLDivElement>(null);
 
     const currentPage = PAGE_TITLE[location.pathname] || { name: "Admin Portal", desc: "Quản trị viên" };
 
@@ -39,9 +37,6 @@ export const AdminLayout = () => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
                 setIsProfileOpen(false);
-            }
-            if (notiRef.current && !notiRef.current.contains(event.target as Node)) {
-                setIsNotiOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -99,23 +94,6 @@ export const AdminLayout = () => {
                         }`}>
                             <span className="material-symbols-outlined text-[20px]">{darkMode ? 'light_mode' : 'dark_mode'}</span>
                         </button>
-
-                        <div className="relative" ref={notiRef}>
-                            <button onClick={() => setIsNotiOpen(!isNotiOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                                darkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-orange-100 text-gray-600'
-                            }`}>
-                                <span className="material-symbols-outlined text-[22px]">notifications</span>
-                                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-[#1C1C21]"></span>
-                            </button>
-                            {isNotiOpen && (
-                                <div className={`absolute right-0 mt-2 w-80 rounded-2xl shadow-xl border overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right ${
-                                    darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-orange-100'
-                                }`}>
-                                    <div className={`p-4 border-b font-semibold ${darkMode ? 'border-gray-700' : 'border-orange-100'}`}>Thông báo</div>
-                                    <div className="p-4 text-sm text-center text-gray-500">Chưa có thông báo mới</div>
-                                </div>
-                            )}
-                        </div>
 
                         <div className="relative" ref={profileRef}>
                             <button onClick={() => setIsProfileOpen(!isProfileOpen)} className={`flex items-center gap-2 p-1.5 pr-3 rounded-full transition-all duration-200 ${

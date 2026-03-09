@@ -5,7 +5,7 @@ import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
 import { batchApi, type Batch } from '@/api/BatchApi';
 import { feedbackApi } from '@/api/FeedbackApi';
-import { useThemeStore } from '@/shared/zustand/themeStore';
+import { StarRating } from '@/shared/components/StarRating';
 import toast from 'react-hot-toast';
 
 // Interface cho bảng tính toán tồn kho
@@ -22,7 +22,6 @@ interface InventoryCalculation {
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { darkMode } = useThemeStore();
 
   const [order, setOrder] = useState<OrderType | null>(null);
   const [inventoryCheck, setInventoryCheck] = useState<InventoryCalculation[]>([]);
@@ -33,6 +32,7 @@ const OrderDetail = () => {
 
   // --- STATE CHO CHỨC NĂNG TỪ CHỐI ĐƠN HÀNG ---
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -42,6 +42,7 @@ const OrderDetail = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -123,18 +124,6 @@ const OrderDetail = () => {
           setIsEnoughStock(allEnough);
         }
 
-        // Load feedback for this order (nếu có)
-        const fb = id ? await feedbackApi.getByOrderId(id) : null;
-        if (fb) {
-          setFeedbackContent(fb.content);
-          setFeedbackRating(fb.rating);
-          setHasFeedback(true);
-        } else {
-          setFeedbackContent('');
-          setFeedbackRating(5);
-          setHasFeedback(false);
-        }
-
       } catch (err) {
         console.error(err);
         setError('Không thể tải dữ liệu đối chiếu.');
@@ -144,6 +133,33 @@ const OrderDetail = () => {
     };
 
     fetchAllData();
+  }, [id, refreshTrigger]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setFeedbackLoading(true);
+    feedbackApi.getByOrderId(id).then((fb) => {
+      if (cancelled) return;
+      if (fb) {
+        setFeedbackContent(fb.content);
+        setFeedbackRating(fb.rating);
+        setHasFeedback(true);
+      } else {
+        setFeedbackContent('');
+        setFeedbackRating(5);
+        setHasFeedback(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFeedbackContent('');
+        setFeedbackRating(5);
+        setHasFeedback(false);
+      }
+    }).finally(() => {
+      if (!cancelled) setFeedbackLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [id, refreshTrigger]);
 
   const handleRejectOrder = async () => {
@@ -230,6 +246,7 @@ const OrderDetail = () => {
 
       if (res.success) {
         toast.success('Đã duyệt đơn hàng thành công.');
+        setIsApproveConfirmOpen(false);
         setRefreshTrigger((prev) => prev + 1);
       } else {
         toast.error(res.message || 'Lỗi khi duyệt đơn hàng');
@@ -300,8 +317,21 @@ const OrderDetail = () => {
     }
   };
 
+  const getOrderStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      Pending: 'Chờ duyệt',
+      Approved: 'Đã duyệt',
+      In_Transit: 'Đang giao',
+      'In Transit': 'Đang giao',
+      Received: 'Đã nhận',
+      Cancelled: 'Đã hủy',
+      Shipped: 'Đã giao',
+    };
+    return map[(status || '').trim()] ?? 'Trạng thái khác';
+  };
+
   if (loading && !order) return (
-    <div className={`flex h-screen items-center justify-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+    <div className="flex h-screen items-center justify-center text-muted-foreground">
       <span className="material-symbols-outlined animate-spin text-3xl mr-2">progress_activity</span>
       Đang tải chi tiết & đối chiếu kho...
     </div>
@@ -329,7 +359,7 @@ const OrderDetail = () => {
           <div className="flex items-center gap-3">
             <span className="text-lg font-semibold text-card-foreground font-mono">{order.orderCode}</span>
             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(order.status)}`}>
-              {order.status}
+              {getOrderStatusLabel(order.status)}
             </span>
             <span className="text-sm text-muted-foreground">Ngày đặt: {formatDate(order.createdAt)}</span>
           </div>
@@ -340,7 +370,7 @@ const OrderDetail = () => {
           {(order.status === 'Pending' || order.status === 'Approved') && (
             <button
               onClick={() => setIsRejectModalOpen(true)}
-              className="px-4 py-2 bg-red-500/10 text-red-600 hover:bg-red-500/20 rounded-lg font-medium text-sm transition-colors border border-red-200"
+              className="px-4 py-2 bg-red-500/10 text-red-600 border border-red-200 rounded-lg font-medium text-sm transition-colors hover:bg-red-500/25 hover:border-red-300"
             >
               Từ chối
             </button>
@@ -350,10 +380,10 @@ const OrderDetail = () => {
               disabled={!isEnoughStock || isApproving}
               title={!isEnoughStock ? 'Không đủ nguyên liệu trong kho để làm đơn này' : ''}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${isEnoughStock
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:text-white shadow-lg shadow-blue-500/30'
                   : 'bg-gray-400 text-gray-200 cursor-not-allowed grayscale'
                 }`}
-              onClick={handleApproveOrder}
+              onClick={() => setIsApproveConfirmOpen(true)}
             >
               <span className="material-symbols-outlined text-[18px]">
                 {isApproving ? 'progress_activity' : isEnoughStock ? 'check' : 'block'}
@@ -362,7 +392,7 @@ const OrderDetail = () => {
             </button>
           )}
 
-          <button className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border flex items-center gap-2 ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+          <button className="px-4 py-2 rounded-lg font-medium text-sm transition-colors border border-border bg-card hover:bg-secondary flex items-center gap-2 text-foreground">
             <span className="material-symbols-outlined text-[18px]">print</span> In phiếu
           </button>
         </div>
@@ -372,8 +402,8 @@ const OrderDetail = () => {
 
         <div className="lg:col-span-2 space-y-6">
 
-          <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
               <span className="material-symbols-outlined text-amber-500">shopping_cart</span>
               Danh sách bánh yêu cầu
             </h3>
@@ -381,24 +411,24 @@ const OrderDetail = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className={`border-b text-sm uppercase tracking-wider ${darkMode ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-400'}`}>
+                  <tr className="border-b border-border text-sm uppercase tracking-wider text-muted-foreground">
                     <th className="pb-3 font-semibold">Sản phẩm</th>
                     <th className="pb-3 font-semibold text-center">Số lượng</th>
                     <th className="pb-3 font-semibold text-right">Đơn giá</th>
                     <th className="pb-3 font-semibold text-right">Thành tiền</th>
                   </tr>
                 </thead>
-                <tbody className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <tbody className="text-sm text-foreground">
                   {order.items.map((item: OrderType['items'][0], index: number) => {
                     const productName = (typeof item.productId === 'object' && item.productId?.name) ? item.productId.name : 'Sản phẩm ' + (index + 1);
                     const productPrice = (typeof item.productId === 'object' && item.productId?.price) ? item.productId.price : (item.unitPrice ?? (item.quantity ? item.subtotal / item.quantity : 0));
                     const subtotal = item.subtotal ?? productPrice * item.quantity;
 
                     return (
-                      <tr key={index} className={`border-b last:border-0 ${darkMode ? 'border-gray-800' : 'border-gray-50'}`}>
+                      <tr key={index} className="border-b border-border last:border-0">
                         <td className="py-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary">
                               <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
                             </div>
                             <span className="font-medium">{productName}</span>
@@ -416,9 +446,9 @@ const OrderDetail = () => {
           </div>
 
           {inventoryCheck.length > 0 && (
-            <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
+            <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
               <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-bold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                   <span className="material-symbols-outlined text-blue-500">inventory_2</span>
                   Đối chiếu nguyên liệu Bếp Trung Tâm
                 </h3>
@@ -432,7 +462,7 @@ const OrderDetail = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase tracking-wider ${darkMode ? 'border-gray-700 text-gray-500' : 'border-gray-200 text-gray-500'}`}>
+                    <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="pb-3 font-semibold">Tên nguyên liệu</th>
                       <th className="pb-3 font-semibold text-right">Tồn kho hiện tại</th>
                       <th className="pb-3 font-semibold text-right">SL Cần dùng</th>
@@ -440,9 +470,9 @@ const OrderDetail = () => {
                       <th className="pb-3 font-semibold text-center">Trạng thái</th>
                     </tr>
                   </thead>
-                  <tbody className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <tbody className="text-sm text-foreground">
                     {inventoryCheck.map((calc, idx) => (
-                      <tr key={idx} className={`border-b last:border-0 ${darkMode ? 'border-gray-800' : 'border-gray-50'}`}>
+                      <tr key={idx} className="border-b border-border last:border-0">
                         <td className="py-3 font-medium">{calc.ingredientName}</td>
                         <td className="py-3 text-right text-gray-500">
                           {calc.currentStock.toFixed(2)} {calc.unit}
@@ -450,7 +480,7 @@ const OrderDetail = () => {
                         <td className="py-3 text-right font-bold text-amber-500">
                           - {calc.requiredQty.toFixed(2)} {calc.unit}
                         </td>
-                        <td className={`py-3 text-right font-bold ${calc.isEnough ? (darkMode ? 'text-green-400' : 'text-green-600') : 'text-red-500'}`}>
+                        <td className={`py-3 text-right font-bold ${calc.isEnough ? 'text-green-600' : 'text-red-500'}`}>
                           {calc.remainingStock.toFixed(2)} {calc.unit}
                         </td>
                         <td className="py-3 text-center">
@@ -475,58 +505,58 @@ const OrderDetail = () => {
 
         <div className="space-y-6">
 
-          <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-muted-foreground">
               Thông tin cửa hàng
             </h3>
             <div className="flex items-start gap-3 mb-4">
-              <div className={`p-2 rounded-full ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
+              <div className="p-2 rounded-full bg-primary/10 text-primary">
                 <span className="material-symbols-outlined text-xl">store</span>
               </div>
               <div>
-                <p className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                <p className="font-bold text-lg text-foreground">
                   {(order.storeId as any)?.storeName || 'Store Unknown'}
                 </p>
-                <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <p className="text-sm mt-1 text-muted-foreground">
                   Mã: {typeof order.storeId === 'string' ? order.storeId : (order.storeId as any)?._id}
                 </p>
               </div>
             </div>
 
-            <div className={`h-px w-full my-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}></div>
+            <div className="h-px w-full my-4 bg-border"></div>
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Ngày giao dự kiến:</span>
-                <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                <span className="text-muted-foreground">Ngày giao dự kiến:</span>
+                <span className="font-medium text-foreground">
                   {formatDate(order.requestedDeliveryDate)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Người tạo:</span>
-                <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                <span className="text-muted-foreground">Người tạo:</span>
+                <span className="font-medium text-foreground">
                   {(order.createdBy as any)?.fullName || 'Hệ thống'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-muted-foreground">
               Thanh toán
             </h3>
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
-                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Tạm tính:</span>
-                <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>{formatCurrency(order.totalAmount)}</span>
+                <span className="text-muted-foreground">Tạm tính:</span>
+                <span className="text-foreground">{formatCurrency(order.totalAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Phí vận chuyển:</span>
-                <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>{formatCurrency(0)}</span>
+                <span className="text-muted-foreground">Phí vận chuyển:</span>
+                <span className="text-foreground">{formatCurrency(0)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Hình thức thanh toán:</span>
-                <span className={darkMode ? 'text-gray-200' : 'text-gray-900'}>
+                <span className="text-muted-foreground">Hình thức thanh toán:</span>
+                <span className="text-foreground">
                   {order.paymentMethod === 'Wallet'
                     ? 'Ví cửa hàng (đã trừ khi tạo đơn nếu đủ điều kiện)'
                     : order.paymentMethod || 'Khác'}
@@ -534,10 +564,10 @@ const OrderDetail = () => {
               </div>
             </div>
 
-            <div className={`h-px w-full my-4 border-dashed ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+            <div className="h-px w-full my-4 border-dashed bg-border"></div>
 
             <div className="flex justify-between items-end">
-              <span className={`font-bold ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Tổng cộng:</span>
+              <span className="font-bold text-foreground">Tổng cộng:</span>
               <span className="text-2xl font-bold text-amber-500">
                 {formatCurrency(order.totalAmount)}
               </span>
@@ -551,11 +581,11 @@ const OrderDetail = () => {
 
           {/* SỬA: DÙNG CANCELLATION REASON THAY CHO NOTES */}
           {order.status === 'Cancelled' && (order as any).cancellationReason && (
-            <div className={`rounded-2xl border p-6 border-l-4 border-l-red-500 ${darkMode ? 'bg-red-500/10 border-y-gray-700 border-r-gray-700' : 'bg-red-50 border-y-red-100 border-r-red-100'}`}>
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-2 text-red-600 flex items-center gap-2`}>
+            <div className="rounded-2xl border border-border p-6 border-l-4 border-l-red-500 bg-destructive/10">
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-2 text-red-600 flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px]">error</span> Lý do hủy
               </h3>
-              <p className={`text-sm font-medium ${darkMode ? 'text-red-200' : 'text-red-800'}`}>
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
                 {(order as any).cancellationReason}
               </p>
             </div>
@@ -563,38 +593,37 @@ const OrderDetail = () => {
 
           {/* VẪN GIỮ LẠI MỤC GHI CHÚ BÌNH THƯỜNG CHO CỬA HÀNG */}
           {order.notes && (
-            <div className={`rounded-2xl border p-6 border-l-4 border-l-amber-500 ${darkMode ? 'bg-[#25252A] border-y-gray-700 border-r-gray-700' : 'bg-amber-50 border-y-amber-100 border-r-amber-100'}`}>
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-2 text-amber-600`}>
+            <div className="rounded-2xl border border-border p-6 border-l-4 border-l-amber-500 bg-card">
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-2 text-amber-600">
                 Ghi chú đơn hàng
               </h3>
-              <p className={`text-sm italic ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <p className="text-sm italic text-foreground">
                 "{order.notes}"
               </p>
             </div>
           )}
 
-          <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-muted-foreground">
               Feedback từ cửa hàng
             </h3>
+            {feedbackLoading ? (
+              <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+                <div className="h-10 rounded-lg bg-muted animate-pulse w-32" />
+                <div className="h-20 rounded-lg bg-muted animate-pulse" />
+              </div>
+            ) : (
             <div className="space-y-3 text-sm">
               <div>
-                <label className={darkMode ? 'text-gray-300 text-xs font-semibold' : 'text-gray-700 text-xs font-semibold'}>
-                  Đánh giá (1–5)
+                <label className="text-foreground text-xs font-semibold">
+                  Đánh giá
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={feedbackRating}
-                  onChange={(e) =>
-                    setFeedbackRating(Math.min(5, Math.max(1, Number(e.target.value) || 1)))
-                  }
-                  className="mt-1 h-8 w-20 rounded-lg border border-input bg-background px-2 text-sm"
-                />
+                <div className="mt-2">
+                  <StarRating value={feedbackRating} onChange={setFeedbackRating} size="lg" />
+                </div>
               </div>
               <div>
-                <label className={darkMode ? 'text-gray-300 text-xs font-semibold' : 'text-gray-700 text-xs font-semibold'}>
+                <label className="text-foreground text-xs font-semibold">
                   Nội dung
                 </label>
                 <textarea
@@ -614,52 +643,88 @@ const OrderDetail = () => {
                 {isFeedbackSaving ? 'Đang lưu...' : hasFeedback ? 'Cập nhật feedback' : 'Gửi feedback'}
               </button>
             </div>
+            )}
           </div>
 
         </div>
       </div>
 
+      {isApproveConfirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
+          <div className="w-full max-w-md rounded-[24px] border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 bg-card text-card-foreground">
+            <div className="p-6 border-b border-border flex items-start gap-4 bg-primary/5">
+              <div className="p-3 bg-primary/20 text-primary rounded-2xl flex-shrink-0">
+                <span className="material-symbols-outlined text-2xl">check_circle</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
+                  Duyệt đơn hàng?
+                </h3>
+                <p className="text-xs mt-1 font-medium text-muted-foreground">
+                  Bạn xác nhận duyệt đơn hàng này? Đơn sẽ chuyển sang trạng thái Đã duyệt và có thể được đưa vào chuyến giao.
+                </p>
+              </div>
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-card">
+              <button
+                onClick={() => setIsApproveConfirmOpen(false)}
+                className="px-5 py-2.5 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleApproveOrder()}
+                disabled={!isEnoughStock || isApproving}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-50 disabled:grayscale shadow-lg shadow-blue-500/30 flex items-center gap-2"
+              >
+                {isApproving ? (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">check</span>
+                )}
+                Xác nhận duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isRejectModalOpen && (
-        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
-          <div className={`w-full max-w-md rounded-[24px] border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'
-            }`}>
-            <div className={`p-6 border-b flex items-start gap-4 ${darkMode ? 'border-gray-700/50 bg-[#2A2A30]' : 'border-red-100 bg-red-50'}`}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
+          <div className="w-full max-w-md rounded-[24px] border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 bg-card text-card-foreground">
+            <div className="p-6 border-b border-border flex items-start gap-4 bg-destructive/10">
               <div className="p-3 bg-red-500/20 text-red-500 rounded-2xl flex-shrink-0">
                 <span className="material-symbols-outlined text-2xl">warning</span>
               </div>
               <div>
-                <h3 className={`text-lg font-black uppercase tracking-tight ${darkMode ? 'text-white' : 'text-red-700'}`}>
+                <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
                   Từ chối đơn hàng?
                 </h3>
-                <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-gray-400' : 'text-red-600/80'}`}>
+                <p className="text-xs mt-1 font-medium text-muted-foreground">
                   Hành động này sẽ hủy đơn hàng và hoàn tiền (nếu có). Bạn không thể hoàn tác thao tác này.
                 </p>
               </div>
             </div>
 
             <div className="p-6">
-              <label className={`block text-sm font-bold mb-2 uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label className="block text-sm font-bold mb-2 uppercase tracking-wider text-foreground">
                 Lý do từ chối <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Nhập lý do... (Ví dụ: Hết nguyên liệu, Cửa hàng đặt sai số lượng...)"
-                className={`w-full p-4 rounded-xl border-2 focus:ring-4 outline-none transition-all resize-none h-28 text-sm ${darkMode
-                    ? 'bg-[#1A1A1A] border-gray-700 text-white focus:border-red-500/50 focus:ring-red-500/20 placeholder:text-gray-600'
-                    : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-red-400 focus:ring-red-100 placeholder:text-gray-400'
-                  }`}
+                className="w-full p-4 rounded-xl border-2 border-border bg-background text-foreground focus:ring-4 focus:border-destructive/50 focus:ring-destructive/20 outline-none transition-all resize-none h-28 text-sm placeholder:text-muted-foreground"
               />
             </div>
 
-            <div className={`p-5 border-t flex justify-end gap-3 ${darkMode ? 'border-gray-700/50 bg-[#2A2A30]' : 'bg-gray-50 border-gray-100'}`}>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-card">
               <button
                 onClick={() => {
                   setIsRejectModalOpen(false);
                   setRejectReason('');
                 }}
-                className={`px-5 py-2.5 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
-                  }`}
+                className="px-5 py-2.5 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
               >
                 Hủy Bỏ
               </button>

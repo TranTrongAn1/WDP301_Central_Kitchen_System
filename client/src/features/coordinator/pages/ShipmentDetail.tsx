@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
+import { productApi, type Product } from '@/api/ProductApi';
+import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import {
@@ -39,6 +41,7 @@ const ShipmentDetail = () => {
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [isAddingOrders, setIsAddingOrders] = useState(false);
     const [loadingAvailable, setLoadingAvailable] = useState(false);
+    const [ingredientSummary, setIngredientSummary] = useState<{ name: string; unit: string; totalQty: number }[]>([]);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -76,6 +79,50 @@ const ShipmentDetail = () => {
 
         fetchDetail();
     }, [id, refreshTrigger]);
+
+    useEffect(() => {
+        if (tripOrders.length === 0) {
+            setIngredientSummary([]);
+            return;
+        }
+        let cancelled = false;
+        const run = async () => {
+            try {
+                const [productsRes, ingredientsRes] = await Promise.all([
+                    productApi.getAll(),
+                    ingredientApi.getAll(),
+                ]);
+                const products: Product[] = (productsRes as any)?.data ?? (Array.isArray(productsRes) ? productsRes : []);
+                const ingredients: Ingredient[] = (ingredientsRes as any)?.data ?? (Array.isArray(ingredientsRes) ? ingredientsRes : []);
+                const ingMap: Record<string, { name: string; unit: string; totalQty: number }> = {};
+                for (const order of tripOrders) {
+                    if (!order.items) continue;
+                    for (const item of order.items) {
+                        const pid = typeof item.productId === 'object' ? (item.productId as any)?._id : item.productId;
+                        const product = products.find((p: Product) => p._id === pid);
+                        const qty = item.quantity ?? (item as any).approvedQuantity ?? 0;
+                        if (!product?.recipe) continue;
+                        for (const rec of product.recipe) {
+                            const ingId = typeof rec.ingredientId === 'object' ? (rec.ingredientId as any)?._id : rec.ingredientId;
+                            const need = (rec.quantity ?? 0) * qty;
+                            const ing = ingredients.find((i: Ingredient) => i._id === ingId);
+                            if (!ingMap[ingId]) {
+                                ingMap[ingId] = { name: ing?.ingredientName ?? ingId, unit: ing?.unit ?? '', totalQty: 0 };
+                            }
+                            ingMap[ingId].totalQty += need;
+                        }
+                    }
+                }
+                if (!cancelled) {
+                    setIngredientSummary(Object.values(ingMap));
+                }
+            } catch {
+                if (!cancelled) setIngredientSummary([]);
+            }
+        };
+        run();
+        return () => { cancelled = true; };
+    }, [tripOrders]);
 
     // --- LOGIC THÊM ĐƠN HÀNG ---
     const handleOpenAddOrders = async () => {
@@ -197,13 +244,45 @@ const ShipmentDetail = () => {
     };
 
     const getTripStatusStyle = (status: string) => {
-        if (status === 'Planning') return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
-        if (status === 'Pending' || status === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
-        if (status === 'ReadyForShipping') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
-        if (status === 'In_Transit') return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
-        if (status === 'Completed') return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
-        if (status === 'Cancelled') return 'bg-red-500/20 text-red-500 border-red-500/30';
+        const s = (status || '').trim();
+        if (s === 'Planning') return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+        if (s === 'Pending' || s === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
+        if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
+        if (s === 'In_Transit' || s === 'In Transit') return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
+        if (s === 'Completed') return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
+        if (s === 'Cancelled') return 'bg-red-500/20 text-red-500 border-red-500/30';
         return darkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-200';
+    };
+
+    const getTripStatusLabel = (status: string) => {
+        const s = (status || '').trim();
+        const map: Record<string, string> = {
+            Planning: 'Lên kế hoạch',
+            Pending: 'Chờ xử lý',
+            Transferred_To_Kitchen: 'Đã chuyển bếp',
+            ReadyForShipping: 'Sẵn sàng giao',
+            Ready_For_Shipping: 'Sẵn sàng giao',
+            'Ready for shipping': 'Sẵn sàng giao',
+            In_Transit: 'Đang giao',
+            'In Transit': 'Đang giao',
+            Completed: 'Hoàn thành',
+            Cancelled: 'Đã hủy',
+        };
+        return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái khác';
+    };
+
+    const getOrderStatusLabel = (status: string) => {
+        const s = (status || '').trim();
+        const map: Record<string, string> = {
+            Pending: 'Chờ duyệt',
+            Approved: 'Đã duyệt',
+            In_Transit: 'Đang giao',
+            'In Transit': 'Đang giao',
+            Received: 'Đã nhận',
+            Cancelled: 'Đã hủy',
+            Shipped: 'Đã giao',
+        };
+        return map[s] ?? 'Trạng thái khác';
     };
 
     const getOrderStatusStyle = (status: string) => {
@@ -292,7 +371,7 @@ const ShipmentDetail = () => {
                             {trip.tripCode ?? `TRIP-${trip._id.slice(-6).toUpperCase()}`}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getTripStatusStyle(trip.status)}`}>
-                            {trip.status.replace('_', ' ')}
+                            {getTripStatusLabel(trip.status)}
                         </span>
                         <span className="text-sm text-muted-foreground">
                             Khởi tạo: {new Date(trip.createdAt).toLocaleString('vi-VN')}
@@ -301,7 +380,7 @@ const ShipmentDetail = () => {
                 </div>
 
                 <div className="flex gap-2">
-                    {trip.status === 'Planning' && (
+                    {trip.status === 'Planning' && user?.role !== 'KitchenStaff' && (
                         <>
                             <button
                                 type="button"
@@ -320,7 +399,7 @@ const ShipmentDetail = () => {
                             </button>
                         </>
                     )}
-                    {(trip.status === 'Pending' || trip.status === 'Planning' || trip.status === 'Transferred_To_Kitchen') && (
+                    {trip.status === 'Transferred_To_Kitchen' && (
                         <button
                             type="button"
                             onClick={() => setConfirmAction({ type: 'markReady' })}
@@ -334,14 +413,14 @@ const ShipmentDetail = () => {
                         trip.status === 'ReadyForShipping' ||
                         trip.status === 'Ready_For_Shipping' ||
                         trip.status === 'Ready for shipping'
-                    ) && (
+                    ) && user?.role !== 'KitchenStaff' && (
                             <button
                                 type="button"
                                 onClick={() => setConfirmAction({ type: 'startShipping' })}
                                 disabled={isStartingShipping}
                                 className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-blue-700 disabled:opacity-50"
                             >
-                                {isStartingShipping ? 'Đang bắt đầu...' : 'Bắt đầu giao (In Transit)'}
+                                {isStartingShipping ? 'Đang bắt đầu...' : 'Bắt đầu giao'}
                             </button>
                         )}
                 </div>
@@ -395,7 +474,7 @@ const ShipmentDetail = () => {
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-muted-foreground text-xs">Trạng thái</span>
                         <span className="text-xs font-semibold">
-                            {trip.status.replace(/_/g, ' ')}
+                            {getTripStatusLabel(trip.status)}
                         </span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
@@ -434,6 +513,22 @@ const ShipmentDetail = () => {
                 </div>
             </div>
 
+            {ingredientSummary.length > 0 && (
+                <div className="mb-6 rounded-xl border border-border bg-card p-6">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Nguyên liệu cần cho chuyến (ước tính)</h3>
+                    <div className="flex flex-wrap gap-3">
+                        {ingredientSummary.map((ing, idx) => (
+                            <span
+                                key={idx}
+                                className="px-3 py-1.5 rounded-lg bg-secondary text-sm font-medium text-card-foreground border border-border"
+                            >
+                                {ing.name}: <span className="text-primary font-bold">{ing.totalQty.toFixed(1)} {ing.unit}</span>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <h2 className="text-lg font-semibold text-card-foreground mb-6 flex items-center gap-2">
                 <Truck className="w-5 h-5 text-primary" /> Danh sách điểm giao ({tripOrders.length})
             </h2>
@@ -457,9 +552,9 @@ const ShipmentDetail = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getOrderStatusStyle(order.status)}`}>
-                                        {order.status}
+                                        {getOrderStatusLabel(order.status)}
                                     </span>
-                                    {trip.status === 'Planning' && (
+                                    {trip.status === 'Planning' && user?.role !== 'KitchenStaff' && (
                                         <button
                                             type="button"
                                             onClick={() => setConfirmAction({ type: 'removeOrder', orderId: order._id })}
@@ -516,6 +611,25 @@ const ShipmentDetail = () => {
                                     <span>{order.notes}</span>
                                 </div>
                             )}
+                            {order.items && order.items.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-border">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Sản phẩm trong đơn</p>
+                                    <ul className="space-y-1.5 text-xs">
+                                        {order.items.map((item: any, idx: number) => {
+                                            const name = typeof item.productId === 'object' && item.productId?.name
+                                                ? item.productId.name
+                                                : `Sản phẩm #${idx + 1}`;
+                                            const qty = item.quantity ?? item.approvedQuantity ?? 0;
+                                            return (
+                                                <li key={idx} className="flex justify-between gap-2">
+                                                    <span className="text-card-foreground truncate">{name}</span>
+                                                    <span className="font-semibold text-primary shrink-0">× {qty}</span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -531,8 +645,8 @@ const ShipmentDetail = () => {
 
             {/* Add Orders Modal */}
             {addOrdersModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-2xl rounded-2xl bg-card border border-border p-5 space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl rounded-2xl bg-card border border-border text-card-foreground p-5 space-y-4 shadow-xl">
                         <div className="flex items-center justify-between">
                             <h2 className="text-sm font-semibold">Thêm đơn hàng vào chuyến xe</h2>
                             <button
@@ -617,12 +731,12 @@ const ShipmentDetail = () => {
             )}
 
             {confirmAction && (
-                <div className={`fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-sm ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
-                    <div className={`w-full max-w-sm rounded-[28px] border shadow-2xl p-6 text-center animate-in zoom-in-95 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
-                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-sm bg-black/50">
+                    <div className="w-full max-w-sm rounded-[28px] border border-border shadow-2xl p-6 text-center animate-in zoom-in-95 bg-card text-card-foreground">
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                             <CheckCircle2 className="w-7 h-7" />
                         </div>
-                        <h3 className="text-lg font-black uppercase mb-2">
+                        <h3 className="text-lg font-black uppercase mb-2 text-foreground">
                             {confirmAction.type === 'markReady' && 'Đánh dấu sẵn sàng giao?'}
                             {confirmAction.type === 'startShipping' && 'Bắt đầu giao chuyến hàng?'}
                             {confirmAction.type === 'removeOrder' && 'Gỡ đơn khỏi chuyến xe?'}
@@ -639,7 +753,7 @@ const ShipmentDetail = () => {
                             <button
                                 type="button"
                                 onClick={() => setConfirmAction(null)}
-                                className="flex-1 py-2.5 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
+                                className="flex-1 py-2.5 rounded-xl font-bold uppercase text-xs bg-secondary text-muted-foreground hover:bg-secondary/80 transition-colors"
                             >
                                 Hủy bỏ
                             </button>
@@ -652,7 +766,7 @@ const ShipmentDetail = () => {
                                         handleRemoveOrder(confirmAction.orderId);
                                     }
                                 }}
-                                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
                             >
                                 Xác nhận
                             </button>

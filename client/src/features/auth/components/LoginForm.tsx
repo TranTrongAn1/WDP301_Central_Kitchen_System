@@ -53,10 +53,26 @@ const LoginForm = () => {
         toast.error(response.message || 'Login failed', { id: toastId });
       }
     } catch (error: any) {
-      const errorMessage =
-        error.message ||
-        'An error occurred during login';
-
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
+      let errorMessage: string;
+      if (serverMessage && typeof serverMessage === 'string') {
+        errorMessage = serverMessage;
+      } else if (status === 401) {
+        errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+      } else if (status === 403) {
+        errorMessage = 'Tài khoản không có quyền truy cập. Liên hệ quản trị viên.';
+      } else if (status === 404) {
+        errorMessage = 'Không tìm thấy dịch vụ đăng nhập. Vui lòng thử lại sau.';
+      } else if (status >= 500) {
+        errorMessage = 'Máy chủ đang bận. Vui lòng thử lại sau vài phút.';
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Kết nối quá thời gian. Kiểm tra mạng và thử lại.';
+      } else if (error.message === 'Network Error' || !error.response) {
+        errorMessage = 'Không thể kết nối máy chủ. Kiểm tra mạng hoặc thử lại sau.';
+      } else {
+        errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      }
       toast.error(errorMessage, { id: toastId });
       console.error('Login Error:', error);
     } finally {

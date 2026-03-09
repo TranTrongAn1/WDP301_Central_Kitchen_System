@@ -56,7 +56,8 @@ export default function FeedbackListPage() {
       ? (fb.createdBy as any).fullName || (fb.createdBy as any).email || '—'
       : '—';
 
-  const ordersPath = isAdmin ? '/admin/dashboard' : '/coordinator/orders';
+  const ordersPath = isAdmin ? '/admin/orders' : '/manager/orders';
+  const orderDetailPath = isAdmin ? '/admin/orders' : '/manager/orders';
 
   if (loading) {
     return (
@@ -139,7 +140,7 @@ export default function FeedbackListPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => navigate(`/coordinator/orders/${getOrderId(fb)}`)}
+                        onClick={() => navigate(`${orderDetailPath}/${getOrderId(fb)}`)}
                       >
                         Xem đơn
                       </Button>

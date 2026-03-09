@@ -5,10 +5,8 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "@/shared/zustand/authStore";
 import { authApi } from "@/api/AuthApi";
 import { useThemeStore } from "@/shared/zustand/themeStore";
-import { useUserSettingsStore } from "@/shared/zustand/userSettingsStore";
 import { cn } from "@/shared/lib/utils";
 import {
-  Bell,
   Sun,
   Moon,
   Menu,
@@ -86,11 +84,9 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   const { user, logout } = useAuthStore();
   const { darkMode, toggleDarkMode } = useThemeStore();
-   const { enableSystemNotifications, enableSoundEffects } = useUserSettingsStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const path = location.pathname;
   const pageName =
@@ -103,32 +99,6 @@ export const DashboardHeader = ({
           ? { name: "Order Detail", title: "Chi tiết đơn hàng cửa hàng" }
           : { name: "Dashboard", title: "Tổng quan" });
 
-  const notifications = [
-    {
-      id: 1,
-      title: "Đơn hàng mới #1234",
-      message: "Có đơn hàng mới từ cửa hàng A",
-      time: "5 phút trước",
-      unread: true,
-    },
-    {
-      id: 2,
-      title: "Cảnh báo tồn kho",
-      message: "Nguyên liệu gạo sắp hết",
-      time: "1 giờ trước",
-      unread: true,
-    },
-    {
-      id: 3,
-      title: "Xác nhận sản xuất",
-      message: "Kế hoạch sản xuất đã được duyệt",
-      time: "2 giờ trước",
-      unread: false,
-    },
-  ];
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
-
   const handleLogout = async () => {
     try {
       await authApi.logout();
@@ -138,46 +108,6 @@ export const DashboardHeader = ({
       logout();
       toast.success("Đăng xuất thành công!");
       navigate("/login");
-    }
-  };
-
-  const playNotificationSound = () => {
-    if (typeof window === "undefined" || !enableSoundEffects) return;
-    try {
-      void isSidebarCollapsed;
-      const w = window as unknown as {
-        AudioContext?: typeof AudioContext;
-        webkitAudioContext?: typeof AudioContext;
-      };
-      const AudioCtx = w.AudioContext || w.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } catch {
-      // Ignore audio errors (browser restrictions, etc.)
-    }
-  };
-
-  const handleToggleNotifications = () => {
-    if (!enableSystemNotifications) {
-      toast("Bạn đã tắt thông báo trong phần Cài đặt.");
-      return;
-    }
-    const next = !showNotifications;
-    setShowNotifications(next);
-    setShowUserMenu(false);
-    if (next) {
-      playNotificationSound();
     }
   };
 
@@ -234,128 +164,7 @@ export const DashboardHeader = ({
 
         <div className="relative">
           <button
-            onClick={handleToggleNotifications}
-            className={cn(
-              "relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
-              darkMode
-                ? "hover:bg-secondary text-muted-foreground"
-                : "hover:bg-orange-100 text-muted-foreground"
-            )}
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white bg-red-500 rounded-full px-1">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <div
-              className={cn(
-                "absolute right-0 mt-2 w-80 rounded-2xl shadow-xl border overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150",
-                darkMode
-                  ? "bg-card border-border"
-                  : "bg-white border-orange-100"
-              )}
-            >
-              <div
-                className={cn(
-                  "p-4 border-b",
-                  darkMode ? "border-border" : "border-orange-100"
-                )}
-              >
-                <h3
-                  className={cn(
-                    "font-semibold",
-                    darkMode ? "text-foreground" : "text-foreground"
-                  )}
-                >
-                  Thông báo
-                </h3>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={cn(
-                      "p-4 border-b transition-colors cursor-pointer",
-                      darkMode
-                        ? "border-border hover:bg-secondary/50"
-                        : "border-orange-50 hover:bg-orange-50/50",
-                      notification.unread &&
-                      (darkMode ? "bg-primary/5" : "bg-orange-50/30")
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "w-2 h-2 rounded-full mt-2 flex-shrink-0",
-                          notification.unread ? "bg-primary" : "bg-transparent"
-                        )}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={cn(
-                            "text-sm font-medium",
-                            darkMode ? "text-foreground" : "text-foreground"
-                          )}
-                        >
-                          {notification.title}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-sm truncate",
-                            darkMode
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {notification.message}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-xs mt-1",
-                            darkMode
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {notification.time}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div
-                className={cn(
-                  "p-3 border-t",
-                  darkMode ? "border-border" : "border-orange-100"
-                )}
-              >
-                <button
-                  className={cn(
-                    "w-full text-center text-sm font-medium transition-colors",
-                    darkMode
-                      ? "text-primary hover:text-primary/80"
-                      : "text-primary hover:text-primary/80"
-                  )}
-                >
-                  Xem tất cả thông báo
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="relative">
-          <button
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setShowNotifications(false);
-            }}
+            onClick={() => setShowUserMenu(!showUserMenu)}
             className={cn(
               "flex items-center gap-2 p-1.5 pr-3 rounded-full transition-all duration-200",
               darkMode
