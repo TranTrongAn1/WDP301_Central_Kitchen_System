@@ -6,7 +6,7 @@ const Batch = require('../models/BatchModel');
 const Ingredient = require('../models/Ingredient');
 const IngredientBatch = require('../models/IngredientBatch');
 const IngredientUsage = require('../models/IngredientUsage');
-
+const { getSettingNumber } = require('../utils/settingHelper');
 const getProductionPlans = async (req, res, next) => {
   try {
     const { status, planDate } = req.query;
@@ -102,14 +102,36 @@ const createProductionPlan = async (req, res, next) => {
       );
     }
 
-    // Aggregate quantities per unique productId across all order items
+    // ========================================
+    // [CẬP NHẬT] Đếm số lượng và Check Limit
+    // ========================================
     const quantityMap = new Map();
+    let totalProductsCount = 0; // Biến đếm tổng tất cả sản phẩm
+
     for (const order of orders) {
       for (const item of order.items) {
         const pid = item.productId.toString();
-        quantityMap.set(pid, (quantityMap.get(pid) || 0) + item.quantity);
+        const qty = item.quantity || 0;
+        
+        // Cộng dồn cho từng món
+        quantityMap.set(pid, (quantityMap.get(pid) || 0) + qty);
+        
+        // Cộng dồn vào tổng số lượng của cả mẻ nấu
+        totalProductsCount += qty; 
       }
     }
+
+    // Lấy giới hạn từ System Setting (mặc định 1000 nếu chưa set)
+    const maxProductsPerPlan = await getSettingNumber('MAX_PRODUCTS_PER_PLAN', 1000);
+
+    // Chốt chặn văng lỗi nếu vượt quá năng lực
+    if (totalProductsCount > maxProductsPerPlan) {
+      await session.abortTransaction();
+      session.endSession();
+      res.status(400);
+      return next(new Error(`Vượt quá năng lực Bếp! Mẻ nấu này có tổng cộng ${totalProductsCount} sản phẩm, nhưng giới hạn hệ thống chỉ cho phép tối đa ${maxProductsPerPlan} sản phẩm/mẻ.`));
+    }
+    // ========================================
 
     // Build the details array
     const details = Array.from(quantityMap.entries()).map(([productId, totalQuantity]) => ({
@@ -157,7 +179,6 @@ const createProductionPlan = async (req, res, next) => {
     next(error);
   }
 };
-
 const updateProductionPlan = async (req, res, next) => {
   try {
     const plan = await ProductionPlan.findById(req.params.id);

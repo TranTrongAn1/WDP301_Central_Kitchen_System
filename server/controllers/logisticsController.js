@@ -9,7 +9,7 @@ const SystemSetting = require('../models/SystemSetting');
 const StoreInventory = require('../models/StoreInventory');
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
-
+const { getSettingNumber } = require('../utils/settingHelper');
 /**
  * @desc    Create new order from store
  * @route   POST /api/logistics/orders
@@ -738,6 +738,21 @@ const addOrdersToTrip = async (req, res, next) => {
     }
 
     // ========================================
+    // STEP 4.5: Validate MAX Orders Limit (After filtering duplicates)
+    // ========================================
+    const maxOrdersPerTrip = await getSettingNumber('MAX_ORDERS_PER_TRIP', 100);
+    const totalOrdersAfterAdd = trip.orders.length + newOrderIds.length;
+    
+    if (totalOrdersAfterAdd > maxOrdersPerTrip) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(
+        `Capacity exceeded. Trip has ${trip.orders.length} orders. Adding ${newOrderIds.length} new orders exceeds the limit of ${maxOrdersPerTrip} per trip.`
+      );
+    }
+
+    // ========================================
     // STEP 5: Add New Orders to Trip
     // ========================================
     if (newOrderIds.length > 0) {
@@ -781,7 +796,6 @@ const addOrdersToTrip = async (req, res, next) => {
     session.endSession();
   }
 };
-
 /**
  * @desc    Remove specific orders from a delivery trip (set back to Approved)
  * @route   PATCH /api/logistics/trips/:id/remove-orders
@@ -967,13 +981,18 @@ const startShipping = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 3: Validate Trip Has Orders
+    // STEP 3: Validate Trip Has ENOUGH Orders
     // ========================================
-    if (!trip.orders || trip.orders.length === 0) {
+    const minOrdersPerTrip = await getSettingNumber('MIN_ORDERS_PER_TRIP', 5);
+    const currentOrderCount = trip.orders ? trip.orders.length : 0;
+
+    if (currentOrderCount < minOrdersPerTrip) {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      throw new Error('Cannot start shipping for a trip with no orders');
+      throw new Error(
+        `Cannot start shipping. A trip requires at least ${minOrdersPerTrip} orders to depart. Currently has ${currentOrderCount} order(s).`
+      );
     }
 
     // ========================================
@@ -1516,6 +1535,17 @@ const createDeliveryTrip = async (req, res, next) => {
       await session.abortTransaction();
       res.status(400);
       throw new Error('orderIds must be a non-empty array');
+    }
+
+    // ========================================
+    // STEP 1.5: Validate MAX Orders Limit
+    // ========================================
+    const maxOrdersPerTrip = await getSettingNumber('MAX_ORDERS_PER_TRIP', 100);
+    if (orderIds.length > maxOrdersPerTrip) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(`Exceeded maximum limit. A delivery trip can only have up to ${maxOrdersPerTrip} orders. You provided ${orderIds.length}.`);
     }
 
     // ========================================

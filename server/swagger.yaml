@@ -1152,6 +1152,9 @@ paths:
         3. System auto-generates the `details` array from the aggregated data.
         4. All referenced orders are transitioned to 'Transferred_To_Kitchen' status.
         
+        **Business Rule:**
+        - The total accumulated quantity of all products across all selected orders MUST NOT exceed the system limit `MAX_PRODUCTS_PER_PLAN`.
+        
         **Important:** Each plan creates a unique planCode and tracks planned vs actual quantities.
       security:
         - BearerAuth: []
@@ -1189,9 +1192,23 @@ paths:
         '201':
           description: Production plan created successfully and orders transitioned to Transferred_To_Kitchen
         '400':
-          description: Invalid input, duplicate plan code, or orders not in Approved status
+          description: Invalid input, duplicate plan code, orders not Approved, or capacity limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Vượt quá năng lực Bếp! Mẻ nấu này có tổng cộng 1200 sản phẩm, nhưng giới hạn hệ thống chỉ cho phép tối đa 1000 sản phẩm/mẻ.'
         '404':
           description: One or more orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Orders not found: 60d5ec49f1b2c8b1f8e4e1a9'
 
   /api/production-plans/{id}:
     get:
@@ -2129,6 +2146,9 @@ paths:
         2. Groups them into a single delivery trip
         3. All orders transition from 'Approved' to 'In_Transit'
         
+        **Business Rule:**
+        - The total number of orders assigned to this trip MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
+        
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
         - BearerAuth: []
@@ -2186,9 +2206,23 @@ paths:
                         items:
                           $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input (e.g., orders not in "Ready_For_Shipping" status, empty orderIds array)
+          description: Bad Request (Invalid input, orders not in "Ready_For_Shipping" status, or limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Exceeded maximum limit. A delivery trip can only have up to 100 orders. You provided 105.'
         '404':
           description: One or more orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'One or more orders not found'
 
   /api/logistics/trips:
     get:
@@ -2393,6 +2427,9 @@ paths:
         - All orders must have 'Approved' status
         - Duplicate order IDs are automatically prevented
         
+        **Business Rule:**
+        - The total number of orders (existing + new) MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
+        
         **Workflow:** Coordinator builds trip by adding approved orders one by one or in batches.
       security:
         - BearerAuth: []
@@ -2443,9 +2480,23 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Invalid input (e.g., trip not in Planning status, orders not Approved)
+          description: Bad Request (Invalid input, trip not in Planning, orders not Approved, or capacity limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Capacity exceeded. Trip has 90 orders. Adding 15 new orders exceeds the limit of 100 per trip.'
         '404':
           description: Delivery trip or orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Delivery trip not found'
 
   /api/logistics/trips/{id}/remove-orders:
     patch:
@@ -2529,10 +2580,13 @@ paths:
         - Updates all orders in trip to 'In_Transit' status
         - Sets shippedDate timestamp for all orders
         - Sets trip departureTime timestamp
+        - Deducts stock quantities from FinishedBatches
         
         **Requirements:**
         - Trip must be in 'Planning' status
-        - Trip must have at least one order
+        
+        **Business Rule:**
+        - The trip MUST have at least the minimum required orders (`MIN_ORDERS_PER_TRIP`) to depart.
         
         **Workflow:** Coordinator dispatches the truck directly from Planning. No kitchen handoff step required.
       security:
@@ -2573,9 +2627,23 @@ paths:
                         type: integer
                         example: 3
         '400':
-          description: Invalid operation (e.g., trip not in Planning status)
+          description: Bad Request (Invalid operation, trip not in Planning, or minimum orders not met)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Cannot start shipping. A trip requires at least 5 orders to depart. Currently has 2 order(s).'
         '404':
           description: Delivery trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Delivery trip not found'
 
   /api/logistics/invoices:
     get:
@@ -3930,9 +3998,9 @@ paths:
         '200':
           description: Completed successfully and inventory updated
 
-  # ============================================================
-  # SYSTEM SETTINGS MANAGEMENT
-  # ============================================================
+# ============================================================
+# SYSTEM SETTINGS MANAGEMENT
+# ============================================================
   /api/system-settings:
     get:
       tags:
@@ -3945,7 +4013,7 @@ paths:
         - If user is authenticated: Returns all settings
         - If not authenticated OR publicOnly=true: Returns only settings where isPublic=true
         
-        **Use Case:** Mobile app fetches public settings (shipping fees, tax rates) without authentication.
+        **Use Case:** Mobile app fetches public settings without authentication. Admin fetches by Group.
       parameters:
         - in: query
           name: publicOnly
@@ -3953,6 +4021,13 @@ paths:
             type: boolean
           description: 'If true, return only public settings'
           example: true
+        - in: query
+          name: group
+          schema:
+            type: string
+            enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          description: 'Filter settings by group (e.g., DELIVERY, PRODUCTION)'
+          example: 'DELIVERY'
       responses:
         '200':
           description: Successfully retrieved settings
@@ -3994,10 +4069,12 @@ paths:
             schema:
               $ref: '#/components/schemas/SystemSettingInput'
             example:
-              key: 'SHIPPING_COST_BASE'
-              value: '50000'
-              description: 'Base shipping cost for deliveries (VND)'
-              isPublic: true
+              key: 'MAX_ORDERS_PER_TRIP'
+              value: '100'
+              dataType: 'NUMBER'
+              group: 'DELIVERY'
+              description: 'Giới hạn tối đa 100 đơn/chuyến xe'
+              isPublic: false
       responses:
         '201':
           description: System setting created successfully
@@ -4020,17 +4097,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
-                missingFields:
-                  summary: Missing required fields
-                  value:
-                    success: false
-                    message: 'Please provide key and value'
-                duplicate:
-                  summary: Duplicate key
-                  value:
-                    success: false
-                    message: "Setting with key 'SHIPPING_COST_BASE' already exists"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4043,19 +4109,13 @@ paths:
       summary: Seed default system settings
       description: |
         Automatically populate default system settings if they don't exist.
-        
-        **Default Settings:**
-        - SHIPPING_COST_BASE: '50000' (VND)
-        - TAX_RATE: '0.08' (8%)
+        Includes settings for Delivery, Production, and Finance.
         
         **Behavior:**
         - Only creates settings that don't already exist
         - Skips existing settings without updating them
-        - Returns list of seeded and skipped settings
         
         **Access:** Admin only
-        
-        **Use Case:** Initial system setup or post-deployment configuration.
       security:
         - BearerAuth: []
       responses:
@@ -4083,13 +4143,13 @@ paths:
                         type: array
                         items:
                           type: string
-                        example: ['SHIPPING_COST_BASE']
+                        example: ['TAX_RATE', 'MAX_ORDERS_PER_TRIP']
                       seededCount:
                         type: integer
-                        example: 1
+                        example: 3
                       skippedCount:
                         type: integer
-                        example: 1
+                        example: 2
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4106,8 +4166,6 @@ paths:
         **Access Control:**
         - Public settings (isPublic=true): Accessible without authentication
         - Private settings (isPublic=false): Requires authentication
-        
-        **Key Format:** Case-insensitive (automatically converted to uppercase)
       parameters:
         - in: path
           name: key
@@ -4115,7 +4173,7 @@ paths:
           schema:
             type: string
           description: 'Setting key (case-insensitive)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
       responses:
         '200':
           description: Successfully retrieved setting
@@ -4135,18 +4193,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'Access denied. This setting is private.'
         '404':
           description: System setting not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
 
     put:
       tags:
@@ -4155,12 +4207,7 @@ paths:
       description: |
         Update an existing system setting.
         
-        **Updatable Fields:**
-        - value: New value for the setting
-        - description: Updated description
-        - isPublic: Change public accessibility
-        
-        **Note:** The key cannot be updated. To change a key, delete and recreate the setting.
+        **Updatable Fields:** value, dataType, group, description, isPublic
         
         **Access:** Admin only
       security:
@@ -4172,7 +4219,7 @@ paths:
           schema:
             type: string
           description: 'Setting key (case-insensitive)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
       requestBody:
         required: true
         content:
@@ -4180,9 +4227,11 @@ paths:
             schema:
               $ref: '#/components/schemas/SystemSettingUpdate'
             example:
-              value: '60000'
-              description: 'Updated base shipping cost for 2026'
-              isPublic: true
+              value: '120'
+              dataType: 'NUMBER'
+              group: 'DELIVERY'
+              description: 'Đã nâng giới hạn chở hàng'
+              isPublic: false
       responses:
         '200':
           description: System setting updated successfully
@@ -4205,9 +4254,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4219,10 +4265,6 @@ paths:
       summary: Delete a system setting
       description: |
         Permanently delete a system setting from the database.
-        
-        **Warning:** This is a hard delete operation and cannot be undone.
-        
-        **Use Case:** Remove deprecated or unused settings.
         
         **Access:** Admin only
       security:
@@ -4257,9 +4299,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5145,6 +5184,16 @@ components:
           type: string
           description: 'Setting value (stored as string)'
           example: '50000'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          description: 'Data type for frontend rendering and backend parsing'
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          description: 'Grouping category for admin dashboard tabs'
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Human-readable description of the setting'
@@ -5170,20 +5219,27 @@ components:
         key:
           type: string
           description: 'Setting key (will be converted to uppercase)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
         value:
           type: string
           description: 'Setting value'
-          example: '50000'
+          example: '100'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Description of the setting'
-          example: 'Base shipping cost for deliveries (VND)'
+          example: 'Giới hạn đơn tối đa trên 1 chuyến xe'
         isPublic:
           type: boolean
-          description: 'Make this setting publicly accessible'
           default: false
-          example: true
+          example: false
 
     SystemSettingUpdate:
       type: object
@@ -5191,14 +5247,21 @@ components:
         value:
           type: string
           description: 'New value for the setting'
-          example: '60000'
+          example: '120'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Updated description'
-          example: 'Updated base shipping cost'
+          example: 'Đã tăng giới hạn lên 120 đơn'
         isPublic:
           type: boolean
-          description: 'Change public accessibility'
           example: false
 
     IngredientRequest:

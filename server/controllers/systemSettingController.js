@@ -1,21 +1,50 @@
 const SystemSetting = require('../models/SystemSetting');
 
 /**
- * Default system settings to be seeded
+ * Default system settings to be seeded (Đã bổ sung các Limits và Phân loại)
  */
 const DEFAULT_SETTINGS = [
   {
     key: 'SHIPPING_COST_BASE',
     value: '50000',
+    dataType: 'NUMBER',
+    group: 'DELIVERY',
     description: 'Base shipping cost for deliveries (VND)',
     isPublic: true,
   },
   {
     key: 'TAX_RATE',
     value: '0.08',
+    dataType: 'NUMBER',
+    group: 'FINANCE',
     description: 'Tax rate for invoices (8%)',
     isPublic: true,
   },
+  // --- CÁC CẤU HÌNH GIỚI HẠN MỚI THÊM ---
+  {
+    key: 'MAX_ORDERS_PER_TRIP',
+    value: '100',
+    dataType: 'NUMBER',
+    group: 'DELIVERY',
+    description: 'Giới hạn tối đa số đơn trên 1 chuyến xe',
+    isPublic: false,
+  },
+  {
+    key: 'MIN_ORDERS_PER_TRIP',
+    value: '5',
+    dataType: 'NUMBER',
+    group: 'DELIVERY',
+    description: 'Số đơn tối thiểu để xe xuất bến',
+    isPublic: false,
+  },
+  {
+    key: 'MAX_PRODUCTS_PER_PLAN',
+    value: '1000',
+    dataType: 'NUMBER',
+    group: 'PRODUCTION',
+    description: 'Giới hạn năng lực nấu (tổng số lượng sản phẩm) của 1 mẻ',
+    isPublic: false,
+  }
 ];
 
 /**
@@ -56,23 +85,27 @@ const seedDefaultSettings = async (req, res, next) => {
 };
 
 /**
- * @desc    Get system settings (with public/private separation)
+ * @desc    Get system settings (with public/private separation & Group filter)
  * @route   GET /api/system-settings
  * @access  Public for isPublic=true, Private for all settings
  */
 const getSettings = async (req, res, next) => {
   try {
-    const { publicOnly } = req.query;
+    const { publicOnly, group } = req.query;
 
-    // If user is authenticated, they can see all settings
-    // If not authenticated or publicOnly=true, only show public settings
     let filter = {};
     
+    // Nếu chưa đăng nhập hoặc có query publicOnly=true -> Chỉ lấy Public
     if (!req.user || publicOnly === 'true') {
       filter.isPublic = true;
     }
 
-    const settings = await SystemSetting.find(filter).sort({ key: 1 });
+    // [MỚI] Lọc theo nhóm (Group) nếu FE truyền lên
+    if (group) {
+      filter.group = group.toUpperCase();
+    }
+
+    const settings = await SystemSetting.find(filter).sort({ group: 1, key: 1 });
 
     res.status(200).json({
       success: true,
@@ -122,15 +155,14 @@ const getSettingByKey = async (req, res, next) => {
  */
 const createSetting = async (req, res, next) => {
   try {
-    const { key, value, description, isPublic } = req.body;
+    // [CẬP NHẬT] Thêm dataType và group
+    const { key, value, description, isPublic, dataType, group } = req.body;
 
-    // Validate required fields
     if (!key || !value) {
       res.status(400);
       return next(new Error('Please provide key and value'));
     }
 
-    // Check if setting already exists
     const existingSetting = await SystemSetting.findOne({ 
       key: key.toUpperCase() 
     });
@@ -143,6 +175,8 @@ const createSetting = async (req, res, next) => {
     const setting = await SystemSetting.create({
       key: key.toUpperCase(),
       value,
+      dataType: dataType || 'STRING',
+      group: group || 'OTHER',
       description: description || '',
       isPublic: isPublic !== undefined ? isPublic : false,
     });
@@ -164,7 +198,8 @@ const createSetting = async (req, res, next) => {
  */
 const updateSetting = async (req, res, next) => {
   try {
-    const { value, description, isPublic } = req.body;
+    // [CẬP NHẬT] Thêm dataType và group
+    const { value, description, isPublic, dataType, group } = req.body;
 
     const setting = await SystemSetting.findOne({ 
       key: req.params.key.toUpperCase() 
@@ -179,6 +214,8 @@ const updateSetting = async (req, res, next) => {
     if (value !== undefined) setting.value = value;
     if (description !== undefined) setting.description = description;
     if (isPublic !== undefined) setting.isPublic = isPublic;
+    if (dataType !== undefined) setting.dataType = dataType;
+    if (group !== undefined) setting.group = group;
 
     await setting.save();
 
