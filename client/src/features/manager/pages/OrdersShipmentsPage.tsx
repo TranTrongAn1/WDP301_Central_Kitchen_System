@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
+import { systemSettingApi } from '@/api/SystemSettingApi';
 import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
 import { cn } from '@/shared/lib/utils';
 
@@ -36,6 +37,7 @@ const OrdersShipmentsPage = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [creatingTrip, setCreatingTrip] = useState(false);
+  const [maxOrdersPerTrip, setMaxOrdersPerTrip] = useState<number | null>(null);
   const [rejectConfirmOrderId, setRejectConfirmOrderId] = useState<string | null>(null);
   const [createTripConfirmOpen, setCreateTripConfirmOpen] = useState(false);
 
@@ -70,6 +72,20 @@ const OrdersShipmentsPage = () => {
     fetchAll();
   }, []);
 
+  useEffect(() => {
+    const fetchLimits = async () => {
+      try {
+        const res = await systemSettingApi.getByKey('MAX_ORDERS_PER_TRIP');
+        const raw = res?.data?.value;
+        const num = raw != null ? Number(raw) : NaN;
+        if (!Number.isNaN(num) && num > 0) setMaxOrdersPerTrip(num);
+      } catch {
+        setMaxOrdersPerTrip(null);
+      }
+    };
+    void fetchLimits();
+  }, []);
+
   const handleApprove = async (orderId: string) => {
     // Thay vì duyệt nhanh với payload rỗng (thiếu batchId),
     // điều hướng sang trang chi tiết để duyệt đầy đủ (OrderDetail)
@@ -92,7 +108,7 @@ const OrdersShipmentsPage = () => {
 
   const handleCreateTrip = async () => {
     if (selectedOrderIds.length === 0) {
-      toast.error('Hãy chọn ít nhất 1 đơn hàng đã duyệt');
+      toast.error('Hãy chọn ít nhất 1 đơn Ready_For_Shipping');
       return;
     }
     setCreatingTrip(true);
@@ -103,8 +119,13 @@ const OrdersShipmentsPage = () => {
       setSelectedOrderIds([]);
       await fetchAll();
       setActiveTab('trips');
-    } catch {
-      toast.error('Không thể tạo chuyến giao');
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Không thể tạo chuyến giao (có thể vượt giới hạn số đơn trên 1 chuyến).';
+      toast.error(message);
     } finally {
       setCreatingTrip(false);
     }
@@ -116,7 +137,9 @@ const OrdersShipmentsPage = () => {
     );
   };
 
-  const approvedOrders = orders.filter((o) => o.status === 'Approved');
+  const readyForShippingOrders = orders.filter(
+    (o) => (o.status as string) === 'Ready_For_Shipping'
+  );
 
   const filteredOrders =
     filterStatus === 'All'
@@ -187,27 +210,30 @@ const OrdersShipmentsPage = () => {
 
   const getTripStatusLabel = (status: string) => {
     const s = (status || '').trim();
-    if (s === 'Planning') return 'Đang lập kế hoạch';
-    if (s === 'Pending') return 'Chờ bếp chuẩn bị';
-    if (s === 'Transferred_To_Kitchen') return 'Đã chuyển cho bếp';
+    if (s === 'Planning') return 'Đang chờ giao';
+    if (s === 'Pending') return 'Đang xử lý';
+    if (s === 'Transferred_To_Kitchen') return 'Bếp đang chuẩn bị';
     if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'Sẵn sàng giao';
-    if (s === 'In_Transit' || s === 'In Transit') return 'Đang giao';
-    if (s === 'Completed') return 'Đã hoàn thành';
-    if (s === 'Cancelled') return 'Đã hủy';
-    return 'Trạng thái khác';
+    if (s === 'In_Transit' || s === 'In Transit') return 'Đang giao cho cửa hàng';
+    if (s === 'Completed') return 'Đã giao xong';
+    if (s === 'Cancelled') return 'Đã hủy chuyến';
+    return 'Trạng thái hệ thống khác';
   };
 
   const getOrderStatusLabel = (status: string) => {
+    const normalized = (status || '').trim();
     const map: Record<string, string> = {
-      Pending: 'Chờ duyệt',
+      Pending: 'Chờ trung tâm duyệt',
       Approved: 'Đã duyệt',
-      In_Transit: 'Đang giao',
-      'In Transit': 'Đang giao',
-      Received: 'Đã nhận',
+      Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+      Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+      In_Transit: 'Đang giao đến cửa hàng',
+      'In Transit': 'Đang giao đến cửa hàng',
+      Received: 'Cửa hàng đã nhận',
       Cancelled: 'Đã hủy',
       Shipped: 'Đã giao',
     };
-    return map[(status || '').trim()] ?? 'Trạng thái khác';
+    return map[normalized] ?? map[normalized.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
   };
 
   if (loading) {
@@ -325,6 +351,7 @@ const OrdersShipmentsPage = () => {
                       <option value="All">Tất cả trạng thái</option>
                       <option value="Pending">Chờ duyệt (Pending)</option>
                       <option value="Approved">Đã duyệt (Approved)</option>
+                      <option value="Ready_For_Shipping">Sẵn sàng giao (Ready_For_Shipping)</option>
                       <option value="In_Transit">Đang giao (In_Transit)</option>
                       <option value="Received">Đã nhận (Received)</option>
                       <option value="Cancelled">Đã hủy (Cancelled)</option>
@@ -446,7 +473,7 @@ const OrdersShipmentsPage = () => {
                                 </Button>
                               </>
                             )}
-                            {order.status === 'Approved' && (
+                            {(order.status as string) === 'Ready_For_Shipping' && (
                               <label className="flex items-center gap-1.5 cursor-pointer">
                                 <input
                                   type="checkbox"
@@ -531,14 +558,14 @@ const OrdersShipmentsPage = () => {
             </TabsContent>
 
             <TabsContent value="trips" className="mt-0 space-y-4">
-              {/* Create Trip from selected Approved orders */}
-              {approvedOrders.length > 0 && (
+              {/* Create Trip from selected Ready_For_Shipping orders */}
+              {readyForShippingOrders.length > 0 && (
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-primary/30 bg-primary/5">
                   <Plus className="h-4 w-4 text-primary" />
                   <span className="text-xs text-muted-foreground flex-1">
                     {selectedOrderIds.length > 0
-                      ? `${selectedOrderIds.length} đơn đã chọn để gom chuyến`
-                      : `${approvedOrders.length} đơn đã duyệt – chọn đơn ở tab Đơn hàng rồi tạo chuyến`}
+                      ? `${selectedOrderIds.length} đơn Ready_For_Shipping đã chọn để gom chuyến`
+                      : `${readyForShippingOrders.length} đơn Ready_For_Shipping – chọn đơn ở tab Đơn hàng rồi tạo chuyến${maxOrdersPerTrip ? ` (tối đa ~${maxOrdersPerTrip} đơn/trip)` : ''}`}
                   </span>
                   <Button
                     type="button"

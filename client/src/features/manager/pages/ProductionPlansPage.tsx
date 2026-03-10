@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Clock, CheckCircle2, AlertCircle, Loader2, Eye, Package, Trash2 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, AlertCircle, Loader2, Eye, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -12,17 +12,11 @@ import { Modal } from '../components/ui/Modal';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { productionPlanApi, type CreateProductionPlanRequest } from '@/api/ProductionPlanApi';
-import { productApi } from '@/api/ProductApi';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
-import type { Product } from '@/api/ProductApi';
+import { OrderApi, type Order } from '@/api/OrderApi';
+import { systemSettingApi } from '@/api/SystemSettingApi';
 import { useAuthStore } from '@/shared/zustand/authStore';
-
-interface PlanDetailItem {
-    productId: string;
-    productName: string;
-    plannedQuantity: number;
-}
+import toast from 'react-hot-toast';
 
 const ProductionPlansPage = () => {
     const navigate = useNavigate();
@@ -30,7 +24,7 @@ const ProductionPlansPage = () => {
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [activeTab, setActiveTab] = useState('all');
     const [plans, setPlans] = useState<ProductionPlan[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [approvedOrders, setApprovedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -40,9 +34,8 @@ const ProductionPlansPage = () => {
     const [planCode, setPlanCode] = useState('');
     const [planDate, setPlanDate] = useState('');
     const [note, setNote] = useState('');
-    const [planDetails, setPlanDetails] = useState<PlanDetailItem[]>([]);
-    const [selectedProduct, setSelectedProduct] = useState('');
-    const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+    const [maxProductsPerPlan, setMaxProductsPerPlan] = useState<number | null>(null);
 
     const ITEMS_PER_PAGE = 6;
     const [currentPage, setCurrentPage] = useState(1);
@@ -62,19 +55,32 @@ const ProductionPlansPage = () => {
         }
     };
 
-    const fetchProducts = async () => {
+    const fetchApprovedOrders = async () => {
         try {
-            const response = await productApi.getAll();
-            const data = (response as unknown as { data?: Product[] })?.data ?? response ?? [];
-            setProducts(Array.isArray(data) ? data : []);
+            const data = await OrderApi.getAllOrders({ status: 'Approved' });
+            setApprovedOrders(Array.isArray(data) ? data : []);
         } catch (err) {
-            console.error('Error fetching products:', err);
+            console.error('Error fetching approved orders:', err);
         }
     };
 
     useEffect(() => {
         fetchPlans();
-        fetchProducts();
+        fetchApprovedOrders();
+    }, []);
+
+    useEffect(() => {
+        const fetchLimits = async () => {
+            try {
+                const res = await systemSettingApi.getByKey('MAX_PRODUCTS_PER_PLAN');
+                const raw = res?.data?.value;
+                const num = raw != null ? Number(raw) : NaN;
+                if (!Number.isNaN(num) && num > 0) setMaxProductsPerPlan(num);
+            } catch {
+                setMaxProductsPerPlan(null);
+            }
+        };
+        void fetchLimits();
     }, []);
 
     const filterPlansByDate = (plans: ProductionPlan[]) => {
@@ -157,46 +163,36 @@ const ProductionPlansPage = () => {
         ),
     };
 
-    // Create plan handlers
-    const addProductToPlan = () => {
-        if (!selectedProduct || selectedQuantity <= 0) return;
-        const product = products.find(p => p._id === selectedProduct);
-        if (!product) return;
-
-        setPlanDetails([...planDetails, {
-            productId: selectedProduct,
-            productName: product.name,
-            plannedQuantity: selectedQuantity
-        }]);
-        setSelectedProduct('');
-        setSelectedQuantity(1);
-    };
-
-    const removeProductFromPlan = (index: number) => {
-        setPlanDetails(planDetails.filter((_, i) => i !== index));
+    const toggleOrderSelection = (orderId: string) => {
+        setSelectedOrderIds((prev) =>
+            prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+        );
     };
 
     const handleCreatePlan = async () => {
-        if (!planCode || planDetails.length === 0) return;
+        if (!planCode || selectedOrderIds.length === 0) return;
 
         try {
             setCreateLoading(true);
-            const data: CreateProductionPlanRequest = {
+            const payload: CreateProductionPlanRequest = {
                 planCode,
-                planDate: planDate || new Date().toISOString(),
+                planDate: planDate ? new Date(planDate).toISOString() : new Date().toISOString(),
                 note,
-                details: planDetails.map(d => ({
-                    productId: d.productId,
-                    plannedQuantity: d.plannedQuantity
-                }))
+                orderIds: selectedOrderIds,
             };
-            await productionPlanApi.create(data);
+            await productionPlanApi.create(payload);
             setIsCreateModalOpen(false);
             resetCreateForm();
             fetchPlans();
+            fetchApprovedOrders();
         } catch (err) {
             console.error('Error creating plan:', err);
-            alert('Failed to create production plan');
+            const error = err as { response?: { data?: { message?: string } }; message?: string };
+            const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                'Failed to create production plan. Please check order statuses and kitchen capacity.';
+            toast.error(message);
         } finally {
             setCreateLoading(false);
         }
@@ -206,7 +202,7 @@ const ProductionPlansPage = () => {
         setPlanCode('');
         setPlanDate('');
         setNote('');
-        setPlanDetails([]);
+        setSelectedOrderIds([]);
     };
 
     const closeCreateModal = () => {
@@ -316,7 +312,7 @@ const ProductionPlansPage = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                        onClick={() => navigate(`/manager/production/${plan._id}`)}
+                        onClick={(e) => viewPlan(plan._id, e)}
                     >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
                             <div>
@@ -571,7 +567,7 @@ const ProductionPlansPage = () => {
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleCreatePlan}
-                            disabled={createLoading || !planCode || planDetails.length === 0}
+                            disabled={createLoading || !planCode || selectedOrderIds.length === 0}
                         >
                             {createLoading ? 'Creating...' : 'Create Plan'}
                         </Button>
@@ -605,75 +601,57 @@ const ProductionPlansPage = () => {
                         />
                     </div>
 
-                    <div className="border-t pt-4">
-                        <h4 className="font-medium mb-3">Products to Produce</h4>
+                    <div className="border-t pt-4 space-y-3">
+                        <h4 className="font-medium mb-1">Approved Orders to Include</h4>
+                        <p className="text-xs text-muted-foreground">
+                            Chọn các đơn hàng đang ở trạng thái <strong>Approved</strong> để gom vào kế hoạch sản xuất.
+                            Backend sẽ tự gộp số lượng theo sản phẩm và áp dụng giới hạn năng lực bếp
+                            {maxProductsPerPlan ? ` (tối đa khoảng ${maxProductsPerPlan} sản phẩm cho 1 plan).` : '.'}
+                        </p>
 
-                        {/* Add Product Form */}
-                        <div className="flex gap-2 mb-4">
-                            <div className="flex-1">
-                                <Select
-                                    value={selectedProduct}
-                                    onValueChange={setSelectedProduct}
-                                >
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="Select Product" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {products.map((product) => (
-                                            <SelectItem key={product._id} value={product._id}>
-                                                {product.name} ({product.sku})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Input
-                                type="number"
-                                min={1}
-                                className="w-24 h-10"
-                                placeholder="Qty"
-                                value={selectedQuantity}
-                                onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 0)}
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addProductToPlan}
-                                disabled={!selectedProduct || selectedQuantity <= 0}
-                            >
-                                <Plus className="w-4 h-4" />
-                            </Button>
-                        </div>
-
-                        {/* Selected Products List */}
-                        {planDetails.length > 0 ? (
-                            <div className="space-y-2">
-                                {planDetails.map((item, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        {approvedOrders.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                                Không có đơn Approved nào. Hãy duyệt đơn trước khi tạo Production Plan.
+                            </p>
+                        ) : (
+                            <div className="max-h-64 overflow-y-auto space-y-2 border rounded-xl p-2 bg-muted/40">
+                                {approvedOrders.map((order) => (
+                                    <label
+                                        key={order._id}
+                                        className="flex items-start gap-2 rounded-lg bg-background/70 px-2 py-1.5 text-xs cursor-pointer hover:bg-background"
                                     >
-                                        <div>
-                                            <p className="font-medium">{item.productName}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {item.plannedQuantity} units
-                                            </p>
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1"
+                                            checked={selectedOrderIds.includes(order._id)}
+                                            onChange={() => toggleOrderSelection(order._id)}
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-mono text-[11px] font-semibold">
+                                                    {order.orderCode}
+                                                </span>
+                                                <span className="text-[11px] text-muted-foreground">
+                                                    {(typeof order.storeId === 'object' && order.storeId?.storeName) ||
+                                                        'Store'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                                                <span>
+                                                    Items: {order.items?.length ?? 0}
+                                                </span>
+                                                <span>
+                                                    Total:{' '}
+                                                    {new Intl.NumberFormat('vi-VN', {
+                                                        style: 'currency',
+                                                        currency: 'VND',
+                                                    }).format(order.totalAmount ?? 0)}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-red-500 hover:text-red-600"
-                                            onClick={() => removeProductFromPlan(index)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
+                                    </label>
                                 ))}
                             </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                                No products added yet. Add at least one product to create a plan.
-                            </p>
                         )}
                     </div>
                 </div>
