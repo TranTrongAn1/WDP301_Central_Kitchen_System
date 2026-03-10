@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Sun,
   Moon,
@@ -13,14 +13,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  Plus,
-  Trash2,
 } from 'lucide-react';
 
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
-import { systemSettingApi, type SystemSetting, type CreateSystemSettingPayload } from '@/api/SystemSettingApi';
+import { systemSettingApi, type SystemSetting } from '@/api/SystemSettingApi';
 
 import {
   Card,
@@ -69,25 +67,31 @@ const SettingsPage = () => {
   >(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newSetting, setNewSetting] = useState<CreateSystemSettingPayload>({
-    key: '',
-    value: '',
-    description: '',
-    isPublic: false,
-  });
-  const [creating, setCreating] = useState(false);
 
   const isAdmin = user?.role === 'Admin';
   const canManageSystem = user?.role === 'Admin' || user?.role === 'Manager';
 
-  const fetchSystemSettings = async () => {
+  const groupedSystemSettings = useMemo(() => {
+    if (!systemSettings) return {};
+    const map: Record<string, SystemSetting[]> = {};
+    for (const s of systemSettings) {
+      const groupKey = (s.group ?? 'OTHER').toUpperCase();
+      if (!map[groupKey]) map[groupKey] = [];
+      map[groupKey].push(s);
+    }
+    // sắp xếp trong mỗi group theo key
+    Object.keys(map).forEach((k) => {
+      map[k] = map[k].slice().sort((a, b) => a.key.localeCompare(b.key));
+    });
+    return map;
+  }, [systemSettings]);
+
+  const fetchSystemSettings = async (): Promise<void> => {
     if (!canManageSystem) return;
     setIsLoadingSystemSettings(true);
     setSystemSettingsError(null);
     try {
-      const res = await systemSettingApi.getAll();
+      const res = await systemSettingApi.getAll(false);
       if (res?.success && Array.isArray(res.data)) {
         setSystemSettings(res.data);
       } else {
@@ -97,16 +101,17 @@ const SettingsPage = () => {
           'Không thể tải cài đặt hệ thống. Vui lòng thử lại sau hoặc liên hệ quản trị.'
         );
       }
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err) {
+      const error = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      const status = error?.response?.status;
       if (status === 404) {
         setSystemSettingsError(
           'Tính năng cài đặt hệ thống tạm thời chưa khả dụng. Vui lòng thử lại sau hoặc liên hệ quản trị.'
         );
       } else {
         setSystemSettingsError(
-          err?.response?.data?.message ||
-          err?.message ||
+          error?.response?.data?.message ||
+          error?.message ||
           'Đã xảy ra lỗi khi tải cài đặt hệ thống.'
         );
       }
@@ -117,7 +122,10 @@ const SettingsPage = () => {
   };
 
   useEffect(() => {
-    if (canManageSystem) fetchSystemSettings();
+    if (canManageSystem) {
+      void fetchSystemSettings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManageSystem]);
 
   const handleSystemSettingChange = (
@@ -131,7 +139,7 @@ const SettingsPage = () => {
     );
   };
 
-  const handleSaveSystemSetting = async (setting: SystemSetting) => {
+  const handleSaveSystemSetting = async (setting: SystemSetting): Promise<void> => {
     setSavingKey(setting.key);
     setSystemSettingsError(null);
     try {
@@ -153,10 +161,11 @@ const SettingsPage = () => {
           res?.message || 'Không thể lưu thay đổi. Thử lại sau.'
         );
       }
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       setSystemSettingsError(
-        err?.response?.data?.message ||
-        err?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
         'Đã xảy ra lỗi khi lưu System Setting.'
       );
     } finally {
@@ -164,7 +173,7 @@ const SettingsPage = () => {
     }
   };
 
-  const handleSeed = async () => {
+  const handleSeed = async (): Promise<void> => {
     if (!window.confirm('Seed lại cài đặt hệ thống mặc định? Có thể ghi đè giá trị hiện có.')) return;
     setSeeding(true);
     setSystemSettingsError(null);
@@ -175,42 +184,11 @@ const SettingsPage = () => {
       } else {
         await fetchSystemSettings();
       }
-    } catch (err: any) {
-      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Seed thất bại.');
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setSystemSettingsError(error?.response?.data?.message || error?.message || 'Seed thất bại.');
     } finally {
       setSeeding(false);
-    }
-  };
-
-  const handleDeleteSetting = async (key: string) => {
-    if (!window.confirm(`Xóa setting "${key}"?`)) return;
-    setDeletingKey(key);
-    try {
-      await systemSettingApi.delete(key);
-      setSystemSettings((prev) => (prev ?? []).filter((s) => s.key !== key));
-    } catch (err: any) {
-      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Xóa thất bại.');
-    } finally {
-      setDeletingKey(null);
-    }
-  };
-
-  const handleCreateSetting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSetting.key.trim()) return;
-    setCreating(true);
-    setSystemSettingsError(null);
-    try {
-      const res = await systemSettingApi.create(newSetting);
-      if (res?.success && res.data) {
-        setSystemSettings((prev) => (prev ?? []).concat(res.data));
-        setIsCreateModalOpen(false);
-        setNewSetting({ key: '', value: '', description: '', isPublic: false });
-      }
-    } catch (err: any) {
-      setSystemSettingsError(err?.response?.data?.message || err?.message || 'Tạo mới thất bại.');
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -528,14 +506,6 @@ const SettingsPage = () => {
                     {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                     Seed mặc định
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsCreateModalOpen(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Thêm setting
-                  </Button>
                 </div>
 
                 <div className="space-y-3">
@@ -560,136 +530,129 @@ const SettingsPage = () => {
                       </Card>
                     )}
 
-                  {systemSettings &&
-                    systemSettings.map((setting) => (
-                      <Card key={setting._id || setting.key}>
-                        <CardHeader className="pb-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="space-y-1">
-                              <CardTitle className="text-sm font-semibold">
-                                {setting.key}
-                              </CardTitle>
-                              {setting.description && (
-                                <CardDescription className="text-xs">
-                                  {setting.description}
-                                </CardDescription>
-                              )}
-                            </div>
-                            <Badge
-                              variant={setting.isPublic ? 'success' : 'outline'}
-                              className="text-[10px] px-2 py-0.5"
-                            >
-                              {setting.isPublic
-                                ? 'Public - FE có thể đọc'
-                                : 'Private - chỉ BFF/BE dùng'}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-1">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Giá trị</Label>
-                            <Input
-                              value={setting.value}
-                              onChange={(e) =>
-                                handleSystemSettingChange(setting.key, {
-                                  value: e.target.value,
-                                })
-                              }
-                            />
-                          </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                            <div className="flex-1 min-w-0">
-                              <SettingToggle
-                                checked={setting.isPublic}
-                                label="Cho phép client đọc trực tiếp"
-                                description="Nếu bật, FE có thể đọc setting này thông qua endpoint public."
-                                onToggle={() =>
-                                  handleSystemSettingChange(setting.key, {
-                                    isPublic: !setting.isPublic,
-                                  })
-                                }
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="default"
-                              className="flex-shrink-0"
-                              disabled={savingKey === setting.key || deletingKey === setting.key}
-                              onClick={() => handleSaveSystemSetting(setting)}
-                            >
-                              {savingKey === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Lưu thay đổi'}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="flex-shrink-0 text-destructive hover:bg-destructive/10"
-                              disabled={deletingKey === setting.key}
-                              onClick={() => handleDeleteSetting(setting.key)}
-                            >
-                              {deletingKey === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                  {Object.keys(groupedSystemSettings).length > 0 &&
+                    Object.entries(groupedSystemSettings).map(([groupKey, settingsInGroup]) => (
+                      <div key={groupKey} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] px-2 py-0.5 uppercase tracking-wide">
+                            {groupKey}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground">
+                            {settingsInGroup.length} setting
+                          </span>
+                        </div>
+                        {settingsInGroup.map((setting) => {
+                          const typeLabel =
+                            setting.dataType === 'NUMBER'
+                              ? 'Number'
+                              : setting.dataType === 'BOOLEAN'
+                                ? 'Boolean'
+                                : setting.dataType === 'JSON'
+                                  ? 'JSON'
+                                  : 'String';
+                          return (
+                            <Card key={setting._id || setting.key}>
+                              <CardHeader className="pb-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="space-y-1">
+                                    <CardTitle className="text-sm font-semibold">
+                                      {setting.key}
+                                    </CardTitle>
+                                    <div className="flex flex-wrap gap-1.5 items-center">
+                                      <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                        {typeLabel}
+                                      </Badge>
+                                      {setting.description && (
+                                        <CardDescription className="text-xs">
+                                          {setting.description}
+                                        </CardDescription>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Badge
+                                    variant={setting.isPublic ? 'success' : 'outline'}
+                                    className="text-[10px] px-2 py-0.5"
+                                  >
+                                    {setting.isPublic
+                                      ? 'Public - FE có thể đọc'
+                                      : 'Private - chỉ BFF/BE dùng'}
+                                  </Badge>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-3 pt-1">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Giá trị</Label>
+                                  {setting.dataType === 'BOOLEAN' ? (
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <input
+                                        type="checkbox"
+                                        checked={setting.value === 'true'}
+                                        onChange={(e) =>
+                                          handleSystemSettingChange(setting.key, {
+                                            value: e.target.checked ? 'true' : 'false',
+                                          })
+                                        }
+                                      />
+                                      <span className="text-muted-foreground">
+                                        {setting.value === 'true' ? 'True' : 'False'}
+                                      </span>
+                                    </div>
+                                  ) : setting.dataType === 'JSON' ? (
+                                    <textarea
+                                      className="w-full min-h-[80px] rounded-md border border-input bg-background px-2 py-1 text-xs font-mono"
+                                      value={setting.value}
+                                      onChange={(e) =>
+                                        handleSystemSettingChange(setting.key, {
+                                          value: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  ) : (
+                                    <Input
+                                      type={setting.dataType === 'NUMBER' ? 'number' : 'text'}
+                                      value={setting.value}
+                                      onChange={(e) =>
+                                        handleSystemSettingChange(setting.key, {
+                                          value: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <SettingToggle
+                                      checked={setting.isPublic}
+                                      label="Cho phép client đọc trực tiếp"
+                                      description="Nếu bật, FE có thể đọc setting này thông qua endpoint public."
+                                      onToggle={() =>
+                                        handleSystemSettingChange(setting.key, {
+                                          isPublic: !setting.isPublic,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="default"
+                                    className="flex-shrink-0"
+                                    disabled={savingKey === setting.key}
+                                    onClick={() => void handleSaveSystemSetting(setting)}
+                                  >
+                                    {savingKey === setting.key ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      'Lưu thay đổi'
+                                    )}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
                     ))}
-
-                  {isCreateModalOpen && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Thêm System Setting</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <form onSubmit={handleCreateSetting} className="space-y-3">
-                          <div>
-                            <Label className="text-xs">Key *</Label>
-                            <Input
-                              value={newSetting.key}
-                              onChange={(e) => setNewSetting((p) => ({ ...p, key: e.target.value }))}
-                              placeholder="VD: SHIPPING_COST_BASE"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Value *</Label>
-                            <Input
-                              value={newSetting.value}
-                              onChange={(e) => setNewSetting((p) => ({ ...p, value: e.target.value }))}
-                              placeholder="VD: 50000"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Description</Label>
-                            <Input
-                              value={newSetting.description ?? ''}
-                              onChange={(e) => setNewSetting((p) => ({ ...p, description: e.target.value }))}
-                              placeholder="Mô tả ngắn"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="new-setting-public"
-                              checked={newSetting.isPublic ?? false}
-                              onChange={(e) => setNewSetting((p) => ({ ...p, isPublic: e.target.checked }))}
-                            />
-                            <Label htmlFor="new-setting-public" className="text-xs">Public (FE đọc được)</Label>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button type="submit" size="sm" disabled={creating}>
-                              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              Tạo
-                            </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
-                              Hủy
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
               </TabsContent>
             )}

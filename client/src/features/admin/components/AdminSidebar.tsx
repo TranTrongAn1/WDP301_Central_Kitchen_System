@@ -6,7 +6,6 @@ const MENU_ITEMS = [
   { icon: 'storefront', label: 'Stores', path: '/admin/stores' },
   { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
   { icon: 'group', label: 'Users', path: '/admin/users' },
-  { icon: 'shopping_cart', label: 'Orders & Shipments', path: '/admin/orders' },
   { icon: 'factory', label: 'Production Plans', path: '/admin/production' },
   { icon: 'inventory_2', label: 'Inventory & Batches', path: '/admin/inventory' },
   { icon: 'restaurant_menu', label: 'Products & Recipes', path: '/admin/products' },
@@ -14,7 +13,8 @@ const MENU_ITEMS = [
   { icon: 'science', label: 'Ingredients', path: '/admin/ingredients' },
   { icon: 'local_shipping', label: 'Suppliers', path: '/admin/suppliers' },
   { icon: 'directions_car', label: 'Vehicle Types', path: '/admin/vehicle-types' },
-  { icon: 'swap_horiz', label: 'Transfers', path: '/admin/transfers' },
+  // Luồng Transfer cũ đã bỏ, ẩn khỏi menu Admin
+  // { icon: 'swap_horiz', label: 'Transfers', path: '/admin/transfers' },
   { icon: 'account_balance_wallet', label: 'Payment & Wallet', path: '/admin/payment' },
   { icon: 'rate_review', label: 'Feedback', path: '/admin/feedback' },
   { icon: 'settings', label: 'System Settings', path: '/admin/settings' },
