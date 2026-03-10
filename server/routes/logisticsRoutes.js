@@ -15,8 +15,6 @@ const {
   recordPayment,
   addOrdersToTrip,
   removeOrdersFromTrip,
-  finalizeDeliveryPlan,
-  markTripAsReady,
   startShipping,
   deleteDeliveryTrip,
 } = require('../controllers/logisticsController');
@@ -90,20 +88,6 @@ router.patch(
   '/trips/:id/remove-orders',
   authorize('Coordinator', 'Manager', 'Admin'),
   removeOrdersFromTrip
-);
-
-// Finalize delivery plan - transfer to kitchen (Coordinator, Manager, Admin)
-router.post(
-  '/trips/:id/finalize',
-  authorize('Coordinator', 'Manager', 'Admin'),
-  finalizeDeliveryPlan
-);
-
-// Mark trip as ready for shipping (Kitchen Staff, Manager, Admin)
-router.post(
-  '/trips/:id/ready',
-  authorize('KitchenStaff', 'Manager', 'Admin'),
-  markTripAsReady
 );
 
 // Start shipping process (Coordinator, Manager, Admin)

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const ProductionPlan = require('../models/ProductionPlan');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 const Batch = require('../models/BatchModel');
 const Ingredient = require('../models/Ingredient');
 const IngredientBatch = require('../models/IngredientBatch');
@@ -8,10 +9,17 @@ const IngredientUsage = require('../models/IngredientUsage');
 
 const getProductionPlans = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, planDate } = req.query;
     const filter = {};
     if (status) {
       filter.status = status;
+    }
+    if (planDate) {
+      const start = new Date(planDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(planDate);
+      end.setHours(23, 59, 59, 999);
+      filter.planDate = { $gte: start, $lte: end };
     }
     const plans = await ProductionPlan.find(filter)
       .populate('details.productId', 'name sku price shelfLifeDays')
@@ -46,46 +54,113 @@ const getProductionPlanById = async (req, res, next) => {
 };
 
 const createProductionPlan = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { planCode, planDate, note, details } = req.body;
-    const existingPlan = await ProductionPlan.findOne({ planCode });
+    const { planCode, planDate, note, orderIds } = req.body;
+
+    // Validate orderIds
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      res.status(400);
+      return next(new Error('orderIds must be a non-empty array'));
+    }
+
+    // Check for duplicate plan code
+    const existingPlan = await ProductionPlan.findOne({ planCode }).session(session);
     if (existingPlan) {
+      await session.abortTransaction();
+      session.endSession();
       res.status(400);
       return next(new Error('Production plan with this code already exists'));
     }
-    if (!details || details.length === 0) {
+
+    // Fetch all referenced orders
+    const orders = await Order.find({ _id: { $in: orderIds } }).session(session);
+
+    // Verify every requested order was found
+    if (orders.length !== orderIds.length) {
+      const foundIds = orders.map((o) => o._id.toString());
+      const missing = orderIds.filter((id) => !foundIds.includes(id.toString()));
+      await session.abortTransaction();
+      session.endSession();
+      res.status(400);
+      return next(new Error(`Orders not found: ${missing.join(', ')}`));
+    }
+
+    // Verify all orders have status 'Approved'
+    const nonApproved = orders.filter((o) => o.status !== 'Approved');
+    if (nonApproved.length > 0) {
+      const codes = nonApproved.map((o) => o.orderCode).join(', ');
+      await session.abortTransaction();
+      session.endSession();
       res.status(400);
       return next(
-        new Error('Production plan must have at least one product detail')
+        new Error(`All orders must have status 'Approved'. Non-compliant orders: ${codes}`)
       );
     }
-    for (const detail of details) {
-      const product = await Product.findById(detail.productId);
-      if (!product) {
-        res.status(400);
-        return next(new Error(`Invalid product ID: ${detail.productId}`));
+
+    // Aggregate quantities per unique productId across all order items
+    const quantityMap = new Map();
+    for (const order of orders) {
+      for (const item of order.items) {
+        const pid = item.productId.toString();
+        quantityMap.set(pid, (quantityMap.get(pid) || 0) + item.quantity);
       }
     }
-    const plan = await ProductionPlan.create({
-      planCode,
-      planDate: planDate || Date.now(),
-      note,
-      details,
-    });
+
+    // Build the details array
+    const details = Array.from(quantityMap.entries()).map(([productId, totalQuantity]) => ({
+      productId,
+      plannedQuantity: totalQuantity,
+      actualQuantity: 0,
+      status: 'Pending',
+    }));
+
+    if (details.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      res.status(400);
+      return next(new Error('The selected orders contain no items to produce'));
+    }
+
+    // Create the production plan
+    const [plan] = await ProductionPlan.create(
+      [{ planCode, planDate: planDate || Date.now(), note, orders: orderIds, details }],
+      { session }
+    );
+
+    // Update all linked orders to 'Transferred_To_Kitchen'
+    await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { $set: { status: 'Transferred_To_Kitchen' } },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
     await plan.populate('details.productId', 'name sku price shelfLifeDays');
+
     res.status(201).json({
       success: true,
       message: 'Production plan created successfully',
       data: plan,
     });
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    session.endSession();
     next(error);
   }
 };
 
 const updateProductionPlan = async (req, res, next) => {
   try {
-    let plan = await ProductionPlan.findById(req.params.id);
+    const plan = await ProductionPlan.findById(req.params.id);
     if (!plan) {
       res.status(404);
       return next(new Error('Production plan not found'));
@@ -98,23 +173,20 @@ const updateProductionPlan = async (req, res, next) => {
         )
       );
     }
-    if (req.body.details) {
-      for (const detail of req.body.details) {
-        const product = await Product.findById(detail.productId);
-        if (!product) {
-          res.status(400);
-          return next(new Error(`Invalid product ID: ${detail.productId}`));
-        }
-      }
-    }
-    plan = await ProductionPlan.findByIdAndUpdate(req.params.id, req.body, {
+    const { planCode, planDate, note } = req.body;
+    const allowedUpdates = {};
+    if (planCode !== undefined) allowedUpdates.planCode = planCode;
+    if (planDate !== undefined) allowedUpdates.planDate = planDate;
+    if (note !== undefined) allowedUpdates.note = note;
+
+    const updated = await ProductionPlan.findByIdAndUpdate(req.params.id, allowedUpdates, {
       new: true,
       runValidators: true,
     }).populate('details.productId', 'name sku price shelfLifeDays');
     res.status(200).json({
       success: true,
       message: 'Production plan updated successfully',
-      data: plan,
+      data: updated,
     });
   } catch (error) {
     next(error);
@@ -352,6 +424,26 @@ const completeProductionItem = async (req, res, next) => {
     const allCompleted = plan.details.every((detail) => detail.status === 'Completed');
     if (allCompleted) {
       plan.status = 'Completed';
+    }
+
+    // ========================================
+    // STEP 5b: Link Finished Batch to Orders + mark Ready_For_Shipping
+    // ========================================
+    if (plan.orders && plan.orders.length > 0) {
+      const relatedOrders = await Order.find({
+        _id: { $in: plan.orders },
+        'items.productId': productId,
+      }).session(session);
+
+      for (const order of relatedOrders) {
+        for (const item of order.items) {
+          if (item.productId.toString() === productId) {
+            item.batchId = finishedBatch[0]._id;
+          }
+        }
+        order.status = 'Ready_For_Shipping';
+        await order.save({ session });
+      }
     }
 
     await plan.save({ session });

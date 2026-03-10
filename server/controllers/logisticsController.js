@@ -319,7 +319,6 @@ const createOrder = async (req, res, next) => {
  * @access  Private (Admin, Manager)
  */
 const approveAndShipOrder = async (req, res, next) => {
-  // Start transaction for data consistency
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -327,15 +326,11 @@ const approveAndShipOrder = async (req, res, next) => {
 
   try {
     const { orderId } = req.params;
-    const { items: batchAssignments } = req.body;
 
     // ========================================
-    // STEP 1: Validation - Fetch Order
+    // STEP 1: Fetch & Validate Order
     // ========================================
-    const order = await Order.findById(orderId)
-      .populate('storeId')
-      .populate('items.productId')
-      .session(session);
+    const order = await Order.findById(orderId).session(session);
 
     if (!order) {
       transactionAborted = true;
@@ -344,7 +339,6 @@ const approveAndShipOrder = async (req, res, next) => {
       throw new Error('Order not found');
     }
 
-    // Check if order is in Pending status
     if (order.status !== 'Pending') {
       transactionAborted = true;
       await session.abortTransaction();
@@ -352,170 +346,62 @@ const approveAndShipOrder = async (req, res, next) => {
       throw new Error(`Order status is '${order.status}'. Only 'Pending' orders can be approved.`);
     }
 
-    // Validate batch assignments
-    if (!batchAssignments || !Array.isArray(batchAssignments)) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Batch assignments are required');
+    // ========================================
+    // STEP 2: Update Order Status to Approved
+    // ========================================
+    order.status = 'Approved';
+    order.approvedBy = req.user ? req.user._id : null;
+    order.approvedAt = new Date();
+    await order.save({ session });
+
+    // ========================================
+    // STEP 3: Update Related Invoice Due Date
+    // ========================================
+    const invoice = await Invoice.findOne({ orderId: order._id }).session(session);
+
+    if (invoice) {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30); // 30-day payment terms from approval
+      invoice.dueDate = dueDate;
+      await invoice.save({ session });
     }
 
-    // Ensure batch assignments match order items count
-    if (batchAssignments.length !== order.items.length) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(
-        `Batch assignments count (${batchAssignments.length}) must match order items count (${order.items.length})`
-      );
-    }
-
-      // ========================================
-      // STEP 2: Process Items - Assign Batches & Deduct Inventory
-      // ========================================
-      const batchUpdates = [];
-
-    for (let i = 0; i < order.items.length; i++) {
-      const orderItem = order.items[i];
-      const batchAssignment = batchAssignments[i];
-      const requiredQuantity = orderItem.quantity;
-
-      // Validate batchId is provided
-      if (!batchAssignment.batchId) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(`Batch ID is required for item ${i + 1}`);
-      }
-
-      // Fetch the batch
-      const batch = await Batch.findById(batchAssignment.batchId).session(session);
-
-      if (!batch) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(404);
-        throw new Error(`Batch not found: ${batchAssignment.batchId}`);
-      }
-
-      // Verify batch has enough stock
-      if (batch.currentQuantity < requiredQuantity) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `Insufficient stock in batch ${batch.batchCode}. ` +
-          `Required: ${requiredQuantity}, Available: ${batch.currentQuantity}`
-        );
-      }
-
-      // Verify batch is for the correct product
-      if (batch.productId.toString() !== orderItem.productId._id.toString()) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `Batch ${batch.batchCode} is for a different product than ordered`
-        );
-      }
-
-      // Check if batch is expired
-      if (batch.expDate < new Date()) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(`Batch ${batch.batchCode} is expired`);
-      }
-
-      // Assign batchId to order item
-      orderItem.batchId = batch._id;
-
-      // Prepare batch update (deduct inventory)
-      batchUpdates.push({
-        batchId: batch._id,
-        batchCode: batch.batchCode,
-        productName: orderItem.productId.name,
-        quantityDeducted: requiredQuantity,
-        newQuantity: batch.currentQuantity - requiredQuantity,
-      });
-    }
-
-      // ========================================
-      // STEP 3: Update Batch Quantities
-      // ========================================
-      for (const update of batchUpdates) {
-        await Batch.findByIdAndUpdate(
-          update.batchId,
-          { currentQuantity: update.newQuantity },
-          { session }
-        );
-      }
-
-      // ========================================
-      // STEP 4: Update Order Status to Approved
-      // ========================================
-      order.status = 'Approved';
-      order.approvedBy = req.user ? req.user._id : null;
-      order.approvedAt = new Date();
-      await order.save({ session });
-
-      // ========================================
-      // STEP 5: Find and Update Existing Invoice
-      // ========================================
-      const invoice = await Invoice.findOne({ 
-        orderId: order._id 
-      }).session(session);
-
-      if (invoice) {
-        // Update invoice dueDate based on approval date
-        const approvalDate = new Date();
-        const dueDate = new Date(approvalDate);
-        dueDate.setDate(dueDate.getDate() + 30); // 30 days payment terms from approval
-        invoice.dueDate = dueDate;
-        await invoice.save({ session });
-      }
-
-      // ========================================
-      // STEP 6: Commit Transaction
-      // ========================================
-      await session.commitTransaction();
+    // ========================================
+    // STEP 4: Commit Transaction
+    // ========================================
+    await session.commitTransaction();
 
     // Populate response data
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address' },
       { path: 'items.productId', select: 'name sku' },
-      { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
       { path: 'approvedBy', select: 'fullName email' },
     ]);
 
-      if (invoice) {
-        await invoice.populate([
-          { path: 'orderId', select: 'orderCode orderNumber' },
-          { path: 'storeId', select: 'storeName storeCode' },
-        ]);
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Order approved successfully. Inventory deducted and invoice updated.',
-        data: {
-          order,
-          invoice: invoice || null,
-          batchUpdates,
-          itemsProcessed: batchUpdates.length,
-        },
-      });
-    } catch (error) {
-      // Abort transaction if not already aborted
-      if (!transactionAborted) {
-        await session.abortTransaction();
-      }
-      next(error);
-    } finally {
-      // End session
-      session.endSession();
+    if (invoice) {
+      await invoice.populate([
+        { path: 'orderId', select: 'orderCode orderNumber' },
+        { path: 'storeId', select: 'storeName storeCode' },
+      ]);
     }
-  };
+
+    res.status(200).json({
+      success: true,
+      message: 'Order approved successfully. Awaiting production by the kitchen.',
+      data: {
+        order,
+        invoice: invoice || null,
+      },
+    });
+  } catch (error) {
+    if (!transactionAborted) {
+      await session.abortTransaction();
+    }
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};
 
 /**
  * @desc    Receive order at store and update inventory
@@ -1043,221 +929,7 @@ const removeOrdersFromTrip = async (req, res, next) => {
 };
 
 /**
- * @desc    Finalize delivery plan - transfer to kitchen for production
- * @route   POST /api/logistics/trips/:id/finalize
- * @access  Private (Coordinator, Manager, Admin)
- */
-const finalizeDeliveryPlan = async (req, res, next) => {
-  // Start transaction for data consistency
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  let transactionAborted = false;
-
-  try {
-    const { id } = req.params;
-
-    // ========================================
-    // STEP 1: Fetch Delivery Trip
-    // ========================================
-    const trip = await DeliveryTrip.findById(id).session(session);
-    if (!trip) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(404);
-      throw new Error('Delivery trip not found');
-    }
-
-    // ========================================
-    // STEP 2: Validate Trip Status
-    // ========================================
-    if (trip.status !== 'Planning') {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(`Cannot finalize trip with status '${trip.status}'. Only 'Planning' trips can be finalized.`);
-    }
-
-    // ========================================
-    // STEP 3: Validate Trip Has Orders
-    // ========================================
-    if (!trip.orders || trip.orders.length === 0) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Cannot finalize a trip with no orders');
-    }
-
-    // ========================================
-    // STEP 4: Update All Orders to 'Transferred_To_Kitchen' Status
-    // ========================================
-    const transferDate = new Date();
-
-    const updateResult = await Order.updateMany(
-      { _id: { $in: trip.orders } },
-      {
-        $set: {
-          status: 'Transferred_To_Kitchen',
-        },
-      },
-      { session }
-    );
-
-    // ========================================
-    // STEP 5: Update Trip Status to 'Transferred_To_Kitchen'
-    // ========================================
-    trip.status = 'Transferred_To_Kitchen';
-    await trip.save({ session });
-
-    // ========================================
-    // STEP 6: Commit Transaction
-    // ========================================
-    await session.commitTransaction();
-
-    // Populate response data
-    await trip.populate([
-      {
-        path: 'orders',
-        populate: [
-          { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
-          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
-        ],
-      },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: `Delivery plan finalized successfully. ${updateResult.modifiedCount} orders transferred to kitchen for production.`,
-      data: {
-        trip,
-        ordersUpdated: updateResult.modifiedCount,
-        transferDate,
-        totalOrders: trip.orders.length,
-      },
-    });
-  } catch (error) {
-    // Abort transaction if not already aborted
-    if (!transactionAborted) {
-      await session.abortTransaction();
-    }
-    next(error);
-  } finally {
-    // End session
-    session.endSession();
-  }
-};
-
-/**
- * @desc    Mark trip as ready for shipping (Central Kitchen clicks 'Done')
- * @route   POST /api/logistics/trips/:id/ready
- * @access  Private (Kitchen Staff, Manager, Admin)
- */
-const markTripAsReady = async (req, res, next) => {
-  // Start transaction for data consistency
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  let transactionAborted = false;
-
-  try {
-    const { id } = req.params;
-
-    // ========================================
-    // STEP 1: Fetch Delivery Trip
-    // ========================================
-    const trip = await DeliveryTrip.findById(id).session(session);
-    if (!trip) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(404);
-      throw new Error('Delivery trip not found');
-    }
-
-    // ========================================
-    // STEP 2: Validate Trip Status
-    // ========================================
-    if (trip.status !== 'Transferred_To_Kitchen') {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(
-        `Cannot mark trip as ready. Trip must be in 'Transferred_To_Kitchen' status. Current status: '${trip.status}'`
-      );
-    }
-
-    // ========================================
-    // STEP 3: Validate Trip Has Orders
-    // ========================================
-    if (!trip.orders || trip.orders.length === 0) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Cannot mark a trip with no orders as ready');
-    }
-
-    // ========================================
-    // STEP 4: Update All Orders to 'Ready_For_Shipping' Status
-    // ========================================
-    const readyDate = new Date();
-
-    const updateResult = await Order.updateMany(
-      { _id: { $in: trip.orders } },
-      {
-        $set: {
-          status: 'Ready_For_Shipping',
-        },
-      },
-      { session }
-    );
-
-    // ========================================
-    // STEP 5: Update Trip Status to 'Ready_For_Shipping'
-    // ========================================
-    trip.status = 'Ready_For_Shipping';
-    await trip.save({ session });
-
-    // ========================================
-    // STEP 6: Commit Transaction
-    // ========================================
-    await session.commitTransaction();
-
-    // Populate response data
-    await trip.populate([
-      {
-        path: 'orders',
-        populate: [
-          { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
-          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
-        ],
-      },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: `Trip marked as ready for shipping. ${updateResult.modifiedCount} orders updated to 'Ready_For_Shipping' status.`,
-      data: {
-        trip,
-        ordersUpdated: updateResult.modifiedCount,
-        readyDate,
-        totalOrders: trip.orders.length,
-      },
-    });
-  } catch (error) {
-    // Abort transaction if not already aborted
-    if (!transactionAborted) {
-      await session.abortTransaction();
-    }
-    next(error);
-  } finally {
-    // End session
-    session.endSession();
-  }
-};
-
-/**
- * @desc    Start shipping process (move from Ready to In Transit)
+ * @desc    Start shipping process (move from Planning to In Transit)
  * @route   POST /api/logistics/trips/:id/start-shipping
  * @access  Private (Coordinator, Manager, Admin)
  */
@@ -1285,12 +957,12 @@ const startShipping = async (req, res, next) => {
     // ========================================
     // STEP 2: Validate Trip Status
     // ========================================
-    if (trip.status !== 'Ready_For_Shipping') {
+    if (trip.status !== 'Planning') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
       throw new Error(
-        `Cannot start shipping. Trip must be in 'Ready_For_Shipping' status. Current status: '${trip.status}'`
+        `Cannot start shipping. Trip must be in 'Planning' status. Current status: '${trip.status}'`
       );
     }
 
@@ -1321,14 +993,43 @@ const startShipping = async (req, res, next) => {
     );
 
     // ========================================
-    // STEP 5: Update Trip Status to 'In_Transit'
+    // STEP 5: Deduct Quantities from FinishedBatches
+    // Products physically leave the Central Kitchen at this point.
+    // ========================================
+    const ordersWithItems = await Order.find({
+      _id: { $in: trip.orders },
+    }).session(session);
+
+    for (const order of ordersWithItems) {
+      for (const item of order.items) {
+        if (!item.batchId) continue;
+
+        const batch = await Batch.findById(item.batchId).session(session);
+        if (!batch) {
+          console.warn(
+            `Warning: Batch ${item.batchId} not found during stock deduction for order ${order.orderNumber}`
+          );
+          continue;
+        }
+
+        batch.currentQuantity -= item.quantity;
+        if (batch.currentQuantity <= 0) {
+          batch.currentQuantity = 0;
+          batch.status = 'SoldOut';
+        }
+        await batch.save({ session });
+      }
+    }
+
+    // ========================================
+    // STEP 6: Update Trip Status to 'In_Transit'
     // ========================================
     trip.status = 'In_Transit';
     trip.departureTime = shippedDate;
     await trip.save({ session });
 
     // ========================================
-    // STEP 6: Commit Transaction
+    // STEP 7: Commit Transaction
     // ========================================
     await session.commitTransaction();
 
@@ -1742,12 +1443,24 @@ const getOrderById = async (req, res, next) => {
  */
 const getTrips = async (req, res, next) => {
   try {
-    const trips = await DeliveryTrip.find().populate('vehicleType')
+    const { status, vehicleTypeId } = req.query;
+
+    const filter = {};
+    if (status) {
+      filter.status = { $regex: new RegExp(`^${status}$`, 'i') };
+    }
+    if (vehicleTypeId) {
+      filter.vehicleType = vehicleTypeId;
+    }
+
+    const trips = await DeliveryTrip.find(filter)
+      .populate('vehicleType')
       .populate({
         path: 'orders',
-        populate: { path: 'storeId', select: 'storeName storeCode' }
+        populate: { path: 'storeId', select: 'storeName storeCode' },
       })
       .sort({ createdAt: -1 });
+
     res.status(200).json({ success: true, count: trips.length, data: trips });
   } catch (error) {
     next(error);
@@ -1820,8 +1533,8 @@ const createDeliveryTrip = async (req, res, next) => {
       throw new Error('One or more orders not found');
     }
 
-    // Validate all orders have 'Approved' status
-    const invalidOrders = orders.filter(order => order.status !== 'Approved');
+    // Validate all orders have 'Ready_For_Shipping' status
+    const invalidOrders = orders.filter(order => order.status !== 'Ready_For_Shipping');
     if (invalidOrders.length > 0) {
       transactionAborted = true;
       await session.abortTransaction();
@@ -1830,7 +1543,7 @@ const createDeliveryTrip = async (req, res, next) => {
         .map(o => o.orderCode || o.orderNumber || o._id)
         .join(', ');
       throw new Error(
-        `All orders must have 'Approved' status. Invalid orders: ${invalidOrderCodes}`
+        `All orders must have 'Ready_For_Shipping' status. Invalid orders: ${invalidOrderCodes}`
       );
     }
 
@@ -2138,8 +1851,6 @@ module.exports = {
   updateDeliveryTrip,
   addOrdersToTrip,
   removeOrdersFromTrip,
-  finalizeDeliveryPlan,
-  markTripAsReady,
   startShipping,
   receiveOrder,
   deleteDeliveryTrip,

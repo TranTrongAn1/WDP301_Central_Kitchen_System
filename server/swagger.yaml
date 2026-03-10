@@ -1144,7 +1144,13 @@ paths:
         - Production Plans
       summary: Create production plan
       description: |
-        Create a new production plan for manufacturing products.
+        Create a new production plan by aggregating a set of 'Approved' orders.
+        
+        **Workflow:**
+        1. Coordinator provides a list of `orderIds` (all must be in 'Approved' status).
+        2. System aggregates quantities across all order items per unique product.
+        3. System auto-generates the `details` array from the aggregated data.
+        4. All referenced orders are transitioned to 'Transferred_To_Kitchen' status.
         
         **Important:** Each plan creates a unique planCode and tracks planned vs actual quantities.
       security:
@@ -1157,8 +1163,7 @@ paths:
               type: object
               required:
                 - planCode
-                - planDate
-                - details
+                - orderIds
               properties:
                 planCode:
                   type: string
@@ -1168,43 +1173,25 @@ paths:
                   type: string
                   format: date
                   example: '2026-01-29'
-                  description: 'Planned production date'
+                  description: 'Planned production date (defaults to today if omitted)'
                 note:
                   type: string
                   example: 'Production for Mid-Autumn Festival'
-                status:
-                  type: string
-                  enum: [Planned, In_Progress, Completed, Cancelled]
-                  default: Planned
-                details:
+                orderIds:
                   type: array
-                  description: 'List of products to be manufactured'
+                  description: 'Array of Approved order IDs to aggregate into this production plan'
+                  minItems: 1
                   items:
-                    type: object
-                    required:
-                      - productId
-                      - plannedQuantity
-                    properties:
-                      productId:
-                        type: string
-                        example: '60d5ec49f1b2c8b1f8e4e1a5'
-                      plannedQuantity:
-                        type: number
-                        example: 100
-                        description: 'Target quantity to produce'
-                      actualQuantity:
-                        type: number
-                        default: 0
-                        description: 'Actual quantity produced (updated during production)'
-                      status:
-                        type: string
-                        enum: [Pending, In_Progress, Completed, Cancelled]
-                        default: Pending
+                    type: string
+                    description: 'Order ObjectId'
+                  example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
       responses:
         '201':
-          description: Production plan created successfully
+          description: Production plan created successfully and orders transitioned to Transferred_To_Kitchen
         '400':
-          description: Invalid input or duplicate plan code
+          description: Invalid input, duplicate plan code, or orders not in Approved status
+        '404':
+          description: One or more orders not found
 
   /api/production-plans/{id}:
     get:
@@ -1229,7 +1216,13 @@ paths:
       tags:
         - Production Plans
       summary: Update production plan
-      description: Update production plan details (Admin, Manager, Kitchen Staff only)
+      description: |
+        Update general information for a production plan (Admin, Manager, Kitchen Staff only).
+
+        **Allowed fields:** `planCode`, `planDate`, `note` only.
+
+        **Not allowed:** `details` and `orders` are auto-generated from the original `orderIds` at creation and are immutable.
+        Use the `PATCH /api/production-plans/{id}` endpoint to update plan status instead.
       security:
         - BearerAuth: []
       parameters:
@@ -1246,29 +1239,14 @@ paths:
               properties:
                 planCode:
                   type: string
-                  description: 'Unique plan code'
+                  description: Unique plan code
                 planDate:
                   type: string
                   format: date
+                  description: Scheduled production date
                 note:
                   type: string
-                status:
-                  type: string
-                  enum: [Planned, In_Progress, Completed, Cancelled]
-                details:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      productId:
-                        type: string
-                      plannedQuantity:
-                        type: number
-                      actualQuantity:
-                        type: number
-                      status:
-                        type: string
-                        enum: [Pending, In_Progress, Completed, Cancelled]
+                  description: Optional notes for the plan
       responses:
         '200':
           description: Plan updated successfully
@@ -1281,6 +1259,8 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/ProductionPlan'
+        '400':
+          description: Cannot update a plan with status Completed or Cancelled
         '404':
           description: Plan not found
     delete:
@@ -2014,12 +1994,9 @@ paths:
     post:
       tags:
         - Logistics
-      summary: Approve order and deduct inventory
+      summary: Approve order for production
       description: |
-        Approve a pending order, assign batch inventory, deduct quantities, and create an invoice.
-        Transitions order status from "Pending" to "Approved" (NOT "In_Transit").
-        
-        **Traceability:** Assigns specific batches to order items for full supply chain tracking.
+        Approve a pending order. Changes status from Pending to Approved and updates invoice due date. No inventory deduction happens here anymore.
       security:
         - BearerAuth: []
       parameters:
@@ -2029,32 +2006,6 @@ paths:
           schema:
             type: string
           description: Order ID to approve
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  description: Array of batch assignments for each order item (must match order items count)
-                  minItems: 1
-                  items:
-                    type: object
-                    required:
-                      - batchId
-                    properties:
-                      batchId:
-                        type: string
-                        description: 'CRITICAL: Finished batch ID for traceability (Production Plan → Batch → Order)'
-                        example: '60d5ec49f1b2c8b1f8e4e1c3'
-            example:
-              items:
-                - batchId: '60d5ec49f1b2c8b1f8e4e1c3'
-                - batchId: '60d5ec49f1b2c8b1f8e4e1c4'
       responses:
         '200':
           description: Order approved successfully
@@ -2068,7 +2019,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: 'Order approved successfully'
+                    example: 'Order approved successfully. Awaiting production by the kitchen.'
                   data:
                     type: object
                     properties:
@@ -2077,9 +2028,9 @@ paths:
                       invoice:
                         $ref: '#/components/schemas/Invoice'
         '400':
-          description: Invalid input (e.g., insufficient batch quantity, wrong item count)
+          description: Order is not in Pending status
         '404':
-          description: Order or batch not found
+          description: Order not found
 
   /api/logistics/orders/{orderId}/reject:
     post:
@@ -2192,14 +2143,24 @@ paths:
               properties:
                 orderIds:
                   type: array
-                  description: 'Array of order IDs to include in this delivery trip (all must have "Approved" status)'
+                  description: 'Array of order IDs to include in this delivery trip (all must have "Ready_For_Shipping" status)'
                   minItems: 1
                   items:
                     type: string
                     description: 'Order ObjectId'
                   example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
+                vehicleTypeId:
+                  type: string
+                  description: 'ID of the vehicle type assigned to this trip'
+                  example: '60d5ec49f1b2c8b1f8e4e1ff'
+                notes:
+                  type: string
+                  description: 'Optional instructions for the driver'
+                  example: 'Handle with care. Deliver to back entrance.'
             example:
               orderIds: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
+              vehicleTypeId: '60d5ec49f1b2c8b1f8e4e1ff'
+              notes: 'Handle with care. Deliver to back entrance.'
       responses:
         '201':
           description: Delivery trip created successfully
@@ -2225,7 +2186,7 @@ paths:
                         items:
                           $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input (e.g., orders not in "Approved" status, empty orderIds array)
+          description: Invalid input (e.g., orders not in "Ready_For_Shipping" status, empty orderIds array)
         '404':
           description: One or more orders not found
 
@@ -2245,7 +2206,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [In_Transit, Completed, Cancelled]
+            enum: [Planning, In_Transit, Completed, Cancelled]
           description: Filter by trip status
       responses:
         '200':
@@ -2555,146 +2516,25 @@ paths:
         '404':
           description: Delivery trip not found
 
-  /api/logistics/trips/{id}/finalize:
-    post:
-      tags:
-        - Logistics
-      summary: Finalize delivery plan and transfer to kitchen for production
-      description: |
-        Finalize the delivery trip and transfer to Central Kitchen for production.
-        
-        **Actions:**
-        - Updates trip status from 'Planning' to 'Transferred_To_Kitchen'
-        - Updates all orders in trip to 'Transferred_To_Kitchen' status
-        - Signals to kitchen staff that production can begin
-        
-        **Requirements:**
-        - Trip must have at least one order
-        - Trip must be in 'Planning' status
-        
-        **Workflow:** Coordinator finalizes trip when planning is complete. After this, orders are queued for production.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Delivery Trip ID
-      responses:
-        '200':
-          description: Delivery plan finalized successfully and transferred to kitchen
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                    example: 'Delivery plan finalized successfully. 3 orders transferred to kitchen for production.'
-                  data:
-                    type: object
-                    properties:
-                      trip:
-                        $ref: '#/components/schemas/DeliveryTrip'
-                      ordersUpdated:
-                        type: integer
-                        example: 3
-                      transferDate:
-                        type: string
-                        format: date-time
-                        example: '2026-02-05T08:00:00Z'
-                      totalOrders:
-                        type: integer
-                        example: 3
-        '400':
-          description: Invalid operation (e.g., trip not in Planning status, no orders in trip)
-        '404':
-          description: Delivery trip not found
-
-  /api/logistics/trips/{id}/ready:
-    post:
-      tags:
-        - Logistics
-      summary: Mark trip as ready for shipping (Kitchen Done)
-      description: |
-        Mark a delivery trip as ready for shipping after Central Kitchen completes production.
-        This represents the Kitchen clicking 'Done' on their production tasks.
-        
-        **Actions:**
-        - Updates trip status from 'Transferred_To_Kitchen' to 'Ready_For_Shipping'
-        - Updates all orders in trip to 'Ready_For_Shipping' status
-        - Signals to coordinator that goods are ready for shipment
-        
-        **Requirements:**
-        - Trip must be in 'Transferred_To_Kitchen' status
-        - Trip must have at least one order
-        
-        **Workflow:** Kitchen staff marks trip as ready when all production is complete and goods are prepared for delivery.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Delivery Trip ID
-      responses:
-        '200':
-          description: Trip marked as ready for shipping successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                    example: "Trip marked as ready for shipping. 3 orders updated to 'Ready_For_Shipping' status."
-                  data:
-                    type: object
-                    properties:
-                      trip:
-                        $ref: '#/components/schemas/DeliveryTrip'
-                      ordersUpdated:
-                        type: integer
-                        example: 3
-                      readyDate:
-                        type: string
-                        format: date-time
-                        example: '2026-02-05T10:00:00Z'
-                      totalOrders:
-                        type: integer
-                        example: 3
-        '400':
-          description: Invalid operation (e.g., trip not in Transferred_To_Kitchen status)
-        '404':
-          description: Delivery trip not found
-
   /api/logistics/trips/{id}/start-shipping:
     post:
       tags:
         - Logistics
       summary: Start shipping process
       description: |
-        Start the actual shipping process by moving ready goods to in-transit status.
+        Start the actual shipping process, moving the trip and all its orders directly to in-transit status.
         
         **Actions:**
-        - Updates trip status from 'Ready_For_Shipping' to 'In_Transit'
+        - Updates trip status from 'Planning' to 'In_Transit'
         - Updates all orders in trip to 'In_Transit' status
         - Sets shippedDate timestamp for all orders
         - Sets trip departureTime timestamp
         
         **Requirements:**
-        - Trip must be in 'Ready_For_Shipping' status
+        - Trip must be in 'Planning' status
         - Trip must have at least one order
         
-        **Workflow:** Coordinator starts shipping when goods are loaded and departure begins.
+        **Workflow:** Coordinator dispatches the truck directly from Planning. No kitchen handoff step required.
       security:
         - BearerAuth: []
       parameters:
@@ -2733,7 +2573,7 @@ paths:
                         type: integer
                         example: 3
         '400':
-          description: Invalid operation (e.g., trip not in Ready_For_Shipping status)
+          description: Invalid operation (e.g., trip not in Planning status)
         '404':
           description: Delivery trip not found
 
@@ -4931,9 +4771,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Planning, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Completed, Cancelled]
+          enum: [Planning, In_Transit, Completed, Cancelled]
           default: Planning
-          description: 'Current trip status. Workflow: Planning -> Transferred_To_Kitchen (finalized) -> Ready_For_Shipping (kitchen done) -> In_Transit (shipping started) -> Completed (all orders received)'
+          description: 'Current trip status. Workflow: Planning -> In_Transit (shipping started) -> Completed (all orders received)'
         completedTime:
           type: string
           format: date-time
