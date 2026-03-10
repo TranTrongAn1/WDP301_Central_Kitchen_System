@@ -1717,6 +1717,53 @@ const aggregateDailyDemand = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get all invoices
+ * @route   GET /api/logistics/invoices
+ * @access  Private
+ */
+const getInvoices = async (req, res, next) => {
+  try {
+    const { paymentStatus, storeId, orderId } = req.query;
+
+    const filter = {};
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+    if (storeId) filter.storeId = storeId;
+    if (orderId) filter.orderId = orderId;
+
+    const invoices = await Invoice.find(filter)
+      .populate('orderId', 'orderNumber status')
+      .populate('storeId', 'storeName storeCode')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, count: invoices.length, data: invoices });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get invoice by ID
+ * @route   GET /api/logistics/invoices/:id
+ * @access  Private
+ */
+const getInvoiceById = async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate('orderId', 'orderNumber status')
+      .populate('storeId', 'storeName storeCode');
+
+    if (!invoice) {
+      res.status(404);
+      return next(new Error('Invoice not found'));
+    }
+
+    res.status(200).json({ success: true, data: invoice });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Update delivery trip (vehicleType and/or notes)
  * @route   PATCH /api/logistics/trips/:id
  * @access  Private (Coordinator, Manager, Admin)
@@ -1856,6 +1903,8 @@ module.exports = {
   deleteDeliveryTrip,
 
   // Invoice & Payment
+  getInvoices,
+  getInvoiceById,
   recordPayment,
 
   // Analytics

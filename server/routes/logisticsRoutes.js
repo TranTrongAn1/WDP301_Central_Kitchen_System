@@ -17,6 +17,8 @@ const {
   removeOrdersFromTrip,
   startShipping,
   deleteDeliveryTrip,
+  getInvoices,
+  getInvoiceById,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -118,6 +120,12 @@ router.delete(
 );
 
 // ===== INVOICE ROUTES =====
+
+// Get all invoices
+router.get('/invoices', getInvoices);
+
+// Get single invoice by ID
+router.get('/invoices/:id', getInvoiceById);
 
 // Record payment for an invoice (Store Staff, Manager, Admin)
 router.post(
