@@ -261,6 +261,22 @@ const StoreOrdersPage = () => {
     }
   };
 
+  const getOrderStatusLabel = (status: string) => {
+    const s = (status || '').trim();
+    const map: Record<string, string> = {
+      Pending: 'Chờ trung tâm duyệt',
+      Approved: 'Đã duyệt',
+      Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+      Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+      In_Transit: 'Đang giao đến cửa hàng',
+      'In Transit': 'Đang giao đến cửa hàng',
+      Received: 'Cửa hàng đã nhận',
+      Cancelled: 'Đã hủy',
+      Shipped: 'Đã giao',
+    };
+    return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
+  };
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center text-sm text-muted-foreground">
@@ -358,7 +374,7 @@ const StoreOrdersPage = () => {
                       {order.orderCode}
                     </span>
                     <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-secondary/60">
-                      {order.status}
+                      {getOrderStatusLabel(order.status)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">

@@ -114,6 +114,11 @@ const StoreDashboard = () => {
 
   const recentOrders = orders.slice(0, 5);
 
+  const normalizeStatus = (status: string | undefined | null) => {
+    const s = (status || '').trim();
+    return s;
+  };
+
   return (
     <motion.div
       className="space-y-6 pb-10"
@@ -336,7 +341,9 @@ const StoreDashboard = () => {
             </button>
           </div>
           <div className="space-y-2 text-xs">
-            {recentOrders.map((order) => (
+            {recentOrders.map((order) => {
+              const s = normalizeStatus(order.status as string);
+              return (
               <div
                 key={order._id}
                 className="flex items-center justify-between rounded-lg border border-border/60 bg-background/60 px-3 py-2"
@@ -346,7 +353,16 @@ const StoreDashboard = () => {
                     {order.orderCode}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Trạng thái: {order.status}
+                    Trạng thái: {/* đơn giản dùng cùng label với trang đơn hàng */}
+                    {s === 'Pending' && ' Chờ trung tâm duyệt'}
+                    {s === 'Approved' && ' Đã duyệt'}
+                    {s === 'Transferred_To_Kitchen' && ' Đã chuyển sang bếp chuẩn bị'}
+                    {s === 'Ready_For_Shipping' && ' Trung tâm đã chuẩn bị xong – đang chờ giao'}
+                    {s === 'In_Transit' && ' Đang giao đến cửa hàng'}
+                    {s === 'Received' && ' Cửa hàng đã nhận'}
+                    {s === 'Cancelled' && ' Đã hủy'}
+                    {s === 'Shipped' && ' Đã giao'}
+                    {!['Pending','Approved','Transferred_To_Kitchen','Ready_For_Shipping','In_Transit','Received','Cancelled','Shipped'].includes(s) && ` ${s}`}
                   </p>
                 </div>
                 <div className="text-right">
@@ -358,7 +374,7 @@ const StoreDashboard = () => {
                   </p>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}

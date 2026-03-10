@@ -9,6 +9,8 @@ import { useAuthStore } from '@/shared/zustand/authStore';
 import { productApi, type Product } from '@/api/ProductApi';
 import { OrderApi, type CreateOrderPayload } from '@/api/OrderApi';
 
+const VIETNAM_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
+
 const orderItemSchema = z.object({
   productId: z.string().min(1, 'Vui lòng chọn sản phẩm'),
   quantityRequested: z
@@ -20,7 +22,10 @@ const orderItemSchema = z.object({
 const createOrderSchema = z.object({
   requestedDeliveryDate: z.string().min(1, 'Vui lòng chọn ngày giao'),
   recipientName: z.string().min(1, 'Vui lòng nhập người nhận'),
-  recipientPhone: z.string().min(1, 'Vui lòng nhập số điện thoại'),
+  recipientPhone: z
+    .string()
+    .min(1, 'Vui lòng nhập số điện thoại')
+    .regex(VIETNAM_PHONE_REGEX, 'Số điện thoại không hợp lệ'),
   address: z.string().optional(),
   notes: z.string().optional(),
   paymentMethod: z.enum(['Wallet', 'Other']),
@@ -138,15 +143,41 @@ const CreateStoreOrderPage = () => {
       setSubmitting(true);
       const toastId = toast.loading('Đang tạo đơn hàng...');
       const res = await OrderApi.createOrder(payload);
-      if (res?.success && res.data) {
-        toast.success('Tạo đơn hàng thành công', { id: toastId });
-        navigate('/store/orders');
+
+      if (res?.success && res.data?.order) {
+        const orderCode = (res.data.order as any)?.orderCode;
+        const invoiceNumber = (res.data.invoice as any)?.invoiceNumber;
+        const walletPayment = res.data.walletPayment;
+
+        let successMessage =
+          res.message ||
+          'Tạo đơn hàng thành công. Đơn đang chờ duyệt từ trung tâm.';
+
+        if (invoiceNumber) {
+          successMessage += `\nMã hóa đơn: ${invoiceNumber}`;
+        }
+
+        if (walletPayment && typeof walletPayment.amountPaid === 'number') {
+          successMessage += `\nĐã trừ ví cửa hàng: ${walletPayment.amountPaid.toLocaleString('vi-VN')} VND`;
+        }
+
+        toast.success(successMessage, { id: toastId });
+
+        if (orderCode && res.data.order?._id) {
+          navigate(`/store/orders/${res.data.order._id}`);
+        } else {
+          navigate('/store/orders');
+        }
       } else {
         toast.error(res?.message || 'Không thể tạo đơn hàng', { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
-      toast.error('Có lỗi xảy ra khi tạo đơn hàng');
+    } catch (error: any) {
+      // Hiển thị thông báo chi tiết từ backend (ví dụ: ví bị khóa, không đủ số dư, vượt limit plan/trip...)
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Có lỗi xảy ra khi tạo đơn hàng';
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
