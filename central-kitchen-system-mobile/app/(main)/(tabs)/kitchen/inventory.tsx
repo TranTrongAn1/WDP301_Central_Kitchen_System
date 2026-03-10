@@ -29,7 +29,7 @@ export default function InventoryScreen() {
         <View style={styles.headerRight}>
           <Pressable
             style={styles.linkButton}
-            onPress={() => router.push('/(tabs)/kitchen/orders')}
+            onPress={() => router.push('/(main)/(tabs)/kitchen/orders')}
           >
             <Text style={styles.linkButtonText}>← Đơn</Text>
           </Pressable>
