@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
+import { systemSettingApi } from '@/api/SystemSettingApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
@@ -30,10 +31,8 @@ const ShipmentDetail = () => {
     const [tripOrders, setTripOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [isFinalizing, setIsFinalizing] = useState(false);
-    const [isMarkingReady, setIsMarkingReady] = useState(false);
     const [isStartingShipping, setIsStartingShipping] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<null | { type: 'markReady' | 'startShipping' | 'removeOrder'; orderId?: string }>(null);
+    const [confirmAction, setConfirmAction] = useState<null | { type: 'startShipping' | 'removeOrder'; orderId?: string }>(null);
 
     // Add orders modal state
     const [addOrdersModalOpen, setAddOrdersModalOpen] = useState(false);
@@ -41,6 +40,7 @@ const ShipmentDetail = () => {
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [isAddingOrders, setIsAddingOrders] = useState(false);
     const [loadingAvailable, setLoadingAvailable] = useState(false);
+    const [minOrdersPerTrip, setMinOrdersPerTrip] = useState<number | null>(null);
     const [ingredientSummary, setIngredientSummary] = useState<{ name: string; unit: string; totalQty: number }[]>([]);
 
     useEffect(() => {
@@ -79,6 +79,20 @@ const ShipmentDetail = () => {
 
         fetchDetail();
     }, [id, refreshTrigger]);
+
+    useEffect(() => {
+        const fetchLimits = async () => {
+            try {
+                const res = await systemSettingApi.getByKey('MIN_ORDERS_PER_TRIP');
+                const raw = res?.data?.value;
+                const num = raw != null ? Number(raw) : NaN;
+                if (!Number.isNaN(num) && num > 0) setMinOrdersPerTrip(num);
+            } catch {
+                setMinOrdersPerTrip(null);
+            }
+        };
+        void fetchLimits();
+    }, []);
 
     useEffect(() => {
         if (tripOrders.length === 0) {
@@ -138,9 +152,9 @@ const ShipmentDetail = () => {
                     return (o as { _id?: string })?._id ?? '';
                 })
             );
-            // Show Approved orders that are NOT already in this trip
+            // Show các đơn đã sẵn sàng giao (Ready_For_Shipping) và chưa nằm trong trip hiện tại
             const available = allOrders.filter(
-                (o) => o.status === 'Approved' && !tripOrderIds.has(o._id)
+                (o) => (o.status as string) === 'Ready_For_Shipping' && !tripOrderIds.has(o._id)
             );
             setAvailableOrders(available);
         } catch {
@@ -178,34 +192,8 @@ const ShipmentDetail = () => {
     };
 
     // --- LOGIC XÓA ĐƠN HÀNG ---
-    const handleFinalizeTrip = async () => {
-        if (!id) return;
-        try {
-            setIsFinalizing(true);
-            await DeliveryTripApi.finalizeTrip(id);
-            toast.success('Chuyến hàng đã chuyển sang trạng thái đang giao (In Transit).');
-            setRefreshTrigger((prev) => prev + 1);
-        } catch (err) {
-            toast.error('Không thể duyệt chuyến hàng.');
-        } finally {
-            setIsFinalizing(false);
-        }
-    };
-
-    const handleMarkReady = async () => {
-        if (!id) return;
-        try {
-            setIsMarkingReady(true);
-            await DeliveryTripApi.markReady(id);
-            toast.success('Chuyến hàng đã sẵn sàng giao.');
-            setRefreshTrigger((prev) => prev + 1);
-        } catch (err) {
-            toast.error('Không thể đánh dấu sẵn sàng giao.');
-        } finally {
-            setIsMarkingReady(false);
-            setConfirmAction(null);
-        }
-    };
+    // Backend không có bước finalize-trip riêng; trip sẽ được chốt bằng start-shipping
+    // và tự Completed khi tất cả đơn đã Received, nên không cần handler finalize ở đây.
 
     const handleStartShipping = async () => {
         if (!id) return;
@@ -214,8 +202,12 @@ const ShipmentDetail = () => {
             await DeliveryTripApi.startShipping(id);
             toast.success('Chuyến hàng đã bắt đầu giao (In Transit).');
             setRefreshTrigger((prev) => prev + 1);
-        } catch (err) {
-            toast.error('Không thể bắt đầu giao hàng.');
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                'Không thể bắt đầu giao hàng.';
+            toast.error(message);
         } finally {
             setIsStartingShipping(false);
             setConfirmAction(null);
@@ -257,18 +249,18 @@ const ShipmentDetail = () => {
     const getTripStatusLabel = (status: string) => {
         const s = (status || '').trim();
         const map: Record<string, string> = {
-            Planning: 'Lên kế hoạch',
-            Pending: 'Chờ xử lý',
-            Transferred_To_Kitchen: 'Đã chuyển bếp',
+            Planning: 'Đang chờ giao',
+            Pending: 'Đang xử lý',
+            Transferred_To_Kitchen: 'Bếp đang chuẩn bị',
             ReadyForShipping: 'Sẵn sàng giao',
             Ready_For_Shipping: 'Sẵn sàng giao',
             'Ready for shipping': 'Sẵn sàng giao',
-            In_Transit: 'Đang giao',
-            'In Transit': 'Đang giao',
-            Completed: 'Hoàn thành',
-            Cancelled: 'Đã hủy',
+            In_Transit: 'Đang giao cho cửa hàng',
+            'In Transit': 'Đang giao cho cửa hàng',
+            Completed: 'Đã giao xong',
+            Cancelled: 'Đã hủy chuyến',
         };
-        return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái khác';
+        return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
     };
 
     const getOrderStatusLabel = (status: string) => {
@@ -276,22 +268,39 @@ const ShipmentDetail = () => {
         const map: Record<string, string> = {
             Pending: 'Chờ duyệt',
             Approved: 'Đã duyệt',
+            Transferred_To_Kitchen: 'Đã chuyển bếp',
+            Ready_For_Shipping: 'Sẵn sàng giao',
             In_Transit: 'Đang giao',
             'In Transit': 'Đang giao',
             Received: 'Đã nhận',
             Cancelled: 'Đã hủy',
             Shipped: 'Đã giao',
         };
-        return map[s] ?? 'Trạng thái khác';
+        return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
     };
 
     const getOrderStatusStyle = (status: string) => {
-        switch (status) {
-            case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
-            case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-            case 'Shipped': return 'bg-purple-500/10 text-purple-600 border-purple-200';
-            case 'Received': return 'bg-green-500/10 text-green-600 border-green-200';
-            default: return 'bg-gray-100 text-gray-600 border-gray-200';
+        const s = (status || '').trim();
+        switch (s) {
+            case 'Pending':
+                return 'bg-amber-500/10 text-amber-600 border-amber-200';
+            case 'Approved':
+                return 'bg-blue-500/10 text-blue-600 border-blue-200';
+            case 'Transferred_To_Kitchen':
+                return 'bg-indigo-500/10 text-indigo-600 border-indigo-200';
+            case 'Ready_For_Shipping':
+                return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
+            case 'In_Transit':
+            case 'In Transit':
+                return 'bg-purple-500/10 text-purple-600 border-purple-200';
+            case 'Shipped':
+                return 'bg-purple-500/10 text-purple-600 border-purple-200';
+            case 'Received':
+                return 'bg-green-500/10 text-green-600 border-green-200';
+            case 'Cancelled':
+                return 'bg-red-500/10 text-red-600 border-red-200';
+            default:
+                return 'bg-gray-100 text-gray-600 border-gray-200';
         }
     };
 
@@ -381,38 +390,21 @@ const ShipmentDetail = () => {
 
                 <div className="flex gap-2">
                     {trip.status === 'Planning' && user?.role !== 'KitchenStaff' && (
-                        <>
-                            <button
-                                type="button"
-                                onClick={handleOpenAddOrders}
-                                className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 flex items-center gap-1"
-                            >
-                                <Plus className="w-4 h-4" /> Thêm đơn hàng
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleFinalizeTrip}
-                                disabled={isFinalizing || (trip.orders?.length ?? 0) === 0}
-                                className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all hover:opacity-90 disabled:opacity-50"
-                            >
-                                {isFinalizing ? 'Đang chốt kế hoạch...' : 'Chốt kế hoạch (Finalize)'}
-                            </button>
-                        </>
-                    )}
-                    {trip.status === 'Transferred_To_Kitchen' && (
                         <button
                             type="button"
-                            onClick={() => setConfirmAction({ type: 'markReady' })}
-                            disabled={isMarkingReady}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 disabled:opacity-50"
+                            onClick={handleOpenAddOrders}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 flex items-center gap-1"
                         >
-                            {isMarkingReady ? 'Đang đánh dấu...' : 'Sẵn sàng giao (Ready)'}
+                            <Plus className="w-4 h-4" /> Thêm đơn hàng
                         </button>
                     )}
                     {(
                         trip.status === 'ReadyForShipping' ||
                         trip.status === 'Ready_For_Shipping' ||
-                        trip.status === 'Ready for shipping'
+                        trip.status === 'Ready for shipping' ||
+                        trip.status === 'Planning' ||
+                        trip.status === 'Pending' ||
+                        trip.status === 'Transferred_To_Kitchen'
                     ) && user?.role !== 'KitchenStaff' && (
                             <button
                                 type="button"
@@ -458,6 +450,11 @@ const ShipmentDetail = () => {
                         </p>
                     </div>
                 </div>
+                {minOrdersPerTrip && (
+                    <div className="p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 text-[11px] text-amber-800">
+                        Cần tối thiểu <span className="font-bold">{minOrdersPerTrip} đơn</span> trong một chuyến để bắt đầu giao hàng (MIN_ORDERS_PER_TRIP).
+                    </div>
+                )}
             </div>
 
             <div className="mb-8 rounded-xl border border-border bg-card p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -659,7 +656,7 @@ const ShipmentDetail = () => {
                         </div>
 
                         <p className="text-[11px] text-muted-foreground">
-                            Chọn các đơn hàng đã duyệt (Approved) để thêm vào chuyến xe.
+                            Chọn các đơn hàng <strong>đã sẵn sàng giao (Ready_For_Shipping)</strong> để thêm vào chuyến xe.
                         </p>
 
                         {loadingAvailable ? (
@@ -668,7 +665,7 @@ const ShipmentDetail = () => {
                             </div>
                         ) : availableOrders.length === 0 ? (
                             <div className="py-10 text-center text-sm text-muted-foreground">
-                                Không có đơn hàng nào đã duyệt để thêm.
+                                Không có đơn hàng nào đã sẵn sàng giao để thêm.
                             </div>
                         ) : (
                             <div className="max-h-72 overflow-y-auto space-y-2">
@@ -737,13 +734,10 @@ const ShipmentDetail = () => {
                             <CheckCircle2 className="w-7 h-7" />
                         </div>
                         <h3 className="text-lg font-black uppercase mb-2 text-foreground">
-                            {confirmAction.type === 'markReady' && 'Đánh dấu sẵn sàng giao?'}
                             {confirmAction.type === 'startShipping' && 'Bắt đầu giao chuyến hàng?'}
                             {confirmAction.type === 'removeOrder' && 'Gỡ đơn khỏi chuyến xe?'}
                         </h3>
                         <p className="text-sm mb-6 text-muted-foreground">
-                            {confirmAction.type === 'markReady' &&
-                                'Chuyến hàng sẽ được chuyển sang trạng thái sẵn sàng giao để chuẩn bị xuất kho.'}
                             {confirmAction.type === 'startShipping' &&
                                 'Chuyến hàng sẽ được chuyển sang trạng thái đang giao (In Transit).'}
                             {confirmAction.type === 'removeOrder' &&
@@ -760,8 +754,7 @@ const ShipmentDetail = () => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (confirmAction.type === 'markReady') handleMarkReady();
-                                    else if (confirmAction.type === 'startShipping') handleStartShipping();
+                                    if (confirmAction.type === 'startShipping') handleStartShipping();
                                     else if (confirmAction.type === 'removeOrder' && confirmAction.orderId) {
                                         handleRemoveOrder(confirmAction.orderId);
                                     }

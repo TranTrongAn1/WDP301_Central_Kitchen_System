@@ -1,31 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { OrderApi, type Order as OrderType, type ApproveOrderPayload } from '@/api/OrderApi';
-import { productApi, type Product } from '@/api/ProductApi';
-import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/IngredientApi';
-import { batchApi, type Batch } from '@/api/BatchApi';
+import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { StarRating } from '@/shared/components/StarRating';
 import toast from 'react-hot-toast';
-
-// Interface cho bảng tính toán tồn kho
-interface InventoryCalculation {
-  ingredientId: string;
-  ingredientName: string;
-  unit: string;
-  currentStock: number;
-  requiredQty: number;
-  remainingStock: number;
-  isEnough: boolean;
-}
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState<OrderType | null>(null);
-  const [inventoryCheck, setInventoryCheck] = useState<InventoryCalculation[]>([]);
-  const [isEnoughStock, setIsEnoughStock] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,81 +33,8 @@ const OrderDetail = () => {
       if (!id) return;
       try {
         setLoading(true);
-        const [orderData, productsRes, ingredientsRes] = await Promise.all([
-          OrderApi.getOrderById(id),
-          productApi.getAll(),
-          ingredientApi.getAll()
-        ]);
-
+        const orderData = await OrderApi.getOrderById(id);
         setOrder(orderData);
-
-        const products: Product[] = (productsRes as any).data || [];
-        const ingredients: Ingredient[] = (ingredientsRes as any).data || [];
-
-        if (orderData && orderData.items) {
-          const requiredMap: Record<string, InventoryCalculation> = {};
-
-          orderData.items.forEach((orderItem: any) => {
-            const prodId = typeof orderItem.productId === 'object' ? orderItem.productId._id : orderItem.productId;
-            const product = products.find(p => p._id === prodId);
-
-            if (product && product.recipe) {
-              product.recipe.forEach((rec: any) => {
-                const ingId = typeof rec.ingredientId === 'object' ? rec.ingredientId._id : rec.ingredientId;
-                const totalQtyNeeded = rec.quantity * orderItem.quantity;
-
-                if (!requiredMap[ingId]) {
-                  const ingInfo = ingredients.find(i => i._id === ingId);
-                  requiredMap[ingId] = {
-                    ingredientId: ingId,
-                    ingredientName: ingInfo ? ingInfo.ingredientName : 'N/A',
-                    unit: ingInfo ? ingInfo.unit : '',
-                    currentStock: 0,
-                    requiredQty: 0,
-                    remainingStock: 0,
-                    isEnough: true
-                  };
-                }
-                requiredMap[ingId].requiredQty += totalQtyNeeded;
-              });
-            }
-          });
-
-          const requiredIngredientIds = Object.keys(requiredMap);
-          const batchPromises = requiredIngredientIds.map(ingId => ingredientApi.getBatches(ingId));
-          const batchResults = await Promise.all(batchPromises);
-
-          let allRelevantBatches: IngredientBatch[] = [];
-          batchResults.forEach(res => {
-            const batches = (res as any).data || [];
-            allRelevantBatches = [...allRelevantBatches, ...batches];
-          });
-
-          let allEnough = true;
-          const finalCalculations = Object.values(requiredMap).map(calc => {
-            const validBatches = allRelevantBatches.filter(batch => {
-              const batchIngId = typeof batch.ingredientId === 'object' ? batch.ingredientId._id : batch.ingredientId;
-              const isNotExpired = new Date(batch.expiryDate).getTime() > new Date().getTime();
-              return batchIngId === calc.ingredientId && batch.isActive && isNotExpired && batch.currentQuantity > 0;
-            });
-
-            const trueStock = validBatches.reduce((sum, batch) => sum + batch.currentQuantity, 0);
-            const remaining = trueStock - calc.requiredQty;
-            const enough = remaining >= 0;
-            if (!enough) allEnough = false;
-
-            return {
-              ...calc,
-              currentStock: trueStock,
-              remainingStock: remaining,
-              isEnough: enough
-            };
-          });
-
-          setInventoryCheck(finalCalculations);
-          setIsEnoughStock(allEnough);
-        }
-
       } catch (err) {
         console.error(err);
         setError('Không thể tải dữ liệu đối chiếu.');
@@ -191,71 +102,24 @@ const OrderDetail = () => {
 
   const handleApproveOrder = async () => {
     if (!id || !order) return;
-    if (!isEnoughStock) {
-      toast.error('Không đủ nguyên liệu để duyệt đơn này.');
-      return;
-    }
+    if (order.status !== 'Pending') return;
 
     try {
       setIsApproving(true);
-
-      // Với mỗi item trong đơn, chọn batch Active FEFO, gửi đúng format BE: productId, approvedQuantity, batches[]
-      const approveItems: ApproveOrderPayload['items'] = [];
-
-      for (const item of order.items) {
-        const pid =
-          typeof item.productId === 'object'
-            ? item.productId._id
-            : (item.productId as string);
-        const qty = item.quantity ?? 0;
-
-        const res = await batchApi.getAll({ productId: pid, status: 'Active' });
-        const raw = (res as any)?.data ?? res ?? [];
-        const batches: Batch[] = Array.isArray(raw) ? raw : [];
-
-        const candidates = batches
-          .filter((b) => {
-            const notExpired = new Date(b.expDate).getTime() > Date.now();
-            return b.currentQuantity >= qty && notExpired;
-          })
-          .sort(
-            (a, b) =>
-              new Date(a.expDate).getTime() - new Date(b.expDate).getTime()
-          );
-
-        const chosen = candidates[0];
-
-        if (!chosen) {
-          throw new Error(
-            `Không có lô thành phẩm đủ số lượng cho sản phẩm ${(item.productId as any)?.name || pid} (cần ${qty}).`
-          );
-        }
-
-        approveItems.push({
-          productId: pid,
-          approvedQuantity: qty,
-          batches: [{ batchId: chosen._id, quantity: qty }],
-          // Gửi thêm batchId top-level cho BE nào đọc ở đây
-          batchId: chosen._id,
-        });
-      }
-
-      const payload: ApproveOrderPayload = { items: approveItems };
-
-      const res = await OrderApi.approveOrder(id, payload);
+      const res = await OrderApi.approveOrder(id);
 
       if (res.success) {
-        toast.success('Đã duyệt đơn hàng thành công.');
+        toast.success(res.message || 'Đã duyệt đơn hàng thành công.');
         setIsApproveConfirmOpen(false);
         setRefreshTrigger((prev) => prev + 1);
       } else {
         toast.error(res.message || 'Lỗi khi duyệt đơn hàng');
       }
-    } catch (error: any) {
-      console.error(error);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
       const message =
-        error?.response?.data?.message ||
-        error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
         'Lỗi khi duyệt đơn hàng';
       toast.error(message);
     } finally {
@@ -286,8 +150,7 @@ const OrderDetail = () => {
         toast.success('Đã gửi feedback cho đơn hàng.');
       }
       setHasFeedback(true);
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('Không thể lưu feedback, vui lòng thử lại.');
     } finally {
       setIsFeedbackSaving(false);
@@ -306,28 +169,44 @@ const OrderDetail = () => {
     });
 
   const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
-      case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-      case 'In_Transit': return 'bg-purple-500/10 text-purple-600 border-purple-200';
-      case 'Shipped': return 'bg-purple-500/10 text-purple-600 border-purple-200';
-      case 'Received': return 'bg-green-500/10 text-green-600 border-green-200';
-      case 'Cancelled': return 'bg-red-500/10 text-red-600 border-red-200';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+    const s = (status || '').trim();
+    switch (s) {
+      case 'Pending':
+        return 'bg-amber-500/10 text-amber-600 border-amber-200';
+      case 'Approved':
+        return 'bg-blue-500/10 text-blue-600 border-blue-200';
+      case 'Transferred_To_Kitchen':
+        return 'bg-indigo-500/10 text-indigo-600 border-indigo-200';
+      case 'Ready_For_Shipping':
+        return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
+      case 'In_Transit':
+      case 'In Transit':
+        return 'bg-purple-500/10 text-purple-600 border-purple-200';
+      case 'Shipped':
+        return 'bg-purple-500/10 text-purple-600 border-purple-200';
+      case 'Received':
+        return 'bg-green-500/10 text-green-600 border-green-200';
+      case 'Cancelled':
+        return 'bg-red-500/10 text-red-600 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
   const getOrderStatusLabel = (status: string) => {
+    const normalized = (status || '').trim();
     const map: Record<string, string> = {
-      Pending: 'Chờ duyệt',
+      Pending: 'Chờ trung tâm duyệt',
       Approved: 'Đã duyệt',
-      In_Transit: 'Đang giao',
-      'In Transit': 'Đang giao',
-      Received: 'Đã nhận',
+      Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+      Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+      In_Transit: 'Đang giao đến cửa hàng',
+      'In Transit': 'Đang giao đến cửa hàng',
+      Received: 'Cửa hàng đã nhận',
       Cancelled: 'Đã hủy',
       Shipped: 'Đã giao',
     };
-    return map[(status || '').trim()] ?? 'Trạng thái khác';
+    return map[normalized] ?? map[normalized.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
   };
 
   if (loading && !order) return (
@@ -377,18 +256,14 @@ const OrderDetail = () => {
           )}
           {order.status === 'Pending' && (
             <button
-              disabled={!isEnoughStock || isApproving}
-              title={!isEnoughStock ? 'Không đủ nguyên liệu trong kho để làm đơn này' : ''}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${isEnoughStock
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-gray-400 text-gray-200 cursor-not-allowed grayscale'
-                }`}
+              disabled={isApproving}
+              className="px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 hover:text-white shadow-lg shadow-blue-500/30"
               onClick={() => setIsApproveConfirmOpen(true)}
             >
               <span className="material-symbols-outlined text-[18px]">
-                {isApproving ? 'progress_activity' : isEnoughStock ? 'check' : 'block'}
+                {isApproving ? 'progress_activity' : 'check'}
               </span>
-              {isApproving ? 'Đang duyệt...' : isEnoughStock ? 'Duyệt đơn' : 'Thiếu nguyên liệu'}
+              {isApproving ? 'Đang duyệt...' : 'Duyệt đơn'}
             </button>
           )}
 
@@ -444,63 +319,6 @@ const OrderDetail = () => {
               </table>
             </div>
           </div>
-
-          {inventoryCheck.length > 0 && (
-            <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
-                  <span className="material-symbols-outlined text-blue-500">inventory_2</span>
-                  Đối chiếu nguyên liệu Bếp Trung Tâm
-                </h3>
-                {!isEnoughStock && (
-                  <span className="px-3 py-1 bg-red-500/10 text-red-500 border border-red-200 rounded-full text-xs font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">warning</span> Cảnh báo: Thiếu NVL
-                  </span>
-                )}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-                      <th className="pb-3 font-semibold">Tên nguyên liệu</th>
-                      <th className="pb-3 font-semibold text-right">Tồn kho hiện tại</th>
-                      <th className="pb-3 font-semibold text-right">SL Cần dùng</th>
-                      <th className="pb-3 font-semibold text-right">Còn lại dự kiến</th>
-                      <th className="pb-3 font-semibold text-center">Trạng thái</th>
-                    </tr>
-                  </thead>
-                    <tbody className="text-sm text-foreground">
-                    {inventoryCheck.map((calc, idx) => (
-                      <tr key={idx} className="border-b border-border last:border-0">
-                        <td className="py-3 font-medium">{calc.ingredientName}</td>
-                        <td className="py-3 text-right text-gray-500">
-                          {calc.currentStock.toFixed(2)} {calc.unit}
-                        </td>
-                        <td className="py-3 text-right font-bold text-amber-500">
-                          - {calc.requiredQty.toFixed(2)} {calc.unit}
-                        </td>
-                        <td className={`py-3 text-right font-bold ${calc.isEnough ? 'text-green-600' : 'text-red-500'}`}>
-                          {calc.remainingStock.toFixed(2)} {calc.unit}
-                        </td>
-                        <td className="py-3 text-center">
-                          {calc.isEnough ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-600">
-                              <span className="material-symbols-outlined text-[14px]">check</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500/20 text-red-600">
-                              <span className="material-symbols-outlined text-[14px]">close</span>
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-6">
@@ -515,10 +333,15 @@ const OrderDetail = () => {
               </div>
               <div>
                 <p className="font-bold text-lg text-foreground">
-                  {(order.storeId as any)?.storeName || 'Store Unknown'}
+                  {typeof order.storeId === 'object' && order.storeId?.storeName
+                    ? order.storeId.storeName
+                    : 'Store Unknown'}
                 </p>
                 <p className="text-sm mt-1 text-muted-foreground">
-                  Mã: {typeof order.storeId === 'string' ? order.storeId : (order.storeId as any)?._id}
+                  Mã:{' '}
+                  {typeof order.storeId === 'string'
+                    ? order.storeId
+                    : order.storeId?._id}
                 </p>
               </div>
             </div>
@@ -535,7 +358,9 @@ const OrderDetail = () => {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Người tạo:</span>
                 <span className="font-medium text-foreground">
-                  {(order.createdBy as any)?.fullName || 'Hệ thống'}
+                  {typeof order.createdBy === 'object' && order.createdBy?.fullName
+                    ? order.createdBy.fullName
+                    : 'Hệ thống'}
                 </span>
               </div>
             </div>
@@ -579,14 +404,14 @@ const OrderDetail = () => {
             </p>
           </div>
 
-          {/* SỬA: DÙNG CANCELLATION REASON THAY CHO NOTES */}
-          {order.status === 'Cancelled' && (order as any).cancellationReason && (
+          {/* Lý do hủy đơn từ backend */}
+          {order.status === 'Cancelled' && (order as unknown as { cancellationReason?: string }).cancellationReason && (
             <div className="rounded-2xl border border-border p-6 border-l-4 border-l-red-500 bg-destructive/10">
               <h3 className="text-sm font-bold uppercase tracking-wider mb-2 text-red-600 flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px]">error</span> Lý do hủy
               </h3>
               <p className="text-sm font-medium text-red-700 dark:text-red-300">
-                {(order as any).cancellationReason}
+                {(order as unknown as { cancellationReason?: string }).cancellationReason}
               </p>
             </div>
           )}
@@ -674,7 +499,7 @@ const OrderDetail = () => {
               </button>
               <button
                 onClick={() => handleApproveOrder()}
-                disabled={!isEnoughStock || isApproving}
+                disabled={isApproving}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-50 disabled:grayscale shadow-lg shadow-blue-500/30 flex items-center gap-2"
               >
                 {isApproving ? (

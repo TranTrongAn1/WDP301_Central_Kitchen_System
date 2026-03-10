@@ -31,13 +31,11 @@ export interface CreateProductionPlanRequest {
     planCode: string;
     planDate: string;
     note?: string;
-    status?: string;
-    details: {
-        productId: string;
-        plannedQuantity: number;
-        actualQuantity?: number;
-        status?: string;
-    }[];
+    /**
+     * Danh sách order đã Approved dùng để tạo plan.
+     * Backend sẽ tự gộp theo sản phẩm và sinh details + status.
+     */
+    orderIds: string[];
 }
 
 export interface UpdateProductionPlanRequest {
@@ -53,6 +51,11 @@ export interface UpdateProductionStatusRequest {
 export interface CompleteProductionItemRequest {
     productId: string;
     actualQuantity: number;
+    usedIngredients: {
+        ingredientBatchId: string;
+        quantityUsed: number;
+        note?: string;
+    }[];
 }
 
 export interface ProductionPlanQueryParams {
@@ -69,9 +72,12 @@ export interface ApiResponse<T> {
 
 const BASE = '/production-plans';
 
-/** Backend dùng "InProgress" (không gạch dưới); FE có thể gửi "In_Progress" -> map khi gửi */
+/** Đồng bộ trạng thái khi gửi lên backend.
+ * Backend hiện trả lỗi nếu không thuộc: Planned, In_Progress, Completed, Cancelled,
+ * nên FE sẽ luôn gửi đúng các chuỗi này (nếu lỡ dùng InProgress thì map ngược về In_Progress). */
 function toBackendStatus(s: string): string {
-    return s === 'In_Progress' ? 'InProgress' : s;
+    if (s === 'InProgress') return 'In_Progress';
+    return s;
 }
 
 /** Kiểm tra trạng thái "đang thực hiện" (BE trả InProgress, FE dùng In_Progress) */
@@ -86,21 +92,14 @@ export const productionPlanApi = {
     getById: (id: string) =>
         apiClient.get<ApiResponse<ProductionPlan>>(`${BASE}/${id}`),
 
-    create: (data: CreateProductionPlanRequest) => {
-        const payload = { ...data };
-        if (payload.status) payload.status = toBackendStatus(payload.status);
-        if (payload.details) {
-            payload.details = payload.details.map((d) => ({
-                ...d,
-                status: d.status ? toBackendStatus(d.status) : undefined,
-            }));
-        }
-        return apiClient.post<ApiResponse<ProductionPlan>>(BASE, payload);
-    },
+    create: (data: CreateProductionPlanRequest) =>
+        apiClient.post<ApiResponse<ProductionPlan>>(BASE, data),
 
     update: (id: string, data: UpdateProductionPlanRequest) => {
-        const payload = { ...data };
-        if (payload.status) payload.status = toBackendStatus(payload.status) as any;
+        const payload: UpdateProductionPlanRequest = { ...data };
+        if (payload.status) {
+            payload.status = toBackendStatus(payload.status) as UpdateProductionStatusRequest['status'];
+        }
         return apiClient.put<ApiResponse<ProductionPlan>>(`${BASE}/${id}`, payload);
     },
 

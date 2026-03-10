@@ -7,7 +7,6 @@ import {
   Search,
   CalendarDays,
   MapPin,
-  CheckCircle2,
   AlertCircle,
   Eye,
 } from 'lucide-react';
@@ -17,8 +16,6 @@ import { Button } from '@/features/manager/components/ui/Button';
 import { Badge } from '@/features/manager/components/ui/Badge';
 import { Input } from '@/features/manager/components/ui/Input';
 import { Tabs, TabsList, TabsTrigger } from '@/features/manager/components/ui/Tabs';
-import toast from 'react-hot-toast';
-
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.04 } },
@@ -37,7 +34,6 @@ export default function KitchenTripsPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TripStatusFilter>('All');
   const [search, setSearch] = useState('');
-  const [markingTripId, setMarkingTripId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -69,31 +65,6 @@ export default function KitchenTripsPage() {
     fetchAll();
   }, []);
 
-  const handleMarkReady = async (tripId: string) => {
-    try {
-      setMarkingTripId(tripId);
-      const toastId = toast.loading('Đang đánh dấu chuyến sẵn sàng giao...');
-      await DeliveryTripApi.markReady(tripId);
-      toast.success('Đã đánh dấu chuyến sẵn sàng giao cho điều phối viên.', {
-        id: toastId,
-      });
-      setTrips((prev) =>
-        prev.map((t) =>
-          t._id === tripId ? { ...t, status: 'Ready_For_Shipping' } : t,
-        ),
-      );
-    } catch (error: any) {
-      console.error('Error marking trip ready from kitchen page', error);
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Không thể đánh dấu chuyến. Vui lòng thử lại.';
-      toast.error(message);
-    } finally {
-      setMarkingTripId(null);
-    }
-  };
-
   const formatDateTime = (value?: string | null) => {
     if (!value) return '—';
     try {
@@ -104,35 +75,36 @@ export default function KitchenTripsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'Planning' || status === 'Pending') {
+    const s = (status || '').trim();
+    if (s === 'Planning' || s === 'Pending') {
       return (
         <Badge className="bg-amber-500/10 text-amber-700 border border-amber-300 text-xs">
           Đang lập kế hoạch
         </Badge>
       );
     }
-    if (status === 'Transferred_To_Kitchen') {
+    if (s === 'Transferred_To_Kitchen') {
       return (
         <Badge className="bg-amber-500/15 text-amber-700 border border-amber-300 text-xs">
           Đã chuyển cho bếp
         </Badge>
       );
     }
-    if (status === 'Ready_For_Shipping') {
+    if (s === 'Ready_For_Shipping' || s === 'ReadyForShipping' || s === 'Ready for shipping') {
       return (
         <Badge className="bg-emerald-500/10 text-emerald-700 border border-emerald-300 text-xs">
-          Sẵn sàng giao
+          Bếp đã chuẩn bị xong – sẵn sàng giao
         </Badge>
       );
     }
-    if (status === 'In_Transit') {
+    if (s === 'In_Transit' || s === 'In Transit') {
       return (
         <Badge className="bg-blue-500/10 text-blue-700 border border-blue-300 text-xs">
-          Đang giao
+          Đang giao cho cửa hàng
         </Badge>
       );
     }
-    if (status === 'Completed') {
+    if (s === 'Completed') {
       return (
         <Badge className="bg-gray-500/10 text-gray-700 border border-gray-300 text-xs">
           Đã hoàn thành
@@ -141,7 +113,7 @@ export default function KitchenTripsPage() {
     }
     return (
       <Badge variant="secondary" className="text-xs">
-        {status}
+        Trạng thái hệ thống khác
       </Badge>
     );
   };
@@ -347,32 +319,8 @@ export default function KitchenTripsPage() {
 
                   <div className="mt-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
-                      {(() => {
-                        const status = (trip.status as string) || '';
-                        // Backend chỉ cho phép mark ready khi trip ở trạng thái Transferred_To_Kitchen
-                        const canMarkReady = status === 'Transferred_To_Kitchen';
-                        if (!canMarkReady) return null;
-                        return (
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 text-[11px] text-white hover:bg-emerald-700 h-7 px-2"
-                            disabled={markingTripId === trip._id}
-                            onClick={() => handleMarkReady(trip._id)}
-                          >
-                            {markingTripId === trip._id ? (
-                              <>
-                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                Đang đánh dấu...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                Đánh dấu Ready
-                              </>
-                            )}
-                          </Button>
-                        );
-                      })()}
+                      {/* Kitchen chỉ quan sát trạng thái trip, không đánh dấu Ready ở cấp Trip.
+                          Việc "Ready_For_Shipping" được thực hiện khi hoàn tất sản xuất (complete-item). */}
                     </div>
                     <Button
                       variant="outline"

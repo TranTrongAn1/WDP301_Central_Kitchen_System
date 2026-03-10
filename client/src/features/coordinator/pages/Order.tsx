@@ -77,10 +77,14 @@ const Order = () => {
 
   // Helper styles
   const getStatusStyle = (status: string) => {
-    switch (status) {
+    const s = (status || '').trim();
+    switch (s) {
       case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
       case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-      case 'In_Transit': return 'bg-purple-500/10 text-purple-600 border-purple-200';
+      case 'Transferred_To_Kitchen': return 'bg-indigo-500/10 text-indigo-600 border-indigo-200';
+      case 'Ready_For_Shipping': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
+      case 'In_Transit':
+      case 'In Transit': return 'bg-purple-500/10 text-purple-600 border-purple-200';
       case 'Received': return 'bg-green-500/10 text-green-600 border-green-200';
       case 'Cancelled': return 'bg-red-500/10 text-red-600 border-red-200';
       default: return 'bg-gray-100 text-gray-600 border-gray-200';
@@ -88,16 +92,19 @@ const Order = () => {
   };
 
   const getOrderStatusLabel = (status: string) => {
+    const s = (status || '').trim();
     const map: Record<string, string> = {
-      Pending: 'Chờ duyệt',
+      Pending: 'Chờ trung tâm duyệt',
       Approved: 'Đã duyệt',
-      In_Transit: 'Đang giao',
-      'In Transit': 'Đang giao',
-      Received: 'Đã nhận',
+      Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+      Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+      In_Transit: 'Đang giao đến cửa hàng',
+      'In Transit': 'Đang giao đến cửa hàng',
+      Received: 'Cửa hàng đã nhận',
       Cancelled: 'Đã hủy',
       Shipped: 'Đã giao',
     };
-    return map[(status || '').trim()] ?? 'Trạng thái khác';
+    return map[s] ?? map[s.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
   };
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);

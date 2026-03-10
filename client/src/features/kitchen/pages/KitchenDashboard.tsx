@@ -8,7 +8,6 @@ import {
   BarChart3,
   Calendar,
   Flame,
-  CheckCircle2,
   AlertTriangle,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -16,7 +15,6 @@ import { productionPlanApi, type ProductionPlan } from '@/api/ProductionPlanApi'
 import { batchApi, type Batch } from '@/api/BatchApi';
 import { OrderApi, type OrderAggregateItem } from '@/api/OrderApi';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
-import toast from 'react-hot-toast';
 
 const container = {
   hidden: { opacity: 0 },
@@ -33,7 +31,6 @@ const KitchenDashboard = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [aggregate, setAggregate] = useState<OrderAggregateItem[]>([]);
   const [trips, setTrips] = useState<ITrip[]>([]);
-  const [markingTripId, setMarkingTripId] = useState<string | null>(null);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -99,11 +96,7 @@ const KitchenDashboard = () => {
 
   const tripsNeedingReady = trips.filter((t) => {
     const status = (t.status as string) || '';
-    return (
-      status === 'Planning' ||
-      status === 'Pending' ||
-      status === 'Transferred_To_Kitchen'
-    );
+    return status === 'Planning' || status === 'Pending' || status === 'Transferred_To_Kitchen';
   });
 
   const planStatusData = [
@@ -163,29 +156,6 @@ const KitchenDashboard = () => {
       href: '/kitchen/dashboard',
     },
   ];
-
-  const handleMarkTripReady = async (tripId: string) => {
-    try {
-      setMarkingTripId(tripId);
-      const loadingToast = toast.loading('Đang đánh dấu chuyến sẵn sàng...');
-      await DeliveryTripApi.markReady(tripId);
-      toast.dismiss(loadingToast);
-      toast.success('Đã đánh dấu chuyến sẵn sàng giao');
-      setTrips((prev) =>
-        prev.map((t) => (t._id === tripId ? { ...t, status: 'ReadyForShipping' } : t))
-      );
-    } catch (error) {
-      console.error('Error marking trip ready', error);
-      const anyError = error as { response?: { data?: { message?: string } }; message?: string };
-      const message =
-        anyError?.response?.data?.message ||
-        anyError?.message ||
-        'Không thể đánh dấu chuyến, vui lòng thử lại';
-      toast.error(message);
-    } finally {
-      setMarkingTripId(null);
-    }
-  };
 
   return (
     <motion.div
@@ -446,7 +416,7 @@ const KitchenDashboard = () => {
               </div>
             ) : tripsNeedingReady.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-                Hiện không có chuyến nào chờ Kitchen đánh dấu sẵn sàng
+                Hiện không có chuyến nào chờ Kitchen chuẩn bị
               </div>
             ) : (
               <ul className="divide-y divide-border/60 text-sm">
@@ -465,23 +435,8 @@ const KitchenDashboard = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                        Đang chờ bếp
+                        Đang chờ bếp (theo dõi)
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleMarkTripReady(trip._id)}
-                        disabled={markingTripId === trip._id}
-                        className="inline-flex items-center rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {markingTripId === trip._id ? (
-                          'Đang xử lý...'
-                        ) : (
-                          <>
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Mark Ready
-                          </>
-                        )}
-                      </button>
                     </div>
                   </li>
                 ))}

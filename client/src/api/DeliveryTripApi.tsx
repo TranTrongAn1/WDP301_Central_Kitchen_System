@@ -26,17 +26,6 @@ interface RemoveOrdersResponseData {
   remainingOrders?: number;
 }
 
-interface FinalizeResponseData {
-  trip: DeliveryTrip;
-  ordersUpdated?: number;
-  shippedDate?: string;
-  totalOrders?: number;
-}
-
-interface ReadyResponseData {
-  trip: DeliveryTrip;
-}
-
 interface StartShippingResponseData {
   trip: DeliveryTrip;
 }
@@ -80,16 +69,6 @@ const DeliveryTripApi = {
   removeOrdersFromDeliveryTrip: async (tripId: string, orderIds: string[]) => {
     const res = await apiClient.patch(`/logistics/trips/${tripId}/remove-orders`, { orderIds });
     return res as unknown as LogisticsApiResponse<RemoveOrdersResponseData>;
-  },
-
-  finalizeTrip: async (tripId: string) => {
-    const res = await apiClient.post(`/logistics/trips/${tripId}/finalize`);
-    return res as unknown as LogisticsApiResponse<FinalizeResponseData>;
-  },
-
-  markReady: async (tripId: string) => {
-    const res = await apiClient.post(`/logistics/trips/${tripId}/ready`);
-    return res as unknown as LogisticsApiResponse<ReadyResponseData>;
   },
 
   startShipping: async (tripId: string) => {

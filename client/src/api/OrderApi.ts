@@ -42,6 +42,8 @@ export interface CreateOrderItemPayload {
   quantityRequested: number;
 }
 
+export type PaymentMethod = 'Wallet' | 'Cash' | 'BankTransfer' | 'Other';
+
 export interface CreateOrderPayload {
   storeId: string;
   requestedDeliveryDate: string;
@@ -49,7 +51,7 @@ export interface CreateOrderPayload {
   recipientPhone: string;
   address?: string;
   notes?: string;
-  paymentMethod: 'Wallet' | 'Other';
+  paymentMethod: PaymentMethod;
   items: CreateOrderItemPayload[];
 }
 
@@ -59,7 +61,7 @@ export interface UpdateOrderPayload {
   recipientPhone?: string;
   address?: string;
   notes?: string;
-  paymentMethod?: 'Wallet' | 'Other';
+  paymentMethod?: PaymentMethod;
   items?: CreateOrderItemPayload[];
 }
 
@@ -76,21 +78,30 @@ export interface ReceiveOrderPayload {
   receivedEvidenceImageURL?: string;
 }
 
-export interface ApproveOrderBatchItem {
-  batchId: string;
-  quantity: number;
+export interface CreateOrderResponseData {
+  order: LogisticsOrder;
+  invoice?: unknown;
+  walletPayment?: {
+    amountPaid: number;
+    newBalance: number;
+  };
 }
 
-export interface ApproveOrderItemPayload {
-  productId: string;
-  approvedQuantity: number;
-  batches: ApproveOrderBatchItem[];
-  /** Một số BE có thể đọc batchId trực tiếp trên item, nên cho phép thêm field này để tương thích */
-  batchId?: string;
+export interface CreateOrderResponse {
+  success: boolean;
+  message?: string;
+  data: CreateOrderResponseData;
 }
 
-export interface ApproveOrderPayload {
-  items: ApproveOrderItemPayload[];
+export interface ApproveOrderResponseData {
+  order: LogisticsOrder;
+  invoice?: unknown;
+}
+
+export interface ApproveOrderResponse {
+  success: boolean;
+  message?: string;
+  data: ApproveOrderResponseData;
 }
 
 export const OrderApi = {
@@ -117,8 +128,8 @@ export const OrderApi = {
     throw new Error('Order not found');
   },
 
-  createOrder: async (payload: CreateOrderPayload): Promise<OrderDetailResponse> => {
-    const res = (await apiClient.post('/logistics/orders', payload)) as OrderDetailResponse;
+  createOrder: async (payload: CreateOrderPayload): Promise<CreateOrderResponse> => {
+    const res = (await apiClient.post('/logistics/orders', payload)) as CreateOrderResponse;
     return res;
   },
 
@@ -142,11 +153,10 @@ export const OrderApi = {
     return res;
   },
 
-  approveOrder: async (orderId: string, payload: ApproveOrderPayload): Promise<OrderDetailResponse> => {
+  approveOrder: async (orderId: string): Promise<ApproveOrderResponse> => {
     const res = (await apiClient.post(
-      `/logistics/orders/${orderId}/approve`,
-      payload
-    )) as OrderDetailResponse;
+      `/logistics/orders/${orderId}/approve`
+    )) as ApproveOrderResponse;
     return res;
   },
 };

@@ -6,10 +6,8 @@ import {
     X,
     Inbox,
     PenSquare,
-    Send,
     ChevronLeft,
     ChevronRight,
-    AlertTriangle,
     Trash2
 } from 'lucide-react';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
@@ -38,7 +36,6 @@ const Shipments = () => {
     const [showModal, setShowModal] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [editingTrip, setEditingTrip] = useState<ITrip | null>(null);
-    const [tripToFinalize, setTripToFinalize] = useState<string | null>(null);
     const [tripToDelete, setTripToDelete] = useState<string | null>(null);
 
     // State Phân trang
@@ -103,18 +100,18 @@ const Shipments = () => {
     const getTripStatusLabel = (status: string) => {
         const s = (status || '').trim();
         const map: Record<string, string> = {
-            Planning: 'Lên kế hoạch',
-            Pending: 'Chờ xử lý',
-            Transferred_To_Kitchen: 'Đã chuyển bếp',
+            Planning: 'Đang chờ giao',
+            Pending: 'Đang xử lý',
+            Transferred_To_Kitchen: 'Bếp đang chuẩn bị',
             ReadyForShipping: 'Sẵn sàng giao',
             Ready_For_Shipping: 'Sẵn sàng giao',
             'Ready for shipping': 'Sẵn sàng giao',
-            In_Transit: 'Đang giao',
-            'In Transit': 'Đang giao',
-            Completed: 'Hoàn thành',
-            Cancelled: 'Đã hủy',
+            In_Transit: 'Đang giao cho cửa hàng',
+            'In Transit': 'Đang giao cho cửa hàng',
+            Completed: 'Đã giao xong',
+            Cancelled: 'Đã hủy chuyến',
         };
-        return map[s] ?? 'Trạng thái khác';
+        return map[s] ?? 'Trạng thái hệ thống khác';
     };
 
     const getTripStatusBadgeClass = (status: string) => {
@@ -129,7 +126,8 @@ const Shipments = () => {
     };
 
     const availableOrders = allOrders.filter(order => {
-        const isApproved = order.status === 'Approved';
+        // Trip chỉ làm việc với các đơn đã sẵn sàng giao (Ready_For_Shipping)
+        const isReadyForShipping = (order.status as string) === 'Ready_For_Shipping';
         const notInAnyTrip = !trips.some(trip =>
             trip.orders.some((tripOrder: any) => {
                 const tripOrderId = typeof tripOrder === 'string' ? tripOrder : tripOrder._id;
@@ -141,9 +139,9 @@ const Shipments = () => {
                 const tripOrderId = typeof tripOrder === 'string' ? tripOrder : tripOrder._id;
                 return tripOrderId === order._id;
             });
-            return isApproved && (notInAnyTrip || isInCurrentEditingTrip);
+            return isReadyForShipping && (notInAnyTrip || isInCurrentEditingTrip);
         }
-        return isApproved && notInAnyTrip;
+        return isReadyForShipping && notInAnyTrip;
     });
 
     const openCreateModal = () => {
@@ -201,26 +199,21 @@ const Shipments = () => {
             }
             setShowModal(false);
             fetchData();
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            toast.error('Đã xảy ra lỗi khi lưu chuyến hàng');
+            const message =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Đã xảy ra lỗi khi lưu chuyến hàng';
+            toast.error(message);
         } finally {
             setIsCreating(false);
         }
     };
 
-    const executeFinalizeTrip = async () => {
-        if (!tripToFinalize) return;
-        try {
-            await DeliveryTripApi.finalizeTrip(tripToFinalize);
-            toast.success('Chuyến hàng đã được chuyển qua bộ phận sản xuất!');
-            setTripToFinalize(null);
-            fetchData();
-        } catch (error) {
-            console.error(error);
-            toast.error('Lỗi khi khởi hành chuyến hàng');
-        }
-    };
+    // Finalize Trip không còn được backend hỗ trợ như một bước riêng.
+    // Trip sẽ được "chốt" bằng start-shipping và tự Completed khi tất cả đơn đã Received,
+    // nên không cần state/nút finalize ở layer Coordinator nữa.
 
     if (loading) return (
         <div className={`flex items-center justify-center h-64 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -299,12 +292,6 @@ const Shipments = () => {
                                         <PenSquare className="w-4 h-4" /> Edit
                                     </button>
                                     <button
-                                        onClick={() => setTripToFinalize(trip._id)}
-                                        className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-[10px] uppercase hover:opacity-90 flex justify-center items-center gap-1.5"
-                                    >
-                                        <Send className="w-4 h-4" /> Finalize
-                                    </button>
-                                    <button
                                         onClick={() => setTripToDelete(trip._id)}
                                         className="w-10 h-10 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex justify-center items-center"
                                     >
@@ -342,8 +329,10 @@ const Shipments = () => {
                     <div className={`w-full max-w-2xl rounded-[32px] border shadow-2xl overflow-hidden animate-in zoom-in-95 flex flex-col ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
                         <div className={`p-6 border-b flex justify-between items-center ${darkMode ? 'border-gray-700/50 bg-[#2A2A30]' : 'border-gray-100 bg-gray-50'}`}>
                             <div>
-                                <h2 className={`text-xl font-black uppercase italic ${darkMode ? 'text-white' : 'text-gray-900'}`}>{editingTrip ? 'Edit Delivery Trip' : 'Plan Delivery'}</h2>
-                                <p className={`text-[11px] font-bold uppercase mt-1 tracking-wider ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Chọn các đơn hàng đã duyệt ({availableOrders.length})</p>
+                                <h2 className={`text-xl font-black uppercase italic ${darkMode ? 'text-white' : 'text-gray-900'}`}>{editingTrip ? 'Chỉnh sửa chuyến giao' : 'Lập chuyến giao mới'}</h2>
+                                <p className={`text-[11px] font-bold uppercase mt-1 tracking-wider ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Chọn các đơn <span className="text-orange-500">ĐÃ SẴN SÀNG GIAO (Ready_For_Shipping)</span> chưa nằm trong chuyến giao ({availableOrders.length})
+                                </p>
                             </div>
                             <button onClick={() => setShowModal(false)} className={`p-2 rounded-xl transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}><X className="w-6 h-6" /></button>
                         </div>
@@ -429,35 +418,6 @@ const Shipments = () => {
                             <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-wider text-muted-foreground hover:bg-secondary transition-colors">Cancel</button>
                             <button disabled={selectedOrderIds.length === 0 || isCreating} onClick={handleSaveTrip} className="flex-[2] py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-30">
                                 {isCreating ? 'Saving...' : (editingTrip ? `Update Trip (${selectedOrderIds.length})` : `Create Trip (${selectedOrderIds.length})`)}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* MODAL FINALIZE */}
-            {tripToFinalize && (
-                <div className={`fixed inset-0 z-[110] flex items-center justify-center p-6 backdrop-blur-sm ${darkMode ? 'bg-black/70' : 'bg-black/40'}`}>
-                    <div className={`w-full max-w-sm rounded-[32px] border shadow-2xl p-6 text-center animate-in zoom-in-95 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}>
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                            <AlertTriangle className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-xl font-black uppercase mb-2">Chuyển qua sản xuất?</h3>
-                        <p className="text-sm mb-8 text-muted-foreground">
-                            Kế hoạch giao hàng này sẽ được chốt và chuyển xuống bộ phận bếp để chuẩn bị đơn hàng.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setTripToFinalize(null)}
-                                className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
-                            >
-                                Hủy bỏ
-                            </button>
-                            <button
-                                onClick={executeFinalizeTrip}
-                                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
-                            >
-                                <Send className="w-4 h-4" /> Xác nhận
                             </button>
                         </div>
                     </div>

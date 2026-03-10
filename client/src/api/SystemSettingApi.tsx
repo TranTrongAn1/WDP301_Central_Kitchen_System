@@ -6,6 +6,8 @@ export interface SystemSetting {
   value: string;
   description?: string;
   isPublic: boolean;
+  dataType?: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
+  group?: 'SYSTEM' | 'FINANCE' | 'DELIVERY' | 'PRODUCTION' | 'ORDER' | 'INVENTORY' | 'OTHER';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -28,11 +30,16 @@ export interface CreateSystemSettingPayload {
   value: string;
   description?: string;
   isPublic?: boolean;
+  dataType?: SystemSetting['dataType'];
+  group?: SystemSetting['group'];
 }
 
 export const systemSettingApi = {
-  getAll: (publicOnly?: boolean) => {
-    const query = publicOnly ? '?publicOnly=true' : '';
+  getAll: (publicOnly?: boolean, group?: SystemSetting['group']) => {
+    const params: string[] = [];
+    if (publicOnly) params.push('publicOnly=true');
+    if (group) params.push(`group=${group}`);
+    const query = params.length ? `?${params.join('&')}` : '';
     return apiClient.get(`/system-settings${query}`) as Promise<SystemSettingListResponse>;
   },
 
