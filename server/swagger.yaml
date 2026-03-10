@@ -1144,7 +1144,16 @@ paths:
         - Production Plans
       summary: Create production plan
       description: |
-        Create a new production plan for manufacturing products.
+        Create a new production plan by aggregating a set of 'Approved' orders.
+        
+        **Workflow:**
+        1. Coordinator provides a list of `orderIds` (all must be in 'Approved' status).
+        2. System aggregates quantities across all order items per unique product.
+        3. System auto-generates the `details` array from the aggregated data.
+        4. All referenced orders are transitioned to 'Transferred_To_Kitchen' status.
+        
+        **Business Rule:**
+        - The total accumulated quantity of all products across all selected orders MUST NOT exceed the system limit `MAX_PRODUCTS_PER_PLAN`.
         
         **Important:** Each plan creates a unique planCode and tracks planned vs actual quantities.
       security:
@@ -1157,8 +1166,7 @@ paths:
               type: object
               required:
                 - planCode
-                - planDate
-                - details
+                - orderIds
               properties:
                 planCode:
                   type: string
@@ -1168,43 +1176,39 @@ paths:
                   type: string
                   format: date
                   example: '2026-01-29'
-                  description: 'Planned production date'
+                  description: 'Planned production date (defaults to today if omitted)'
                 note:
                   type: string
                   example: 'Production for Mid-Autumn Festival'
-                status:
-                  type: string
-                  enum: [Planned, In_Progress, Completed, Cancelled]
-                  default: Planned
-                details:
+                orderIds:
                   type: array
-                  description: 'List of products to be manufactured'
+                  description: 'Array of Approved order IDs to aggregate into this production plan'
+                  minItems: 1
                   items:
-                    type: object
-                    required:
-                      - productId
-                      - plannedQuantity
-                    properties:
-                      productId:
-                        type: string
-                        example: '60d5ec49f1b2c8b1f8e4e1a5'
-                      plannedQuantity:
-                        type: number
-                        example: 100
-                        description: 'Target quantity to produce'
-                      actualQuantity:
-                        type: number
-                        default: 0
-                        description: 'Actual quantity produced (updated during production)'
-                      status:
-                        type: string
-                        enum: [Pending, In_Progress, Completed, Cancelled]
-                        default: Pending
+                    type: string
+                    description: 'Order ObjectId'
+                  example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
       responses:
         '201':
-          description: Production plan created successfully
+          description: Production plan created successfully and orders transitioned to Transferred_To_Kitchen
         '400':
-          description: Invalid input or duplicate plan code
+          description: Invalid input, duplicate plan code, orders not Approved, or capacity limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Vượt quá năng lực Bếp! Mẻ nấu này có tổng cộng 1200 sản phẩm, nhưng giới hạn hệ thống chỉ cho phép tối đa 1000 sản phẩm/mẻ.'
+        '404':
+          description: One or more orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Orders not found: 60d5ec49f1b2c8b1f8e4e1a9'
 
   /api/production-plans/{id}:
     get:
@@ -1229,7 +1233,13 @@ paths:
       tags:
         - Production Plans
       summary: Update production plan
-      description: Update production plan details (Admin, Manager, Kitchen Staff only)
+      description: |
+        Update general information for a production plan (Admin, Manager, Kitchen Staff only).
+
+        **Allowed fields:** `planCode`, `planDate`, `note` only.
+
+        **Not allowed:** `details` and `orders` are auto-generated from the original `orderIds` at creation and are immutable.
+        Use the `PATCH /api/production-plans/{id}` endpoint to update plan status instead.
       security:
         - BearerAuth: []
       parameters:
@@ -1246,29 +1256,14 @@ paths:
               properties:
                 planCode:
                   type: string
-                  description: 'Unique plan code'
+                  description: Unique plan code
                 planDate:
                   type: string
                   format: date
+                  description: Scheduled production date
                 note:
                   type: string
-                status:
-                  type: string
-                  enum: [Planned, In_Progress, Completed, Cancelled]
-                details:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      productId:
-                        type: string
-                      plannedQuantity:
-                        type: number
-                      actualQuantity:
-                        type: number
-                      status:
-                        type: string
-                        enum: [Pending, In_Progress, Completed, Cancelled]
+                  description: Optional notes for the plan
       responses:
         '200':
           description: Plan updated successfully
@@ -1281,6 +1276,8 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/ProductionPlan'
+        '400':
+          description: Cannot update a plan with status Completed or Cancelled
         '404':
           description: Plan not found
     delete:
@@ -2014,12 +2011,9 @@ paths:
     post:
       tags:
         - Logistics
-      summary: Approve order and deduct inventory
+      summary: Approve order for production
       description: |
-        Approve a pending order, assign batch inventory, deduct quantities, and create an invoice.
-        Transitions order status from "Pending" to "Approved" (NOT "In_Transit").
-        
-        **Traceability:** Assigns specific batches to order items for full supply chain tracking.
+        Approve a pending order. Changes status from Pending to Approved and updates invoice due date. No inventory deduction happens here anymore.
       security:
         - BearerAuth: []
       parameters:
@@ -2029,32 +2023,6 @@ paths:
           schema:
             type: string
           description: Order ID to approve
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  description: Array of batch assignments for each order item (must match order items count)
-                  minItems: 1
-                  items:
-                    type: object
-                    required:
-                      - batchId
-                    properties:
-                      batchId:
-                        type: string
-                        description: 'CRITICAL: Finished batch ID for traceability (Production Plan → Batch → Order)'
-                        example: '60d5ec49f1b2c8b1f8e4e1c3'
-            example:
-              items:
-                - batchId: '60d5ec49f1b2c8b1f8e4e1c3'
-                - batchId: '60d5ec49f1b2c8b1f8e4e1c4'
       responses:
         '200':
           description: Order approved successfully
@@ -2068,7 +2036,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: 'Order approved successfully'
+                    example: 'Order approved successfully. Awaiting production by the kitchen.'
                   data:
                     type: object
                     properties:
@@ -2077,9 +2045,9 @@ paths:
                       invoice:
                         $ref: '#/components/schemas/Invoice'
         '400':
-          description: Invalid input (e.g., insufficient batch quantity, wrong item count)
+          description: Order is not in Pending status
         '404':
-          description: Order or batch not found
+          description: Order not found
 
   /api/logistics/orders/{orderId}/reject:
     post:
@@ -2178,6 +2146,9 @@ paths:
         2. Groups them into a single delivery trip
         3. All orders transition from 'Approved' to 'In_Transit'
         
+        **Business Rule:**
+        - The total number of orders assigned to this trip MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
+        
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
         - BearerAuth: []
@@ -2192,14 +2163,24 @@ paths:
               properties:
                 orderIds:
                   type: array
-                  description: 'Array of order IDs to include in this delivery trip (all must have "Approved" status)'
+                  description: 'Array of order IDs to include in this delivery trip (all must have "Ready_For_Shipping" status)'
                   minItems: 1
                   items:
                     type: string
                     description: 'Order ObjectId'
                   example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
+                vehicleTypeId:
+                  type: string
+                  description: 'ID of the vehicle type assigned to this trip'
+                  example: '60d5ec49f1b2c8b1f8e4e1ff'
+                notes:
+                  type: string
+                  description: 'Optional instructions for the driver'
+                  example: 'Handle with care. Deliver to back entrance.'
             example:
               orderIds: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa']
+              vehicleTypeId: '60d5ec49f1b2c8b1f8e4e1ff'
+              notes: 'Handle with care. Deliver to back entrance.'
       responses:
         '201':
           description: Delivery trip created successfully
@@ -2225,9 +2206,23 @@ paths:
                         items:
                           $ref: '#/components/schemas/Order'
         '400':
-          description: Invalid input (e.g., orders not in "Approved" status, empty orderIds array)
+          description: Bad Request (Invalid input, orders not in "Ready_For_Shipping" status, or limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Exceeded maximum limit. A delivery trip can only have up to 100 orders. You provided 105.'
         '404':
           description: One or more orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'One or more orders not found'
 
   /api/logistics/trips:
     get:
@@ -2245,7 +2240,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [In_Transit, Completed, Cancelled]
+            enum: [Planning, In_Transit, Completed, Cancelled]
           description: Filter by trip status
       responses:
         '200':
@@ -2432,6 +2427,9 @@ paths:
         - All orders must have 'Approved' status
         - Duplicate order IDs are automatically prevented
         
+        **Business Rule:**
+        - The total number of orders (existing + new) MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
+        
         **Workflow:** Coordinator builds trip by adding approved orders one by one or in batches.
       security:
         - BearerAuth: []
@@ -2482,9 +2480,23 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Invalid input (e.g., trip not in Planning status, orders not Approved)
+          description: Bad Request (Invalid input, trip not in Planning, orders not Approved, or capacity limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Capacity exceeded. Trip has 90 orders. Adding 15 new orders exceeds the limit of 100 per trip.'
         '404':
           description: Delivery trip or orders not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Delivery trip not found'
 
   /api/logistics/trips/{id}/remove-orders:
     patch:
@@ -2555,146 +2567,28 @@ paths:
         '404':
           description: Delivery trip not found
 
-  /api/logistics/trips/{id}/finalize:
-    post:
-      tags:
-        - Logistics
-      summary: Finalize delivery plan and transfer to kitchen for production
-      description: |
-        Finalize the delivery trip and transfer to Central Kitchen for production.
-        
-        **Actions:**
-        - Updates trip status from 'Planning' to 'Transferred_To_Kitchen'
-        - Updates all orders in trip to 'Transferred_To_Kitchen' status
-        - Signals to kitchen staff that production can begin
-        
-        **Requirements:**
-        - Trip must have at least one order
-        - Trip must be in 'Planning' status
-        
-        **Workflow:** Coordinator finalizes trip when planning is complete. After this, orders are queued for production.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Delivery Trip ID
-      responses:
-        '200':
-          description: Delivery plan finalized successfully and transferred to kitchen
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                    example: 'Delivery plan finalized successfully. 3 orders transferred to kitchen for production.'
-                  data:
-                    type: object
-                    properties:
-                      trip:
-                        $ref: '#/components/schemas/DeliveryTrip'
-                      ordersUpdated:
-                        type: integer
-                        example: 3
-                      transferDate:
-                        type: string
-                        format: date-time
-                        example: '2026-02-05T08:00:00Z'
-                      totalOrders:
-                        type: integer
-                        example: 3
-        '400':
-          description: Invalid operation (e.g., trip not in Planning status, no orders in trip)
-        '404':
-          description: Delivery trip not found
-
-  /api/logistics/trips/{id}/ready:
-    post:
-      tags:
-        - Logistics
-      summary: Mark trip as ready for shipping (Kitchen Done)
-      description: |
-        Mark a delivery trip as ready for shipping after Central Kitchen completes production.
-        This represents the Kitchen clicking 'Done' on their production tasks.
-        
-        **Actions:**
-        - Updates trip status from 'Transferred_To_Kitchen' to 'Ready_For_Shipping'
-        - Updates all orders in trip to 'Ready_For_Shipping' status
-        - Signals to coordinator that goods are ready for shipment
-        
-        **Requirements:**
-        - Trip must be in 'Transferred_To_Kitchen' status
-        - Trip must have at least one order
-        
-        **Workflow:** Kitchen staff marks trip as ready when all production is complete and goods are prepared for delivery.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Delivery Trip ID
-      responses:
-        '200':
-          description: Trip marked as ready for shipping successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                    example: "Trip marked as ready for shipping. 3 orders updated to 'Ready_For_Shipping' status."
-                  data:
-                    type: object
-                    properties:
-                      trip:
-                        $ref: '#/components/schemas/DeliveryTrip'
-                      ordersUpdated:
-                        type: integer
-                        example: 3
-                      readyDate:
-                        type: string
-                        format: date-time
-                        example: '2026-02-05T10:00:00Z'
-                      totalOrders:
-                        type: integer
-                        example: 3
-        '400':
-          description: Invalid operation (e.g., trip not in Transferred_To_Kitchen status)
-        '404':
-          description: Delivery trip not found
-
   /api/logistics/trips/{id}/start-shipping:
     post:
       tags:
         - Logistics
       summary: Start shipping process
       description: |
-        Start the actual shipping process by moving ready goods to in-transit status.
+        Start the actual shipping process, moving the trip and all its orders directly to in-transit status.
         
         **Actions:**
-        - Updates trip status from 'Ready_For_Shipping' to 'In_Transit'
+        - Updates trip status from 'Planning' to 'In_Transit'
         - Updates all orders in trip to 'In_Transit' status
         - Sets shippedDate timestamp for all orders
         - Sets trip departureTime timestamp
+        - Deducts stock quantities from FinishedBatches
         
         **Requirements:**
-        - Trip must be in 'Ready_For_Shipping' status
-        - Trip must have at least one order
+        - Trip must be in 'Planning' status
         
-        **Workflow:** Coordinator starts shipping when goods are loaded and departure begins.
+        **Business Rule:**
+        - The trip MUST have at least the minimum required orders (`MIN_ORDERS_PER_TRIP`) to depart.
+        
+        **Workflow:** Coordinator dispatches the truck directly from Planning. No kitchen handoff step required.
       security:
         - BearerAuth: []
       parameters:
@@ -2733,9 +2627,23 @@ paths:
                         type: integer
                         example: 3
         '400':
-          description: Invalid operation (e.g., trip not in Ready_For_Shipping status)
+          description: Bad Request (Invalid operation, trip not in Planning, or minimum orders not met)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Cannot start shipping. A trip requires at least 5 orders to depart. Currently has 2 order(s).'
         '404':
           description: Delivery trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                message: 'Delivery trip not found'
 
   /api/logistics/invoices:
     get:
@@ -4090,9 +3998,9 @@ paths:
         '200':
           description: Completed successfully and inventory updated
 
-  # ============================================================
-  # SYSTEM SETTINGS MANAGEMENT
-  # ============================================================
+# ============================================================
+# SYSTEM SETTINGS MANAGEMENT
+# ============================================================
   /api/system-settings:
     get:
       tags:
@@ -4105,7 +4013,7 @@ paths:
         - If user is authenticated: Returns all settings
         - If not authenticated OR publicOnly=true: Returns only settings where isPublic=true
         
-        **Use Case:** Mobile app fetches public settings (shipping fees, tax rates) without authentication.
+        **Use Case:** Mobile app fetches public settings without authentication. Admin fetches by Group.
       parameters:
         - in: query
           name: publicOnly
@@ -4113,6 +4021,13 @@ paths:
             type: boolean
           description: 'If true, return only public settings'
           example: true
+        - in: query
+          name: group
+          schema:
+            type: string
+            enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          description: 'Filter settings by group (e.g., DELIVERY, PRODUCTION)'
+          example: 'DELIVERY'
       responses:
         '200':
           description: Successfully retrieved settings
@@ -4154,10 +4069,12 @@ paths:
             schema:
               $ref: '#/components/schemas/SystemSettingInput'
             example:
-              key: 'SHIPPING_COST_BASE'
-              value: '50000'
-              description: 'Base shipping cost for deliveries (VND)'
-              isPublic: true
+              key: 'MAX_ORDERS_PER_TRIP'
+              value: '100'
+              dataType: 'NUMBER'
+              group: 'DELIVERY'
+              description: 'Giới hạn tối đa 100 đơn/chuyến xe'
+              isPublic: false
       responses:
         '201':
           description: System setting created successfully
@@ -4180,17 +4097,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
-                missingFields:
-                  summary: Missing required fields
-                  value:
-                    success: false
-                    message: 'Please provide key and value'
-                duplicate:
-                  summary: Duplicate key
-                  value:
-                    success: false
-                    message: "Setting with key 'SHIPPING_COST_BASE' already exists"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4203,19 +4109,13 @@ paths:
       summary: Seed default system settings
       description: |
         Automatically populate default system settings if they don't exist.
-        
-        **Default Settings:**
-        - SHIPPING_COST_BASE: '50000' (VND)
-        - TAX_RATE: '0.08' (8%)
+        Includes settings for Delivery, Production, and Finance.
         
         **Behavior:**
         - Only creates settings that don't already exist
         - Skips existing settings without updating them
-        - Returns list of seeded and skipped settings
         
         **Access:** Admin only
-        
-        **Use Case:** Initial system setup or post-deployment configuration.
       security:
         - BearerAuth: []
       responses:
@@ -4243,13 +4143,13 @@ paths:
                         type: array
                         items:
                           type: string
-                        example: ['SHIPPING_COST_BASE']
+                        example: ['TAX_RATE', 'MAX_ORDERS_PER_TRIP']
                       seededCount:
                         type: integer
-                        example: 1
+                        example: 3
                       skippedCount:
                         type: integer
-                        example: 1
+                        example: 2
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4266,8 +4166,6 @@ paths:
         **Access Control:**
         - Public settings (isPublic=true): Accessible without authentication
         - Private settings (isPublic=false): Requires authentication
-        
-        **Key Format:** Case-insensitive (automatically converted to uppercase)
       parameters:
         - in: path
           name: key
@@ -4275,7 +4173,7 @@ paths:
           schema:
             type: string
           description: 'Setting key (case-insensitive)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
       responses:
         '200':
           description: Successfully retrieved setting
@@ -4295,18 +4193,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'Access denied. This setting is private.'
         '404':
           description: System setting not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
 
     put:
       tags:
@@ -4315,12 +4207,7 @@ paths:
       description: |
         Update an existing system setting.
         
-        **Updatable Fields:**
-        - value: New value for the setting
-        - description: Updated description
-        - isPublic: Change public accessibility
-        
-        **Note:** The key cannot be updated. To change a key, delete and recreate the setting.
+        **Updatable Fields:** value, dataType, group, description, isPublic
         
         **Access:** Admin only
       security:
@@ -4332,7 +4219,7 @@ paths:
           schema:
             type: string
           description: 'Setting key (case-insensitive)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
       requestBody:
         required: true
         content:
@@ -4340,9 +4227,11 @@ paths:
             schema:
               $ref: '#/components/schemas/SystemSettingUpdate'
             example:
-              value: '60000'
-              description: 'Updated base shipping cost for 2026'
-              isPublic: true
+              value: '120'
+              dataType: 'NUMBER'
+              group: 'DELIVERY'
+              description: 'Đã nâng giới hạn chở hàng'
+              isPublic: false
       responses:
         '200':
           description: System setting updated successfully
@@ -4365,9 +4254,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4379,10 +4265,6 @@ paths:
       summary: Delete a system setting
       description: |
         Permanently delete a system setting from the database.
-        
-        **Warning:** This is a hard delete operation and cannot be undone.
-        
-        **Use Case:** Remove deprecated or unused settings.
         
         **Access:** Admin only
       security:
@@ -4417,9 +4299,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                success: false
-                message: 'System setting not found'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4931,9 +4810,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Planning, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Completed, Cancelled]
+          enum: [Planning, In_Transit, Completed, Cancelled]
           default: Planning
-          description: 'Current trip status. Workflow: Planning -> Transferred_To_Kitchen (finalized) -> Ready_For_Shipping (kitchen done) -> In_Transit (shipping started) -> Completed (all orders received)'
+          description: 'Current trip status. Workflow: Planning -> In_Transit (shipping started) -> Completed (all orders received)'
         completedTime:
           type: string
           format: date-time
@@ -5305,6 +5184,16 @@ components:
           type: string
           description: 'Setting value (stored as string)'
           example: '50000'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          description: 'Data type for frontend rendering and backend parsing'
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          description: 'Grouping category for admin dashboard tabs'
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Human-readable description of the setting'
@@ -5330,20 +5219,27 @@ components:
         key:
           type: string
           description: 'Setting key (will be converted to uppercase)'
-          example: 'SHIPPING_COST_BASE'
+          example: 'MAX_ORDERS_PER_TRIP'
         value:
           type: string
           description: 'Setting value'
-          example: '50000'
+          example: '100'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Description of the setting'
-          example: 'Base shipping cost for deliveries (VND)'
+          example: 'Giới hạn đơn tối đa trên 1 chuyến xe'
         isPublic:
           type: boolean
-          description: 'Make this setting publicly accessible'
           default: false
-          example: true
+          example: false
 
     SystemSettingUpdate:
       type: object
@@ -5351,14 +5247,21 @@ components:
         value:
           type: string
           description: 'New value for the setting'
-          example: '60000'
+          example: '120'
+        dataType:
+          type: string
+          enum: [STRING, NUMBER, BOOLEAN, JSON]
+          example: 'NUMBER'
+        group:
+          type: string
+          enum: [SYSTEM, FINANCE, DELIVERY, PRODUCTION, ORDER, INVENTORY, OTHER]
+          example: 'DELIVERY'
         description:
           type: string
           description: 'Updated description'
-          example: 'Updated base shipping cost'
+          example: 'Đã tăng giới hạn lên 120 đơn'
         isPublic:
           type: boolean
-          description: 'Change public accessibility'
           example: false
 
     IngredientRequest:

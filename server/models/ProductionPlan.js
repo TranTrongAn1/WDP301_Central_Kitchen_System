@@ -30,6 +30,13 @@ const productionPlanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Orders grouped by the Coordinator to drive this production plan
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Order',
+      },
+    ],
     // Details: Array of products to be produced
     details: [
       {

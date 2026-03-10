@@ -15,8 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
 import { useNotification } from "@/context/notification-context";
-import { ingredientBatchesApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
+import { ingredientBatchesApi } from "@/lib/api";
 
 export default function IngredientBatchCreateScreen() {
   const insets = useSafeAreaInsets();
@@ -124,8 +124,8 @@ export default function IngredientBatchCreateScreen() {
           <TextInput
             value={initialQuantity}
             onChangeText={setInitialQuantity}
-            keyboardType="numeric"
-            placeholder="Ví dụ: 500"
+            keyboardType="decimal-pad"
+            placeholder="Ví dụ: 500 hoặc 0.25"
             style={styles.input}
           />
 
@@ -133,8 +133,8 @@ export default function IngredientBatchCreateScreen() {
           <TextInput
             value={price}
             onChangeText={setPrice}
-            keyboardType="numeric"
-            placeholder="Ví dụ: 25000"
+            keyboardType="decimal-pad"
+            placeholder="Ví dụ: 25000 hoặc 25000.5"
             style={styles.input}
           />
 

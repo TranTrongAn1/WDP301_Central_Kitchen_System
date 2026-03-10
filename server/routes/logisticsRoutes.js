@@ -15,10 +15,10 @@ const {
   recordPayment,
   addOrdersToTrip,
   removeOrdersFromTrip,
-  finalizeDeliveryPlan,
-  markTripAsReady,
   startShipping,
   deleteDeliveryTrip,
+  getInvoices,
+  getInvoiceById,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -92,20 +92,6 @@ router.patch(
   removeOrdersFromTrip
 );
 
-// Finalize delivery plan - transfer to kitchen (Coordinator, Manager, Admin)
-router.post(
-  '/trips/:id/finalize',
-  authorize('Coordinator', 'Manager', 'Admin'),
-  finalizeDeliveryPlan
-);
-
-// Mark trip as ready for shipping (Kitchen Staff, Manager, Admin)
-router.post(
-  '/trips/:id/ready',
-  authorize('KitchenStaff', 'Manager', 'Admin'),
-  markTripAsReady
-);
-
 // Start shipping process (Coordinator, Manager, Admin)
 router.post(
   '/trips/:id/start-shipping',
@@ -134,6 +120,12 @@ router.delete(
 );
 
 // ===== INVOICE ROUTES =====
+
+// Get all invoices
+router.get('/invoices', getInvoices);
+
+// Get single invoice by ID
+router.get('/invoices/:id', getInvoiceById);
 
 // Record payment for an invoice (Store Staff, Manager, Admin)
 router.post(

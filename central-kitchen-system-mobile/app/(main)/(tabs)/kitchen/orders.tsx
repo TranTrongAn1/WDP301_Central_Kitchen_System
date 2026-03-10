@@ -19,7 +19,7 @@ export default function KitchenOrdersScreen() {
         <View style={styles.headerActions}>
           <Pressable
             style={styles.linkButton}
-            onPress={() => router.push('/(tabs)/kitchen/inventory')}
+            onPress={() => router.push('/(main)/(tabs)/kitchen/inventory')}
           >
             <Text style={styles.linkButtonText}>Kho</Text>
           </Pressable>
@@ -32,7 +32,7 @@ export default function KitchenOrdersScreen() {
         <Text style={styles.cardSubtitle}>
           Xem và cập nhật batch sản xuất từ màn hình con.
         </Text>
-        <Pressable style={styles.secondaryButton} onPress={() => router.push('/(tabs)/kitchen/batches')}>
+        <Pressable style={styles.secondaryButton} onPress={() => router.push('/(main)/(tabs)/kitchen/batches')}>
           <Text style={styles.secondaryButtonText}>Đi tới Batch</Text>
         </Pressable>
       </View>
