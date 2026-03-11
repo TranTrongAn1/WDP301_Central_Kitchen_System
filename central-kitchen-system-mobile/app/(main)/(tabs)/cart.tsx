@@ -19,6 +19,8 @@ import { useCart } from "@/context/cart-context";
 import { useNotification } from "@/context/notification-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useStore } from "@/hooks/use-store";
+import { useSystemSettings } from "@/hooks/use-system-settings";
+import { useWallet } from "@/hooks/use-wallet";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import type { Invoice } from "@/lib/invoices";
 import { CreateOrderData, Order } from "@/lib/orders";
@@ -68,8 +70,18 @@ export default function CartTabScreen() {
   const [recipientAddress, setRecipientAddress] = useState("");
 
   const { store /*, isLoading: _isStoreLoading */ } = useStore(); // loading flag currently unused
+  const { settings: systemSettings, isLoading: settingsLoading } = useSystemSettings();
+  const { wallet, isLoading: walletLoading } = useWallet();
 
   const orderItems = buildOrderItems(items);
+
+  // Calculate amounts with tax
+  const taxRate = (systemSettings?.TAX_RATE as number) || 0;
+  const shippingCostBase = (systemSettings?.SHIPPING_COST_BASE as number) || 0;
+  const vatAmount = Math.round(subtotal * taxRate);
+  const totalAmount = subtotal + vatAmount + shippingCostBase;
+  const walletBalance = wallet?.balance || 0;
+
   const isValid =
     orderItems.length > 0 &&
     Boolean(
@@ -141,7 +153,7 @@ export default function CartTabScreen() {
       const creationData: CreateOrderData = res.data;
       const orderObj: Order = creationData.order;
       const currentOrderId = orderObj._id;
-      setOrderId(currentOrderId); 
+      setOrderId(currentOrderId);
       orderRef.current = currentOrderId;
       clearCart();
       setSubmitError(null);
@@ -347,14 +359,54 @@ export default function CartTabScreen() {
           </View>
         </View>
       ))}
+
+      {/* Wallet Balance Display */}
+      <View style={[styles.walletCard, cardShadowSmall]}>
+        <View style={styles.walletHeader}>
+          <Text style={styles.walletTitle}>💳 Số dư ví</Text>
+          {walletLoading ? (
+            <ActivityIndicator size="small" color="#D91E18" />
+          ) : (
+            <Text style={styles.walletBalance}>
+              {walletBalance.toLocaleString("vi-VN")} đ
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Summary with Tax Calculation */}
       <View style={[styles.summary, cardShadowSmall]}>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Tạm tính</Text>
           <Text style={styles.summaryValue}>{subtotal.toLocaleString("vi-VN")} đ</Text>
         </View>
-        <View style={styles.summaryRow}>
+        {settingsLoading ? (
+          <View style={styles.summaryRow}>
+            <ActivityIndicator size="small" color="#D91E18" />
+          </View>
+        ) : (
+          <>
+            {taxRate > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Thuế VAT ({(taxRate * 100).toFixed(0)}%)
+                </Text>
+                <Text style={styles.summaryValue}>{vatAmount.toLocaleString("vi-VN")} đ</Text>
+              </View>
+            )}
+            {shippingCostBase > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Phí vận chuyển cơ sở</Text>
+                <Text style={styles.summaryValue}>
+                  {shippingCostBase.toLocaleString("vi-VN")} đ
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+        <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.summaryLabel}>Tổng cộng</Text>
-          <Text style={styles.summaryTotal}>{subtotal.toLocaleString("vi-VN")} đ</Text>
+          <Text style={styles.summaryTotal}>{totalAmount.toLocaleString("vi-VN")} đ</Text>
         </View>
       </View>
       {submitError ? (
@@ -592,9 +644,38 @@ const styles = StyleSheet.create({
     borderColor: "#FFE1E1",
   },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#FFE1E1",
+    paddingTop: 8,
+    marginTop: 8,
+  },
   summaryLabel: { fontSize: 14, color: "#666" },
   summaryValue: { fontSize: 14, fontWeight: "600", color: "#2A2A2A" },
   summaryTotal: { fontSize: 16, fontWeight: "700", color: "#9B0F0F" },
+  walletCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FFE1E1",
+  },
+  walletHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  walletTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2A2A2A",
+  },
+  walletBalance: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#9B0F0F",
+  },
   submitBtn: {
     backgroundColor: "#D91E18",
     paddingVertical: 14,
