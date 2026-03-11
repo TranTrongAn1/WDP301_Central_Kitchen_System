@@ -7,14 +7,14 @@ router.use(protect);
 // 1. Xem danh sách phiếu (Bếp, Điều phối, Admin đều xem được)
 router.get(
   '/', 
-  authorize('Kitchen', 'Coordinator', 'Admin'), 
+  authorize('KitchenStaff', 'Coordinator', 'Admin'), 
   ingredientRequestController.getAllRequests
 );
 
 // 2. BẾP tạo phiếu xin mua
 router.post(
   '/', 
-  authorize('Kitchen', 'Admin'), 
+  authorize('KitchenStaff', 'Admin'), 
   ingredientRequestController.createRequest
 );
 
@@ -28,7 +28,7 @@ router.put(
 // 4. CHỐT HÀNG & NHẬP TIỀN (Ai đi chợ người đó chốt, Bếp hoặc Điều phối đều ok)
 router.put(
   '/:id/complete', 
-  authorize('Kitchen', 'Coordinator', 'Admin'), 
+  authorize('KitchenStaff', 'Coordinator', 'Admin'), 
   ingredientRequestController.completeRequest
 );
 
