@@ -11,8 +11,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { cardShadowSmall } from "@/constants/theme";
-import { logisticsOrdersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
+import { useSystemSettings } from "@/hooks/use-system-settings";
+import { invoicesApi, logisticsOrdersApi } from "@/lib/api";
+import type { Invoice } from "@/lib/invoices";
+import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order } from "@/lib/orders";
 
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
@@ -48,10 +51,12 @@ export default function OrdersTabScreen() {
   const router = useRouter();
   const { token, user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [invoiceMap, setInvoiceMap] = useState<Record<string, Invoice>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterToday, setFilterToday] = useState(true);
+  const { settings: systemSettings } = useSystemSettings();
 
   const load = useCallback(async () => {
     if (!token || !user?.storeId) {
@@ -66,10 +71,23 @@ export default function OrdersTabScreen() {
         { storeId: user.storeId, status: filterStatus || undefined },
         token,
       );
-      setOrders(res.data ?? []);
+      const nextOrders = res.data ?? [];
+      setOrders(nextOrders);
+
+      try {
+        const invoiceRes = await invoicesApi.getAll({ storeId: user.storeId }, token);
+        const nextMap = (invoiceRes.data ?? []).reduce<Record<string, Invoice>>((acc, current) => {
+          acc[current.orderId] = current;
+          return acc;
+        }, {});
+        setInvoiceMap(nextMap);
+      } catch {
+        setInvoiceMap({});
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được đơn hàng.");
       setOrders([]);
+      setInvoiceMap({});
     } finally {
       setLoading(false);
     }
@@ -82,9 +100,9 @@ export default function OrdersTabScreen() {
   const todayStr = formatDateKey(new Date());
   const filtered = filterToday
     ? orders.filter((o) => {
-        const dateStr = o.orderDate?.slice(0, 10) ?? (o as Order & { createdAt?: string }).createdAt?.slice(0, 10) ?? "";
-        return dateStr === todayStr;
-      })
+      const dateStr = o.orderDate?.slice(0, 10) ?? (o as Order & { createdAt?: string }).createdAt?.slice(0, 10) ?? "";
+      return dateStr === todayStr;
+    })
     : orders;
 
   return (
@@ -134,26 +152,38 @@ export default function OrdersTabScreen() {
         <Text style={styles.empty}>Chưa có đơn hàng.</Text>
       ) : (
         filtered.map((order) => (
-          <Pressable
-            key={order._id}
-            style={styles.card}
-            onPress={() => router.push(`/orders/${order._id}`)}
-          >
-            <View style={styles.cardRow}>
-              <Text style={styles.orderId}>#{order.orderNumber ?? order._id.slice(-6)}</Text>
-              <Text style={[styles.status, styles[`status_${order.status}` as keyof typeof styles]]}>
-                {order.status}
-              </Text>
-            </View>
-            <Text style={styles.time}>
-              {formatDateTime(order.orderDate ?? (order as Order & { createdAt?: string }).createdAt)}
-            </Text>
-            <Text style={styles.total}>
-              {order.totalAmount != null
-                ? `${order.totalAmount.toLocaleString("vi-VN")} đ`
-                : "—"}
-            </Text>
-          </Pressable>
+          (() => {
+            const pricing = getOrderPricingBreakdown(order, invoiceMap[order._id] ?? null, {
+              taxRate: systemSettings?.TAX_RATE,
+              shippingCostBase: systemSettings?.SHIPPING_COST_BASE,
+            });
+
+            return (
+              <Pressable
+                key={order._id}
+                style={styles.card}
+                onPress={() => router.push(`/orders/${order._id}`)}
+              >
+                <View style={styles.cardRow}>
+                  <Text style={styles.orderId}>#{order.orderNumber ?? order._id.slice(-6)}</Text>
+                  <Text style={[styles.status, styles[`status_${order.status}` as keyof typeof styles]]}>
+                    {order.status}
+                  </Text>
+                </View>
+                <Text style={styles.time}>
+                  {formatDateTime(order.orderDate ?? (order as Order & { createdAt?: string }).createdAt)}
+                </Text>
+                <View style={styles.priceMeta}>
+                  <Text style={styles.priceMetaText}>Tạm tính: {pricing.subtotal.toLocaleString("vi-VN")} đ</Text>
+                  <Text style={styles.priceMetaText}>VAT: {pricing.vatAmount.toLocaleString("vi-VN")} đ</Text>
+                </View>
+                <View style={styles.priceMeta}>
+                  <Text style={styles.priceMetaText}>Ship: {pricing.shippingAmount.toLocaleString("vi-VN")} đ</Text>
+                  <Text style={styles.total}>Tổng: {pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
+                </View>
+              </Pressable>
+            );
+          })()
         ))
       )}
     </ScrollView>
@@ -266,6 +296,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#666",
     marginBottom: 4,
+  },
+  priceMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  priceMetaText: {
+    fontSize: 12,
+    color: "#666",
   },
   total: {
     fontSize: 14,

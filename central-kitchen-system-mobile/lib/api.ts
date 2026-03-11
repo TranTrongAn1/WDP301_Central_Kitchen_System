@@ -3,6 +3,11 @@ import type { LoginResponse, MeResponse } from "@/lib/auth";
 import type { CategoriesResponse } from "@/lib/categories";
 import { API_BASE_URL } from "@/lib/env";
 import type {
+  CreateFeedbackPayload,
+  FeedbackResponse,
+  UpdateFeedbackPayload,
+} from "@/lib/feedback";
+import type {
   IngredientBatch,
   IngredientBatchResponse,
   IngredientBatchesResponse,
@@ -18,11 +23,6 @@ import type {
   InvoicesResponse,
   PaymentLinkResponse,
 } from "@/lib/invoices";
-import type {
-  CreateFeedbackPayload,
-  FeedbackResponse,
-  UpdateFeedbackPayload,
-} from "@/lib/feedback";
 import type { CreateOrderPayload, CreateOrderResponse, OrderResponse, OrdersResponse } from "@/lib/orders";
 import type {
   CompleteItemPayload,
@@ -31,6 +31,8 @@ import type {
   ProductionPlansResponse,
 } from "@/lib/production-plans";
 import type { Product, ProductsResponse } from "@/lib/products";
+import type { SystemSettingResponse, SystemSettingsResponse } from "@/lib/system-settings";
+import type { WalletResponse } from "@/lib/wallet";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
@@ -382,6 +384,26 @@ export const feedbackApi = {
 export const storeApi = {
   getById: (id: string, token?: string | null) =>
     request<{ success: boolean; data: any }>(`/api/stores/${id}`, {
+      headers: withAuth(token),
+    }),
+};
+
+/** System Settings API – fetch global settings like TAX_RATE and SHIPPING_COST_BASE */
+export const systemSettingsApi = {
+  getAll: (publicOnly = true, token?: string | null) =>
+    request<SystemSettingsResponse>(`/api/system-settings?publicOnly=${publicOnly}`, {
+      headers: withAuth(token),
+    }),
+  getByKey: (key: string, token?: string | null) =>
+    request<SystemSettingResponse>(`/api/system-settings/${key}`, {
+      headers: withAuth(token),
+    }),
+};
+
+/** Wallet API – fetch wallet balance and transaction history */
+export const walletApi = {
+  getByStoreId: (storeId: string, token?: string | null) =>
+    request<WalletResponse>(`/api/payment/wallet/${storeId}`, {
       headers: withAuth(token),
     }),
 };

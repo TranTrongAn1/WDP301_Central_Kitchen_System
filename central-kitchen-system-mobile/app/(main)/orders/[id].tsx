@@ -22,8 +22,10 @@ import {
   isFeedbackAuthor,
   useFeedback,
 } from "@/hooks/use-feedback";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import type { Invoice } from "@/lib/invoices";
+import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order, OrderItem } from "@/lib/orders";
 
 function formatDateTime(iso?: string) {
@@ -58,6 +60,7 @@ export default function OrderDetailScreen() {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const { settings: systemSettings } = useSystemSettings();
 
   const {
     feedback,
@@ -65,7 +68,6 @@ export default function OrderDetailScreen() {
     create: createFeedback,
     update: updateFeedback,
     remove: deleteFeedback,
-    refetch: refetchFeedback,
   } = useFeedback(id);
   const { user } = useAuth();
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -113,6 +115,10 @@ export default function OrderDetailScreen() {
     invoice &&
     invoice.totalAmount > 0 &&
     invoice.paymentStatus !== "Paid";
+  const pricing = getOrderPricingBreakdown(order, invoice, {
+    taxRate: systemSettings?.TAX_RATE,
+    shippingCostBase: systemSettings?.SHIPPING_COST_BASE,
+  });
 
   const handleReceive = () => {
     if (!canReceive || !id || !token) return;
@@ -426,18 +432,44 @@ export default function OrderDetailScreen() {
             <Text style={styles.value}>{invoice.paymentStatus}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Tổng thanh toán</Text>
-            <Text style={styles.value}>
-              {invoice.totalAmount.toLocaleString("vi-VN")} đ
-            </Text>
+            <Text style={styles.label}>Tạm tính</Text>
+            <Text style={styles.value}>{pricing.subtotal.toLocaleString("vi-VN")} đ</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>VAT {pricing.taxRatePercent ? `(${pricing.taxRatePercent.toFixed(0)}%)` : ""}</Text>
+            <Text style={styles.value}>{pricing.vatAmount.toLocaleString("vi-VN")} đ</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Phí vận chuyển</Text>
+            <Text style={styles.value}>{pricing.shippingAmount.toLocaleString("vi-VN")} đ</Text>
+          </View>
+          <View style={[styles.row, styles.invoiceTotalRow]}>
+            <Text style={styles.invoiceTotalLabel}>Tổng thanh toán</Text>
+            <Text style={styles.invoiceTotalValue}>{pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
           </View>
         </View>
       ) : (
         <View style={[styles.card, cardShadowSmall]}>
           <Text style={styles.invoiceTitle}>Hoá đơn</Text>
-          <Text style={styles.value}>
-            Đơn hàng đang chờ duyệt hoặc chưa tạo hoá đơn.
-          </Text>
+          <Text style={styles.value}>Đơn hàng đang chờ duyệt hoặc chưa tạo hoá đơn.</Text>
+          <View style={styles.priceSummaryBox}>
+            <View style={styles.summaryLine}>
+              <Text style={styles.label}>Tạm tính</Text>
+              <Text style={styles.value}>{pricing.subtotal.toLocaleString("vi-VN")} đ</Text>
+            </View>
+            <View style={styles.summaryLine}>
+              <Text style={styles.label}>VAT {pricing.taxRatePercent ? `(${pricing.taxRatePercent.toFixed(0)}%)` : ""}</Text>
+              <Text style={styles.value}>{pricing.vatAmount.toLocaleString("vi-VN")} đ</Text>
+            </View>
+            <View style={styles.summaryLine}>
+              <Text style={styles.label}>Phí vận chuyển</Text>
+              <Text style={styles.value}>{pricing.shippingAmount.toLocaleString("vi-VN")} đ</Text>
+            </View>
+            <View style={[styles.summaryLine, styles.invoiceTotalRow]}>
+              <Text style={styles.invoiceTotalLabel}>Tổng thanh toán</Text>
+              <Text style={styles.invoiceTotalValue}>{pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
+            </View>
+          </View>
         </View>
       )
       }
@@ -459,11 +491,7 @@ export default function OrderDetailScreen() {
 
       <View style={[styles.totalRow, cardShadowSmall]}>
         <Text style={styles.totalLabel}>Tổng cộng</Text>
-        <Text style={styles.totalValue}>
-          {order.totalAmount != null
-            ? `${order.totalAmount.toLocaleString("vi-VN")} đ`
-            : "—"}
-        </Text>
+        <Text style={styles.totalValue}>{pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
       </View>
 
       {
@@ -774,11 +802,40 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#9B0F0F",
   },
+  priceSummaryBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#FFE1E1",
+  },
+  summaryLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
   invoiceTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#2A2A2A",
     marginBottom: 8,
+  },
+  invoiceTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#FFE1E1",
+    paddingTop: 10,
+    marginTop: 4,
+    marginBottom: 0,
+  },
+  invoiceTotalLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2A2A2A",
+  },
+  invoiceTotalValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#9B0F0F",
   },
   receiveBtn: {
     marginTop: 16,
