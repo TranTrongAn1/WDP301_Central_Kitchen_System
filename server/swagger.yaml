@@ -2420,17 +2420,17 @@ paths:
         - Logistics
       summary: Add orders to delivery trip
       description: |
-        Add multiple 'Approved' orders to an existing delivery trip (Planning phase).
+        Add multiple 'Ready_For_Shipping' orders to an existing delivery trip (Planning phase).
         
         **Requirements:**
         - Trip must be in 'Planning' status
-        - All orders must have 'Approved' status
+        - All orders must have 'Ready_For_Shipping' status
         - Duplicate order IDs are automatically prevented
         
         **Business Rule:**
         - The total number of orders (existing + new) MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
         
-        **Workflow:** Coordinator builds trip by adding approved orders one by one or in batches.
+        **Workflow:** Coordinator builds trip by adding ready-for-shipping orders one by one or in batches.
       security:
         - BearerAuth: []
       parameters:
@@ -2480,7 +2480,7 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Bad Request (Invalid input, trip not in Planning, orders not Approved, or capacity limit exceeded)
+          description: Bad Request (Invalid input, trip not in Planning, orders not Ready_For_Shipping, or capacity limit exceeded)
           content:
             application/json:
               schema:
@@ -2504,11 +2504,11 @@ paths:
         - Logistics
       summary: Remove orders from delivery trip
       description: |
-        Remove specific orders from a delivery trip and set them back to 'Approved' status.
+        Remove specific orders from a delivery trip and set them back to 'Ready_For_Shipping' status.
         
         **Requirements:**
         - Trip must NOT be 'In_Transit' or 'Completed'
-        - Removed orders are set back to 'Approved' (not rejected)
+        - Removed orders are set back to 'Ready_For_Shipping' (not rejected)
         
         **Use Case:** Coordinator adjusts trip composition during planning phase.
       security:
@@ -2547,7 +2547,7 @@ paths:
                     type: boolean
                   message:
                     type: string
-                    example: 'Removed 1 orders from delivery trip. Orders set back to Approved status for reassignment.'
+                    example: 'Removed 1 orders from delivery trip. Orders set back to Ready_For_Shipping status for reassignment.'
                   data:
                     type: object
                     properties:

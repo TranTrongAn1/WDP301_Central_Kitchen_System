@@ -703,8 +703,8 @@ const addOrdersToTrip = async (req, res, next) => {
       throw new Error('One or more orders not found');
     }
 
-    // Validate all orders have 'Approved' status
-    const invalidOrders = orders.filter(order => order.status !== 'Approved');
+    // Validate all orders have 'Ready_For_Shipping' status
+    const invalidOrders = orders.filter(order => order.status !== 'Ready_For_Shipping');
     if (invalidOrders.length > 0) {
       transactionAborted = true;
       await session.abortTransaction();
@@ -713,7 +713,7 @@ const addOrdersToTrip = async (req, res, next) => {
         .map(o => o.orderNumber || o._id)
         .join(', ');
       throw new Error(
-        `All orders must have 'Approved' status. Invalid orders: ${invalidOrderNumbers}`
+        `All orders must have 'Ready_For_Shipping' status. Invalid orders: ${invalidOrderNumbers}`
       );
     }
 
@@ -887,7 +887,7 @@ const removeOrdersFromTrip = async (req, res, next) => {
     await trip.save({ session });
 
     // ========================================
-    // STEP 5: Set Removed Orders Back to 'Approved' Status
+    // STEP 5: Set Removed Orders Back to 'Ready_For_Shipping' Status
     // ========================================
     // This is NOT a rejection - just removing from current trip
     // Orders can be reassigned to another trip later
@@ -895,7 +895,7 @@ const removeOrdersFromTrip = async (req, res, next) => {
       { _id: { $in: orderIds } },
       {
         $set: {
-          status: 'Approved',
+          status: 'Ready_For_Shipping',
         },
         $unset: {
           shippedDate: 1, // Clear shipped date if it was set
@@ -922,7 +922,7 @@ const removeOrdersFromTrip = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Removed ${removedCount} orders from delivery trip. Orders set back to 'Approved' status for reassignment.`,
+      message: `Removed ${removedCount} orders from delivery trip. Orders set back to 'Ready_For_Shipping' status for reassignment.`,
       data: {
         trip,
         ordersRemoved: removedCount,
