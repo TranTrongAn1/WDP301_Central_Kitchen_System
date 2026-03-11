@@ -85,17 +85,22 @@ exports.updateRequestStatus = async (req, res) => {
   }
 };
 
-// 4. CHỐT HÀNG & NHẬP TIỀN ĐI CHỢ (Tự động nhập kho bằng Mongoose Transaction)
 exports.completeRequest = async (req, res) => {
-  // Bắt đầu một session để dùng Transaction (Đảm bảo an toàn dữ liệu)
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { id } = req.params;
-    const { actualCost } = req.body;
+    // Bắt buộc Frontend phải gửi kèm expDate (Hạn sử dụng) và thông tin nguồn gốc
+    const { actualCost, expDate, mfgDate, supplierId, supplierName, receiptImage } = req.body;
 
-    // Tìm request trong khuôn khổ session
+    // VALIDATE BẮT BUỘC TRONG F&B: Phải có Hạn sử dụng
+    if (!expDate) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, message: "An toàn thực phẩm: Bắt buộc phải nhập Hạn sử dụng (EXP) của lô hàng mới." });
+    }
+
     const request = await IngredientRequest.findById(id).session(session);
     
     if (!request) {
@@ -110,31 +115,41 @@ exports.completeRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: "Chỉ có thể hoàn tất phiếu đã được APPROVED" });
     }
 
-    // 4.1 Cập nhật Phiếu thành COMPLETED
+    // 4.1 Cập nhật thông tin phiếu mua hàng
     request.status = 'COMPLETED';
     request.actualCost = actualCost || 0;
+    if (supplierId) request.supplierId = supplierId;
+    if (supplierName) request.supplierName = supplierName;
+    if (receiptImage) request.receiptImage = receiptImage;
     await request.save({ session });
 
-    // 4.2 TỰ ĐỘNG CỘNG TỒN KHO: Tạo lô mới trong bảng IngredientBatch
+    // 4.2 TẠO LÔ MỚI (Luôn luôn tạo lô mới để không mix lộn hạn sử dụng)
     const newBatch = new IngredientBatch({
       ingredientId: request.ingredientId,
       quantity: request.quantityRequested,
       originalQuantity: request.quantityRequested,
       unitPrice: actualCost ? actualCost / request.quantityRequested : 0,
-      batchCode: `REQ-${request._id.toString().substring(0, 6).toUpperCase()}`, // Sinh mã lô nhanh
+      
+      // TRUY XUẤT NGUỒN GỐC NẰM Ở ĐÂY
+      mfgDate: mfgDate || new Date(), // Ngày sản xuất
+      expDate: expDate,               // Ngày hết hạn (Chìa khóa quản lý)
+      supplierId: supplierId || null, 
+      
+      batchCode: `REQ-${request.requestType === 'URGENT' ? 'URG' : 'PLN'}-${request._id.toString().substring(0, 5).toUpperCase()}`, 
       importDate: new Date(),
-      note: `Tự động nhập kho từ Phiếu Yêu Cầu #${request._id.toString().substring(0, 8)}`
+      note: `Tự động nhập kho từ Phiếu Yêu Cầu #${request._id.toString().substring(0, 5)}. Nguồn: ${supplierName || 'NCC Hệ thống'}`
     });
 
     await newBatch.save({ session });
 
-    // Xác nhận lưu toàn bộ thay đổi
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ success: true, message: "Đã chốt hàng, nhập tiền và TỰ ĐỘNG CỘNG KHO thành công!" });
+    res.status(200).json({ 
+      success: true, 
+      message: "Đã chốt hàng, lưu biên lai và tạo Lô kho mới thành công!" 
+    });
   } catch (error) {
-    // Nếu có lỗi, rollback (hủy) toàn bộ thay đổi
     await session.abortTransaction();
     session.endSession();
     console.error("Lỗi khi hoàn tất phiếu:", error);

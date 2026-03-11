@@ -3,8 +3,14 @@ const mongoose = require('mongoose');
 const ingredientRequestSchema = new mongoose.Schema({
   ingredientId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ingredient', // Trỏ tới model Ingredient
+    ref: 'Ingredient',
     required: true
+  },
+  // Phân loại mua sắm
+  requestType: {
+    type: String,
+    enum: ['URGENT', 'PLANNED'], // URGENT: Bếp hết hàng cần mua gấp, PLANNED: Kế hoạch tuần/tháng
+    default: 'URGENT'
   },
   quantityRequested: {
     type: Number,
@@ -14,7 +20,6 @@ const ingredientRequestSchema = new mongoose.Schema({
   unit: {
     type: String,
     required: true,
-    enum: ['kg', 'g', 'lit', 'ml', 'chai', 'hộp', 'bó'], // Các đơn vị thường dùng
     default: 'kg'
   },
   status: {
@@ -27,22 +32,38 @@ const ingredientRequestSchema = new mongoose.Schema({
     trim: true,
     maxLength: 500
   },
-  actualCost: {
-    type: Number, // Số tiền thực tế đi chợ (VNĐ)
+  // ---- TRUY XUẤT NGUỒN GỐC & TÀI CHÍNH ----
+  supplierId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Supplier', // Nếu mua sỉ từ NCC hệ thống
     default: null
   },
+  supplierName: {
+    type: String, // Dùng khi Bếp chạy ra chợ tạp hóa mua gấp (VD: "Sạp bà Bảy chợ Gò Vấp")
+    trim: true,
+    default: ''
+  },
+  actualCost: {
+    type: Number, // Số tiền thực tế thanh toán
+    default: null
+  },
+  receiptImage: {
+    type: String, // Link ảnh chụp hóa đơn/bill tính tiền để kế toán duyệt
+    default: ''
+  },
+  // ----------------------------------------
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Trỏ tới người tạo (Bếp) - Tùy chọn
+    ref: 'User',
     default: null
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Trỏ tới người duyệt (Điều phối) - Tùy chọn
+    ref: 'User',
     default: null
   }
 }, {
-  timestamps: true // Tự động sinh ra createdAt và updatedAt
+  timestamps: true
 });
 
 module.exports = mongoose.model('IngredientRequest', ingredientRequestSchema);
