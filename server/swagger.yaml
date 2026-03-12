@@ -2127,9 +2127,6 @@ paths:
         2. Groups them into a single delivery trip
         3. All orders transition from 'Approved' to 'In_Transit'
         
-        **Business Rule:**
-        - The total number of orders assigned to this trip MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
-        
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
         - BearerAuth: []
@@ -2175,26 +2172,24 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: 'Delivery trip created successfully with 3 orders'
+                    example: 'Delivery trip created successfully with 3 orders in Planning status.'
                   data:
                     type: object
                     properties:
                       trip:
                         $ref: '#/components/schemas/DeliveryTrip'
-                      orders:
-                        type: array
-                        description: 'Updated orders now in In_Transit status'
-                        items:
-                          $ref: '#/components/schemas/Order'
+                      totalOrders:
+                        type: integer
+                        example: 3
         '400':
-          description: Bad Request (Invalid input, orders not in "Ready_For_Shipping" status, or limit exceeded)
+          description: Bad Request (Invalid input or orders not in "Ready_For_Shipping" status)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: 'Exceeded maximum limit. A delivery trip can only have up to 100 orders. You provided 105.'
+                message: "All orders must have 'Ready_For_Shipping' status. Invalid orders: ORD-1234"
         '404':
           description: One or more orders not found
           content:
@@ -2408,9 +2403,6 @@ paths:
         - All orders must have 'Ready_For_Shipping' status
         - Duplicate order IDs are automatically prevented
         
-        **Business Rule:**
-        - The total number of orders (existing + new) MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
-        
         **Workflow:** Coordinator builds trip by adding ready-for-shipping orders one by one or in batches.
       security:
         - BearerAuth: []
@@ -2461,14 +2453,14 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Bad Request (Invalid input, trip not in Planning, orders not Ready_For_Shipping, or capacity limit exceeded)
+          description: Bad Request (Invalid input, trip not in Planning, or orders not Ready_For_Shipping)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: 'Capacity exceeded. Trip has 90 orders. Adding 15 new orders exceeds the limit of 100 per trip.'
+                message: "Cannot add orders to trip with status 'In_Transit'. Only 'Planning' trips can be modified."
         '404':
           description: Delivery trip or orders not found
           content:
