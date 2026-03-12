@@ -108,19 +108,8 @@ function App() {
               <Route path="/admin/ingredients" element={<IngredientPage />} />
               <Route path="/admin/ingredient-requests" element={<IngredientRequestListPage />} />
 
-              {/* Production */}
-              <Route path="/admin/production" element={<ProductionPlansPage />} />
-              <Route path="/admin/production/:id" element={<ProductionPlanDetailPage />} />
-              <Route path="/admin/production/batches" element={<BatchesPage />} />
-              <Route path="/admin/production/batches/:id" element={<BatchDetailPage />} />
-
               {/* Inventory */}
               <Route path="/admin/inventory" element={<InventoryReportsPage />} />
-
-              {/* Orders & Shipments */}
-              <Route path="/admin/orders" element={<OrdersShipmentsPage />} />
-              <Route path="/admin/orders/:id" element={<OrderDetail />} />
-              <Route path="/admin/shipments/:id" element={<ShipmentDetail />} />
 
               {/* Transfers */}
               <Route path="/admin/transfers" element={<OrdersShipmentsPage />} />
@@ -150,29 +139,17 @@ function App() {
               {/* Ingredients */}
               <Route path="/manager/ingredients" element={<IngredientPage />} />
 
-              {/* Production */}
-              <Route path="/manager/production" element={<ProductionPlansPage />} />
-              <Route path="/manager/production/:id" element={<ProductionPlanDetailPage />} />
-              <Route path="/manager/production/batches" element={<BatchesPage />} />
-              <Route path="/manager/production/batches/:id" element={<BatchDetailPage />} />
-
               {/* Inventory */}
               <Route path="/manager/inventory" element={<InventoryReportsPage />} />
 
               {/* Stores */}
               <Route path="/manager/stores" element={<StoresPage />} />
 
-              {/* Transfers/Orders */}
-              <Route path="/manager/orders" element={<OrdersShipmentsPage />} />
-              <Route path="/manager/orders/:id" element={<OrderDetail />} />
-              <Route path="/manager/shipments/:id" element={<ShipmentDetail />} />
-
               {/* Admin settings */}
               <Route path="/manager/settings" element={<SettingsPage />} />
               <Route path="/manager/feedback" element={<FeedbackListPage />} />
               <Route path="/manager/users" element={<UsersRolesPage />} />
               <Route path="/manager/suppliers" element={<SuppliersPage />} />
-              <Route path="/manager/vehicle-types" element={<VehicleTypesPage />} />
               <Route path="/manager/reports" element={<ReportsAnalyticsPage />} />
             </Route>
           </Route>
@@ -228,6 +205,11 @@ function App() {
               <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/ingredient-requests" element={<IngredientRequestListPage />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
+              {/* Production (Coordinator tạo plan, Kitchen thực hiện) */}
+              <Route path="/coordinator/production" element={<ProductionPlansPage />} />
+              <Route path="/coordinator/production/:id" element={<ProductionPlanDetailPage />} />
+              <Route path="/coordinator/production/batches" element={<BatchesPage />} />
+              <Route path="/coordinator/production/batches/:id" element={<BatchDetailPage />} />
             </Route>
           </Route>
 

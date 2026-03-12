@@ -28,6 +28,15 @@ const ProductionPlanDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuthStore();
+    const role = user?.role;
+    const listPath =
+        role === 'Admin'
+            ? '/admin/production'
+            : role === 'Coordinator'
+                ? '/coordinator/production'
+                : role === 'KitchenStaff'
+                    ? '/kitchen/production'
+                    : '/manager/production';
     const [plan, setPlan] = useState<ProductionPlan | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -167,7 +176,7 @@ const ProductionPlanDetailPage = () => {
             setActionLoading(true);
             await productionPlanApi.delete(id);
             toast.success('Đã xoá production plan.');
-            navigate('/manager/production');
+            navigate(listPath);
         } catch (err: any) {
             console.error('Error deleting plan:', err);
             const msg =
@@ -211,7 +220,7 @@ const ProductionPlanDetailPage = () => {
     if (error || !plan) {
         return (
             <div className="space-y-6">
-                <Button variant="outline" onClick={() => navigate('/manager/production')}>
+                <Button variant="outline" onClick={() => navigate(listPath)}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Plans
                 </Button>
@@ -235,7 +244,6 @@ const ProductionPlanDetailPage = () => {
         )
         : 0;
 
-    const role = user?.role;
     const canDelete =
         (plan.status === 'Planned' || plan.status === 'Cancelled') &&
         (role === 'Manager' || role === 'Admin');
@@ -245,7 +253,7 @@ const ProductionPlanDetailPage = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate('/manager/production')}>
+                    <Button variant="outline" onClick={() => navigate(listPath)}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
                     </Button>

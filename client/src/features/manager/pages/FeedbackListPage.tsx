@@ -56,8 +56,8 @@ export default function FeedbackListPage() {
       ? (fb.createdBy as any).fullName || (fb.createdBy as any).email || '—'
       : '—';
 
-  const ordersPath = isAdmin ? '/admin/orders' : '/manager/orders';
-  const orderDetailPath = isAdmin ? '/admin/orders' : '/manager/orders';
+  const ordersPath = isAdmin ? '/admin/orders' : '/coordinator/orders';
+  const orderDetailPath = isAdmin ? '/admin/orders' : '/coordinator/orders';
 
   if (loading) {
     return (

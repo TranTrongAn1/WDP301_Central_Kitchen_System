@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 const ProductionPlansPage = () => {
     const navigate = useNavigate();
     const { user } = useAuthStore();
+    const canCreatePlan = ['Admin', 'Manager', 'Coordinator'].includes(user?.role || '');
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [activeTab, setActiveTab] = useState('all');
     const [plans, setPlans] = useState<ProductionPlan[]>([]);
@@ -216,11 +217,16 @@ const ProductionPlansPage = () => {
 
     const viewPlan = (planId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (user?.role === 'KitchenStaff') {
-            navigate(`/kitchen/production/${planId}`);
-        } else {
-            navigate(`/manager/production/${planId}`);
-        }
+        const role = user?.role;
+        const base =
+            role === 'Admin'
+                ? '/admin/production'
+                : role === 'Coordinator'
+                    ? '/coordinator/production'
+                    : role === 'KitchenStaff'
+                        ? '/kitchen/production'
+                        : '/manager/production';
+        navigate(`${base}/${planId}`);
     };
 
     if (loading) {
@@ -297,8 +303,8 @@ const ProductionPlansPage = () => {
                         icon={Package}
                         title="No Production Plans"
                         message={`No production plans found for ${date?.toLocaleDateString() || 'selected date'}`}
-                        actionLabel="Create New Plan"
-                        onAction={openCreateModal}
+                        actionLabel={canCreatePlan ? "Create New Plan" : undefined}
+                        onAction={canCreatePlan ? openCreateModal : undefined}
                     />
                 </div>
             );
@@ -449,6 +455,8 @@ const ProductionPlansPage = () => {
                                 navigate('/kitchen/production/batches');
                             } else if (role === 'Admin') {
                                 navigate('/admin/production/batches');
+                            } else if (role === 'Coordinator') {
+                                navigate('/coordinator/production/batches');
                             } else {
                                 navigate('/manager/production/batches');
                             }
@@ -461,6 +469,7 @@ const ProductionPlansPage = () => {
                     <Button
                         className="bg-gradient-to-r from-orange-600 to-amber-600"
                         onClick={openCreateModal}
+                        disabled={!canCreatePlan}
                     >
                         <Plus className="w-4 h-4 mr-2" />
                         New Plan
@@ -567,7 +576,12 @@ const ProductionPlansPage = () => {
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleCreatePlan}
-                            disabled={createLoading || !planCode || selectedOrderIds.length === 0}
+                            disabled={
+                                createLoading ||
+                                !canCreatePlan ||
+                                !planCode ||
+                                selectedOrderIds.length === 0
+                            }
                         >
                             {createLoading ? 'Creating...' : 'Create Plan'}
                         </Button>

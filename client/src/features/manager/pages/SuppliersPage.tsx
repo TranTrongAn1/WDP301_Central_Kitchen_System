@@ -4,11 +4,11 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { supplierApi, type Supplier, type CreateSupplierRequest } from '@/api/SupplierApi';
-import { useAuthStore } from '@/shared/zustand/authStore';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 import toast from 'react-hot-toast';
 
 export default function SuppliersPage() {
-  const { user } = useAuthStore();
+  const { isManagerReadOnly, user } = useManagerReadOnly();
   const isAdmin = user?.role === 'Admin';
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -45,12 +45,14 @@ export default function SuppliersPage() {
   }, []);
 
   const openCreate = () => {
+    if (isManagerReadOnly) return;
     setEditing(null);
     setForm({ name: '', contactPerson: '', phone: '', email: '', address: '' });
     setModalOpen('create');
   };
 
   const openEdit = (s: Supplier) => {
+    if (isManagerReadOnly) return;
     setEditing(s);
     setForm({
       name: s.name,
@@ -64,6 +66,10 @@ export default function SuppliersPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isManagerReadOnly) {
+      toast.error('Manager chỉ được xem, không được chỉnh sửa nhà cung cấp.');
+      return;
+    }
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       toast.error('Điền đủ Tên, SĐT, Email.');
       return;
@@ -88,6 +94,10 @@ export default function SuppliersPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager không được phép xóa nhà cung cấp.');
+      return;
+    }
     if (!window.confirm('Xóa nhà cung cấp này? (soft-delete)')) return;
     setDeletingId(id);
     try {
@@ -102,6 +112,10 @@ export default function SuppliersPage() {
   };
 
   const handleDeletePermanent = async (id: string) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager không được phép xóa vĩnh viễn nhà cung cấp.');
+      return;
+    }
     if (!window.confirm('XÓA VĨNH VIỄN nhà cung cấp? Không thể khôi phục.')) return;
     setPermanentDeletingId(id);
     try {
@@ -130,7 +144,7 @@ export default function SuppliersPage() {
           <h1 className="text-2xl font-bold tracking-tight">Nhà cung cấp</h1>
           <p className="text-sm text-muted-foreground mt-1">Tổng: {suppliers.length}</p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} disabled={isManagerReadOnly}>
           <Plus className="w-4 h-4 mr-2" /> Thêm nhà cung cấp
         </Button>
       </div>
@@ -157,14 +171,19 @@ export default function SuppliersPage() {
                     <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{s.address || '—'}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(s)}
+                        disabled={isManagerReadOnly}
+                      >
                         <Pencil className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        disabled={deletingId === s._id}
+                        disabled={isManagerReadOnly || deletingId === s._id}
                         onClick={() => handleDelete(s._id)}
                       >
                         {deletingId === s._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

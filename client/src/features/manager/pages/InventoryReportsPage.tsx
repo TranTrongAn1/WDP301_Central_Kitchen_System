@@ -16,8 +16,10 @@ import { supplierApi, type Supplier } from '@/api/SupplierApi';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 
 const InventoryReportsPage = () => {
+    const { isManagerReadOnly } = useManagerReadOnly();
     const [activeTab, setActiveTab] = useState('materials');
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);
@@ -125,6 +127,7 @@ const InventoryReportsPage = () => {
     };
 
     const openImportModal = async () => {
+        if (isManagerReadOnly) return;
         setIsImportOpen(true);
         if (suppliers.length === 0) {
             try {
@@ -143,6 +146,7 @@ const InventoryReportsPage = () => {
     };
 
     const handleImport = async () => {
+        if (isManagerReadOnly) return;
         if (!importIngredientId || !importSupplierId || !importBatchCode.trim() || !importExpiryDate || importInitialQty <= 0) return;
         try {
             setImportLoading(true);
@@ -220,7 +224,11 @@ const InventoryReportsPage = () => {
                 <div>
                 </div>
                 <div className="flex gap-2">
-                    <Button className="bg-gradient-to-r from-orange-600 to-amber-600" onClick={openImportModal}>
+                    <Button
+                        className="bg-gradient-to-r from-orange-600 to-amber-600"
+                        onClick={openImportModal}
+                        disabled={isManagerReadOnly}
+                    >
                         <Plus className="w-4 h-4 mr-2" />
                         Import Stock
                     </Button>

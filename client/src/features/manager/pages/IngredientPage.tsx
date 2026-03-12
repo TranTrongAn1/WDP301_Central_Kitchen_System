@@ -40,8 +40,10 @@ import { ingredientApi, type Ingredient, type IngredientBatch } from '@/api/Ingr
 import { supplierApi, type Supplier } from '@/api/SupplierApi';
 import toast from 'react-hot-toast';
 import { cn } from '../components/ui/cn';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 
 export default function IngredientPage() {
+  const { isManagerReadOnly } = useManagerReadOnly();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [batches, setBatches] = useState<IngredientBatch[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -162,6 +164,10 @@ export default function IngredientPage() {
   };
 
   const handleIngredientSubmit = async (data: { ingredientName: string; unit: string; costPrice: number; warningThreshold: number }) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager chỉ được xem, không được chỉnh sửa nguyên liệu.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (editingIngredient) {
@@ -184,6 +190,10 @@ export default function IngredientPage() {
 
   const handleBatchSubmit = async (data: { batchCode: string; expiryDate: string; initialQuantity: number; price: number; supplierId: string }) => {
     if (!selectedIngredient) return;
+    if (isManagerReadOnly) {
+      toast.error('Manager không được phép thêm batch nguyên liệu.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -201,6 +211,10 @@ export default function IngredientPage() {
   };
 
   const handleDeleteIngredient = async (id: string) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager không được phép xóa nguyên liệu.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this ingredient?')) {
       try {
         await ingredientApi.delete(id);
@@ -214,11 +228,13 @@ export default function IngredientPage() {
   };
 
   const handleEditIngredient = (ingredient: Ingredient) => {
+    if (isManagerReadOnly) return;
     setEditingIngredient(ingredient);
     setIsIngredientFormOpen(true);
   };
 
   const handleAddBatch = (ingredient: Ingredient) => {
+    if (isManagerReadOnly) return;
     setSelectedIngredient(ingredient);
     setIsBatchFormOpen(true);
   };
@@ -310,7 +326,11 @@ export default function IngredientPage() {
       >
         <div>
         </div>
-        <Button onClick={() => { setEditingIngredient(null); setIsIngredientFormOpen(true); }} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
+        <Button
+          onClick={() => { setEditingIngredient(null); setIsIngredientFormOpen(true); }}
+          className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90"
+          disabled={isManagerReadOnly}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Ingredient
         </Button>
@@ -469,13 +489,25 @@ export default function IngredientPage() {
                                   <DropdownMenuItem onClick={() => handleViewBatches(ingredient)} className="cursor-pointer rounded-lg">
                                     📋 View Batches
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAddBatch(ingredient)} className="cursor-pointer rounded-lg">
+                                  <DropdownMenuItem
+                                    onClick={() => handleAddBatch(ingredient)}
+                                    className="cursor-pointer rounded-lg"
+                                    disabled={isManagerReadOnly}
+                                  >
                                     ➕ Add Batch
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleEditIngredient(ingredient)} className="cursor-pointer rounded-lg">
+                                  <DropdownMenuItem
+                                    onClick={() => handleEditIngredient(ingredient)}
+                                    className="cursor-pointer rounded-lg"
+                                    disabled={isManagerReadOnly}
+                                  >
                                     <Pencil className="w-4 h-4 mr-2" /> Edit
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteIngredient(ingredient._id)} className="cursor-pointer rounded-lg text-destructive">
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteIngredient(ingredient._id)}
+                                    className="cursor-pointer rounded-lg text-destructive"
+                                    disabled={isManagerReadOnly}
+                                  >
                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -663,7 +695,7 @@ export default function IngredientPage() {
                   <h3 className="text-lg font-semibold">Batches for: {selectedIngredient.ingredientName}</h3>
                   <p className="text-sm text-muted-foreground">Total Quantity: {selectedIngredient.totalQuantity} {selectedIngredient.unit}</p>
                 </div>
-                <Button onClick={() => { setIsBatchFormOpen(true); }}>
+                <Button onClick={() => { setIsBatchFormOpen(true); }} disabled={isManagerReadOnly}>
                   <Plus className="w-4 h-4 mr-2" /> Add Batch
                 </Button>
               </div>

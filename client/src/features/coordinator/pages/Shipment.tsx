@@ -17,6 +17,7 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/shared/lib/utils';
 import vehicleApi, { type VehicleType } from '../../../api/VehicleApi';
+import { productApi, type Product } from '@/api/ProductApi';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -27,6 +28,7 @@ const Shipments = () => {
     const [trips, setTrips] = useState<ITrip[]>([]);
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
 
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [selectedVehicleTypeId, setSelectedVehicleTypeId] = useState<string>('');
@@ -44,10 +46,11 @@ const Shipments = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [tripRes, ordersData, vehicleRes] = await Promise.all([
+            const [tripRes, ordersData, vehicleRes, productRes] = await Promise.all([
                 DeliveryTripApi.getAllDeliveryTrips(),
                 OrderApi.getAllOrders(),
-                vehicleApi.getAll()
+                vehicleApi.getAll(),
+                productApi.getAll().catch(() => ({ data: [] })),
             ]);
 
             const tripList = Array.isArray(tripRes?.data) ? tripRes.data : [];
@@ -57,6 +60,13 @@ const Shipments = () => {
             if (vehicleRes?.success) {
                 setVehicleTypes(vehicleRes.data.filter((v: any) => v.isActive));
             }
+
+            const productData = Array.isArray((productRes as any)?.data)
+                ? (productRes as any).data
+                : Array.isArray(productRes)
+                    ? productRes
+                    : [];
+            setProducts(productData as Product[]);
 
         } catch (err) {
             console.error(err);
@@ -128,21 +138,60 @@ const Shipments = () => {
     const availableOrders = allOrders.filter(order => {
         // Trip chỉ làm việc với các đơn đã sẵn sàng giao (Ready_For_Shipping)
         const isReadyForShipping = (order.status as string) === 'Ready_For_Shipping';
-        const notInAnyTrip = !trips.some(trip =>
-            trip.orders.some((tripOrder: any) => {
-                const tripOrderId = typeof tripOrder === 'string' ? tripOrder : tripOrder._id;
+        const notInAnyTrip = !trips.some((trip) =>
+            trip.orders.some((tripOrder) => {
+                const tripOrderId =
+                    typeof tripOrder === 'string'
+                        ? tripOrder
+                        : (tripOrder as { _id: string })._id;
                 return tripOrderId === order._id;
             })
         );
         if (editingTrip) {
-            const isInCurrentEditingTrip = editingTrip.orders.some((tripOrder: any) => {
-                const tripOrderId = typeof tripOrder === 'string' ? tripOrder : tripOrder._id;
+            const isInCurrentEditingTrip = editingTrip.orders.some((tripOrder) => {
+                const tripOrderId =
+                    typeof tripOrder === 'string'
+                        ? tripOrder
+                        : (tripOrder as { _id: string })._id;
                 return tripOrderId === order._id;
             });
             return isReadyForShipping && (notInAnyTrip || isInCurrentEditingTrip);
         }
         return isReadyForShipping && notInAnyTrip;
     });
+
+    const getOrderWeightKg = (order: Order): number => {
+        if (!order.items || order.items.length === 0) return 0;
+        return order.items.reduce((sum, item) => {
+            const productId =
+                typeof item.productId === 'string'
+                    ? item.productId
+                    : item.productId?._id;
+            const product = products.find((p) => p._id === productId);
+            const weight = product?.weight ?? 0.5;
+            const qty = item.quantity || 0;
+            return sum + weight * qty;
+        }, 0);
+    };
+
+    const totalSelectedWeightKg = selectedOrderIds.reduce((sum, id) => {
+        const order = allOrders.find((o: Order) => o._id === id);
+        if (!order) return sum;
+        return sum + getOrderWeightKg(order);
+    }, 0);
+
+    const selectedVehicle = selectedVehicleTypeId
+        ? vehicleTypes.find((v) => v._id === selectedVehicleTypeId)
+        : undefined;
+
+    const getVehicleCapacityText = () => {
+        if (!selectedVehicle || !selectedVehicle.capacity || !selectedVehicle.unit) return 'Chưa chọn xe';
+        const { capacity, unit } = selectedVehicle;
+        if (unit === 'kg') return `${capacity} kg`;
+        if (unit === 'ton') return `${capacity} tấn (~${capacity * 1000} kg)`;
+        if (unit === 'box') return `${capacity} boxes (giới hạn theo số lượng items)`;
+        return `${capacity} ${unit}`;
+    };
 
     const openCreateModal = () => {
         setEditingTrip(null);
@@ -155,7 +204,9 @@ const Shipments = () => {
 
     const openEditModal = (trip: ITrip) => {
         setEditingTrip(trip);
-        const mappedOrderIds = (trip.orders || []).map((o: any) => typeof o === 'string' ? o : o._id);
+        const mappedOrderIds = (trip.orders || []).map((o) =>
+            typeof o === 'string' ? o : (o as { _id: string })._id
+        );
         setSelectedOrderIds(mappedOrderIds);
         setSelectedVehicleTypeId((trip as any).vehicleType?._id || '');
         setTripNotes(trip.notes || '');
@@ -168,7 +219,7 @@ const Shipments = () => {
             toast.success('Xóa chuyến hàng thành công');
             setTripToDelete(null);
             fetchData();
-        } catch (error) {
+        } catch (error: unknown) {
             console.error(error);
             toast.error('Không thể xóa chuyến hàng');
         }
@@ -180,7 +231,9 @@ const Shipments = () => {
         try {
             setIsCreating(true);
             if (editingTrip) {
-                const initialOrderIds = (editingTrip.orders || []).map((o: any) => typeof o === 'string' ? o : o._id);
+                const initialOrderIds = (editingTrip.orders || []).map((o) =>
+                    typeof o === 'string' ? o : (o as { _id: string })._id
+                );
                 const addedOrders = selectedOrderIds.filter(id => !initialOrderIds.includes(id));
                 const removedOrders = initialOrderIds.filter(id => !selectedOrderIds.includes(id));
 
@@ -375,19 +428,39 @@ const Shipments = () => {
                                             expand_more
                                         </span>
                                     </div>
-                                    {selectedVehicleTypeId && (
-                                        <p className="mt-1 text-[11px] text-muted-foreground">
-                                            Đã chọn:{' '}
-                                            <span className="font-semibold text-orange-500">
-                                                {vehicleTypes.find((v) => v._id === selectedVehicleTypeId)?.name}
-                                            </span>
-                                        </p>
+                                    {selectedVehicle && (
+                                        <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+                                            <p>
+                                                Đã chọn:{' '}
+                                                <span className="font-semibold text-orange-500">
+                                                    {selectedVehicle.name}
+                                                </span>
+                                            </p>
+                                            <p>
+                                                Sức chở xe:{' '}
+                                                <span className="font-semibold">
+                                                    {getVehicleCapacityText()}
+                                                </span>
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">Ghi chú chuyến</label>
                                     <input type="text" maxLength={500} placeholder="VD: Giao trước 10h sáng" value={tripNotes} onChange={(e) => setTripNotes(e.target.value)} className={`w-full px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-[#1C1C21] border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'}`} />
                                 </div>
+                            </div>
+
+                            <div className="mt-2 text-[11px] text-muted-foreground">
+                                <span className="font-bold uppercase tracking-widest">Ước tính khối lượng:</span>{' '}
+                                <span className="font-semibold text-orange-500">
+                                    {totalSelectedWeightKg.toFixed(2)} kg
+                                </span>
+                                {selectedVehicle && selectedVehicle.capacity != null && selectedVehicle.unit && (
+                                    <>
+                                        {' '}• Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span>
+                                    </>
+                                )}
                             </div>
 
                             <div className="space-y-2">

@@ -11,8 +11,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { storeApi } from '@/api/StoreApi';
 import type { Store, CreateStoreRequest } from '@/api/StoreApi';
 import { paymentApi, type WalletInfo } from '@/api/PaymentApi';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 
 const StoresPage = () => {
+    const { isManagerReadOnly } = useManagerReadOnly();
     const [stores, setStores] = useState<Store[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ const StoresPage = () => {
             const response = await storeApi.getAll();
             const data = (response as any)?.data || response || [];
             setStores(Array.isArray(data) ? data : []);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Error fetching stores:', err);
             setError('Failed to load stores');
         } finally {
@@ -70,6 +72,7 @@ const StoresPage = () => {
     };
 
     const handleCreateStore = async () => {
+        if (isManagerReadOnly) return;
         try {
             setFormLoading(true);
             await storeApi.create(formData);
@@ -86,6 +89,7 @@ const StoresPage = () => {
 
     const handleEditStore = async () => {
         if (!selectedStore) return;
+        if (isManagerReadOnly) return;
         try {
             setFormLoading(true);
             await storeApi.update(selectedStore._id, formData);
@@ -262,9 +266,11 @@ const StoresPage = () => {
                     <Button
                         className="bg-gradient-to-r from-orange-600 to-amber-600"
                         onClick={() => {
+                            if (isManagerReadOnly) return;
                             resetForm();
                             setIsCreateModalOpen(true);
                         }}
+                        disabled={isManagerReadOnly}
                     >
                         <Plus className="w-4 h-4 mr-2" />
                         Add Store
@@ -394,6 +400,7 @@ const StoresPage = () => {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => openEditModal(store)}
+                                                disabled={isManagerReadOnly}
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </Button>
