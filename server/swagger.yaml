@@ -967,6 +967,10 @@ paths:
                   type: number
                   example: 30
                   description: 'Shelf life in days (used to calculate expiry date)'
+                weight:
+                  type: number
+                  example: 0.5
+                  description: 'Weight of one unit of the product in KG for logistics calculation'
                 image:
                   type: string
                   example: 'https://example.com/green-bean-mooncake.jpg'
@@ -1067,6 +1071,10 @@ paths:
                   type: number
                 shelfLifeDays:
                   type: number
+                weight:
+                  type: number
+                  example: 0.5
+                  description: 'Weight of one unit of the product in KG for logistics calculation'
                 image:
                   type: string
                 recipe:
@@ -2128,6 +2136,9 @@ paths:
         3. All orders transition from 'Approved' to 'In_Transit'
         
         **Traceability:** Trip → Multiple Orders → Store Inventory
+        
+        **Business Rule:**
+        - The system validates if the total weight/quantity of all selected orders exceeds the assigned vehicle's capacity.
       security:
         - BearerAuth: []
       requestBody:
@@ -2182,14 +2193,14 @@ paths:
                         type: integer
                         example: 3
         '400':
-          description: Bad Request (Invalid input or orders not in "Ready_For_Shipping" status)
+          description: Bad Request (Invalid input, orders not in "Ready_For_Shipping" status, or vehicle capacity exceeded)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: "All orders must have 'Ready_For_Shipping' status. Invalid orders: ORD-1234"
+                message: 'Total shipment weight (1200 kg) exceeds vehicle capacity (1000 kg).'
         '404':
           description: One or more orders not found
           content:
@@ -2403,6 +2414,9 @@ paths:
         - All orders must have 'Ready_For_Shipping' status
         - Duplicate order IDs are automatically prevented
         
+        **Business Rule:**
+        - The system validates if adding these orders will exceed the vehicle's capacity.
+        
         **Workflow:** Coordinator builds trip by adding ready-for-shipping orders one by one or in batches.
       security:
         - BearerAuth: []
@@ -2453,14 +2467,14 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Bad Request (Invalid input, trip not in Planning, or orders not Ready_For_Shipping)
+          description: Bad Request (Invalid input, trip not in Planning, orders not Ready_For_Shipping, or vehicle capacity exceeded)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: "Cannot add orders to trip with status 'In_Transit'. Only 'Planning' trips can be modified."
+                message: 'Adding these orders would exceed vehicle capacity. Total weight (1200.00 kg) exceeds limit (1000 kg).'
         '404':
           description: Delivery trip or orders not found
           content:
@@ -4514,6 +4528,10 @@ components:
           type: number
           example: 30
           description: 'Shelf life in days'
+        weight:
+          type: number
+          example: 0.5
+          description: 'Weight of one unit of the product in KG for logistics calculation'
         image:
           type: string
           example: 'https://example.com/mooncake.jpg'

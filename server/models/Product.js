@@ -33,6 +33,12 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Shelf life days is required'],
       min: [1, 'Shelf life must be at least 1 day'],
     },
+    weight: {
+      type: Number,
+      default: 0.5, // Mặc định 1 sản phẩm (hộp/cái) nặng 0.5 kg
+      min: [0, 'Weight cannot be negative'],
+      description: 'Weight of one unit of the product in KG for logistics calculation',
+    },
     image: {
       type: String,
       trim: true,

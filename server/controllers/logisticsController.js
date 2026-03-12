@@ -9,6 +9,7 @@ const SystemSetting = require('../models/SystemSetting');
 const StoreInventory = require('../models/StoreInventory');
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
+const VehicleType = require('../models/VehicleType');
 const { getSettingNumber } = require('../utils/settingHelper');
 /**
  * @desc    Create new order from store
@@ -734,6 +735,65 @@ const addOrdersToTrip = async (req, res, next) => {
         existingOrderIds.add(orderIdStr);
       } else {
         duplicateCount++;
+      }
+    }
+
+    // ========================================
+    // STEP 4.5: Validate Vehicle Capacity After Adding New Orders
+    // ========================================
+    if (newOrderIds.length > 0 && trip.vehicleType) {
+      const vehicleType = await VehicleType.findById(trip.vehicleType).session(session);
+      if (vehicleType) {
+        // Combine existing orders with new ones for full capacity check
+        const allOrderIds = [...trip.orders, ...newOrderIds];
+
+        const allOrdersWithProducts = await Order.find({ _id: { $in: allOrderIds } })
+          .populate('items.productId', 'name weight')
+          .session(session);
+
+        let totalWeightInKg = 0;
+        let totalQuantity = 0;
+
+        for (const order of allOrdersWithProducts) {
+          for (const item of order.items) {
+            totalQuantity += item.quantity;
+            if (item.productId && item.productId.weight) {
+              totalWeightInKg += item.quantity * item.productId.weight;
+            }
+          }
+        }
+
+        if (vehicleType.unit === 'ton') {
+          const maxCapacityInKg = vehicleType.capacity * 1000;
+          if (totalWeightInKg > maxCapacityInKg) {
+            transactionAborted = true;
+            await session.abortTransaction();
+            res.status(400);
+            throw new Error(
+              `Adding these orders would exceed vehicle capacity. Total weight (${totalWeightInKg.toFixed(2)} kg) exceeds limit (${vehicleType.capacity} ton = ${maxCapacityInKg} kg).`
+            );
+          }
+        } else if (vehicleType.unit === 'kg') {
+          const maxCapacityInKg = vehicleType.capacity;
+          if (totalWeightInKg > maxCapacityInKg) {
+            transactionAborted = true;
+            await session.abortTransaction();
+            res.status(400);
+            throw new Error(
+              `Adding these orders would exceed vehicle capacity. Total weight (${totalWeightInKg.toFixed(2)} kg) exceeds limit (${maxCapacityInKg} kg).`
+            );
+          }
+        } else if (vehicleType.unit === 'box') {
+          const maxCapacityInBox = vehicleType.capacity;
+          if (totalQuantity > maxCapacityInBox) {
+            transactionAborted = true;
+            await session.abortTransaction();
+            res.status(400);
+            throw new Error(
+              `Adding these orders would exceed vehicle box capacity. Total items (${totalQuantity}) exceeds limit (${maxCapacityInBox} boxes).`
+            );
+          }
+        }
       }
     }
 
@@ -1549,6 +1609,68 @@ const createDeliveryTrip = async (req, res, next) => {
       throw new Error(
         `All orders must have 'Ready_For_Shipping' status. Invalid orders: ${invalidOrderCodes}`
       );
+    }
+
+    // ========================================
+    // STEP 2.5: Validate Vehicle Capacity (if vehicleTypeId provided)
+    // ========================================
+    if (vehicleTypeId) {
+      const vehicleType = await VehicleType.findById(vehicleTypeId).session(session);
+      if (!vehicleType) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(404);
+        throw new Error('Vehicle type not found');
+      }
+
+      // Re-fetch orders with populated productId to access weight
+      const ordersWithProducts = await Order.find({ _id: { $in: orderIds } })
+        .populate('items.productId', 'name weight')
+        .session(session);
+
+      let totalWeightInKg = 0;
+      let totalQuantity = 0;
+
+      for (const order of ordersWithProducts) {
+        for (const item of order.items) {
+          totalQuantity += item.quantity;
+          if (item.productId && item.productId.weight) {
+            totalWeightInKg += item.quantity * item.productId.weight;
+          }
+        }
+      }
+
+      if (vehicleType.unit === 'ton') {
+        const maxCapacityInKg = vehicleType.capacity * 1000;
+        if (totalWeightInKg > maxCapacityInKg) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(
+            `Total shipment weight (${totalWeightInKg.toFixed(2)} kg) exceeds vehicle capacity (${vehicleType.capacity} ton = ${maxCapacityInKg} kg).`
+          );
+        }
+      } else if (vehicleType.unit === 'kg') {
+        const maxCapacityInKg = vehicleType.capacity;
+        if (totalWeightInKg > maxCapacityInKg) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(
+            `Total shipment weight (${totalWeightInKg.toFixed(2)} kg) exceeds vehicle capacity (${maxCapacityInKg} kg).`
+          );
+        }
+      } else if (vehicleType.unit === 'box') {
+        const maxCapacityInBox = vehicleType.capacity;
+        if (totalQuantity > maxCapacityInBox) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(
+            `Total item quantity (${totalQuantity}) exceeds vehicle box capacity (${maxCapacityInBox} boxes).`
+          );
+        }
+      }
     }
 
     // ========================================
