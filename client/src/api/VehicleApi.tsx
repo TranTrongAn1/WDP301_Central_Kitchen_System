@@ -17,6 +17,8 @@ export interface VehicleTypeInput {
   name: string;
   description?: string;
   isActive?: boolean;
+  capacity?: number;
+  unit?: 'kg' | 'ton' | 'box';
 }
 
 export interface ApiResponse<T> {
