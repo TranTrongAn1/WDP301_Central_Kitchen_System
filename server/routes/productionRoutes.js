@@ -19,25 +19,25 @@ router.get('/:id', getProductionPlanById);
 
 router.post(
   '/',
-  authorize('Admin', 'Manager', 'KitchenStaff'),
+  authorize('Admin', 'Manager', 'Coordinator', 'KitchenStaff'),
   createProductionPlan
 );
 
 router.put(
   '/:id',
-  authorize('Admin', 'Manager', 'KitchenStaff'),
+  authorize('Admin', 'Manager', 'Coordinator', 'KitchenStaff'),
   updateProductionPlan
 );
 
 router.patch(
   '/:id/status',
-  authorize('Admin', 'Manager', 'KitchenStaff'),
+  authorize('Admin', 'Manager', 'Coordinator', 'KitchenStaff'),
   updateProductionPlanStatus
 );
 
 router.post(
   '/:planId/complete-item',
-  authorize('Admin', 'Manager', 'KitchenStaff'),
+  authorize('Admin', 'Manager', 'Coordinator', 'KitchenStaff'),
   completeProductionItem
 );
 
