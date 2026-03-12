@@ -7,12 +7,20 @@ const VehicleType = require('../models/VehicleType');
  */
 exports.createVehicleType = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    // [CẬP NHẬT] Lấy thêm capacity và unit
+    const { name, description, capacity, unit } = req.body;
 
     if (!name || name.trim() === '') {
       return res.status(400).json({
         success: false,
         message: 'Vehicle type name is required',
+      });
+    }
+
+    if (!capacity || capacity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vehicle capacity must be a positive number',
       });
     }
 
@@ -26,6 +34,8 @@ exports.createVehicleType = async (req, res, next) => {
 
     const vehicleType = await VehicleType.create({
       name: name.trim(),
+      capacity,
+      unit: unit || 'kg', // Nếu không truyền lên thì mặc định là kg
       description,
     });
 
@@ -89,7 +99,8 @@ exports.getVehicleTypeById = async (req, res, next) => {
  */
 exports.updateVehicleType = async (req, res, next) => {
   try {
-    const { name, description, isActive } = req.body;
+    // [CẬP NHẬT] Thêm capacity và unit
+    const { name, description, capacity, unit, isActive } = req.body;
 
     const vehicleType = await VehicleType.findById(req.params.id);
 
@@ -114,6 +125,18 @@ exports.updateVehicleType = async (req, res, next) => {
       }
 
       vehicleType.name = name.trim();
+    }
+
+    // [CẬP NHẬT] Áp dụng các thay đổi mới
+    if (capacity !== undefined) {
+        if (capacity <= 0) {
+            return res.status(400).json({ success: false, message: 'Capacity must be greater than 0' });
+        }
+        vehicleType.capacity = capacity;
+    }
+    
+    if (unit) {
+        vehicleType.unit = unit;
     }
 
     if (description !== undefined) {
