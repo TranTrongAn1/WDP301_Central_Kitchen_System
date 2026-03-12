@@ -703,7 +703,7 @@ const addOrdersToTrip = async (req, res, next) => {
       throw new Error('One or more orders not found');
     }
 
-    // Validate all orders have 'Ready_For_Shipping' status
+    // Validate all orders have 'Ready_For_Shipping' status (Bạn đã sửa logic thành Ready_For_Shipping)
     const invalidOrders = orders.filter(order => order.status !== 'Ready_For_Shipping');
     if (invalidOrders.length > 0) {
       transactionAborted = true;
@@ -735,21 +735,6 @@ const addOrdersToTrip = async (req, res, next) => {
       } else {
         duplicateCount++;
       }
-    }
-
-    // ========================================
-    // STEP 4.5: Validate MAX Orders Limit (After filtering duplicates)
-    // ========================================
-    const maxOrdersPerTrip = await getSettingNumber('MAX_ORDERS_PER_TRIP', 100);
-    const totalOrdersAfterAdd = trip.orders.length + newOrderIds.length;
-    
-    if (totalOrdersAfterAdd > maxOrdersPerTrip) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(
-        `Capacity exceeded. Trip has ${trip.orders.length} orders. Adding ${newOrderIds.length} new orders exceeds the limit of ${maxOrdersPerTrip} per trip.`
-      );
     }
 
     // ========================================
@@ -1535,17 +1520,6 @@ const createDeliveryTrip = async (req, res, next) => {
       await session.abortTransaction();
       res.status(400);
       throw new Error('orderIds must be a non-empty array');
-    }
-
-    // ========================================
-    // STEP 1.5: Validate MAX Orders Limit
-    // ========================================
-    const maxOrdersPerTrip = await getSettingNumber('MAX_ORDERS_PER_TRIP', 100);
-    if (orderIds.length > maxOrdersPerTrip) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(`Exceeded maximum limit. A delivery trip can only have up to ${maxOrdersPerTrip} orders. You provided ${orderIds.length}.`);
     }
 
     // ========================================
