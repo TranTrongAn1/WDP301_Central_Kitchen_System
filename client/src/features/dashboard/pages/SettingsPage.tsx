@@ -18,7 +18,7 @@ import {
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useUserSettingsStore } from '@/shared/zustand/userSettingsStore';
-import { systemSettingApi, type SystemSetting, type CreateSystemSettingPayload } from '@/api/SystemSettingApi';
+import { systemSettingApi, type SystemSetting } from '@/api/SystemSettingApi';
 
 import {
   Card,
@@ -66,18 +66,8 @@ const SettingsPage = () => {
     string | null
   >(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
   const [filterGroup, setFilterGroup] = useState<SystemSetting['group'] | 'ALL'>('ALL');
   const [publicOnly, setPublicOnly] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newSetting, setNewSetting] = useState<CreateSystemSettingPayload>({
-    key: '',
-    value: '',
-    description: '',
-    isPublic: false,
-    dataType: 'STRING',
-    group: 'OTHER',
-  });
 
   const isAdmin = user?.role === 'Admin';
   const canManageSystem = user?.role === 'Admin' || user?.role === 'Manager';
@@ -186,89 +176,20 @@ const SettingsPage = () => {
     }
   };
 
-  const handleSeed = async (): Promise<void> => {
-    if (!window.confirm('Seed lại cài đặt hệ thống mặc định? Có thể ghi đè giá trị hiện có.')) return;
-    setSeeding(true);
-    setSystemSettingsError(null);
-    try {
-      const res = await systemSettingApi.seed();
-      if (res?.success && Array.isArray(res.data)) {
-        setSystemSettings(res.data);
-      } else {
-        await fetchSystemSettings();
-      }
-    } catch (err) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      setSystemSettingsError(error?.response?.data?.message || error?.message || 'Seed thất bại.');
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  const handleCreateSystemSetting = async (): Promise<void> => {
-    const rawKey = newSetting.key.trim();
-    if (!rawKey) {
-      setSystemSettingsError('Vui lòng nhập key cho setting mới.');
-      return;
-    }
-    const normalizedKey = rawKey.toUpperCase().replace(/\s+/g, '_');
-    const payload: CreateSystemSettingPayload = {
-      ...newSetting,
-      key: normalizedKey,
-      value: newSetting.value.trim(),
-      dataType: newSetting.dataType ?? 'STRING',
-      group: newSetting.group ?? 'OTHER',
-      isPublic: newSetting.isPublic ?? false,
-    };
-    setCreating(true);
-    setSystemSettingsError(null);
-    try {
-      const res = await systemSettingApi.create(payload);
-      if (res?.success && res.data) {
-        setSystemSettings((prev) => (prev ? [...prev, res.data] : [res.data]));
-        setNewSetting({
-          key: '',
-          value: '',
-          description: '',
-          isPublic: false,
-          dataType: 'STRING',
-          group: 'OTHER',
-        });
-      } else {
-        setSystemSettingsError(res?.message || 'Không thể tạo System Setting mới.');
-      }
-    } catch (err) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      setSystemSettingsError(
-        error?.response?.data?.message ||
-        error?.message ||
-        'Đã xảy ra lỗi khi tạo System Setting.'
-      );
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleDeleteSystemSetting = async (setting: SystemSetting): Promise<void> => {
-    if (!window.confirm(`Xóa setting "${setting.key}"?`)) return;
-    setSystemSettingsError(null);
-    try {
-      const res = await systemSettingApi.delete(setting.key);
-      if ((res as { success?: boolean })?.success !== false) {
-        setSystemSettings((prev) =>
-          prev ? prev.filter((s) => s.key !== setting.key) : prev
-        );
-      } else {
-        const msg = (res as { message?: string }).message;
-        setSystemSettingsError(msg || 'Không thể xoá System Setting.');
-      }
-    } catch (err) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      setSystemSettingsError(
-        error?.response?.data?.message ||
-        error?.message ||
-        'Đã xảy ra lỗi khi xoá System Setting.'
-      );
+  const getFriendlyKeyLabel = (key: string): string => {
+    switch (key.toUpperCase()) {
+      case 'MAX_ORDERS_PER_TRIP':
+        return 'Số đơn tối đa trên một chuyến xe';
+      case 'MIN_ORDERS_PER_TRIP':
+        return 'Số đơn tối thiểu để xe được xuất bến';
+      case 'MAX_PRODUCTS_PER_PLAN':
+        return 'Tổng số sản phẩm tối đa trong một kế hoạch sản xuất';
+      case 'SHIPPING_COST_BASE':
+        return 'Phí giao hàng cơ bản (VND)';
+      case 'TAX_RATE':
+        return 'Thuế VAT (%)';
+      default:
+        return key;
     }
   };
 
@@ -546,11 +467,12 @@ const SettingsPage = () => {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Database className="h-4 w-4 text-primary" />
-                      Cài đặt hệ thống (cho Admin)
+                      Cài đặt hệ thống (Admin)
                     </CardTitle>
                     <CardDescription className="text-xs md:text-sm">
-                      Các tham số này ảnh hưởng tới toàn bộ hệ thống: phí giao
-                      hàng, thuế, cấu hình UI mặc định, v.v.
+                      Các thông số như giới hạn số đơn trên 1 chuyến xe, số sản phẩm trong 1 kế hoạch sản xuất,
+                      phí giao hàng, thuế VAT... đã được backend khởi tạo sẵn. Tại đây Admin chỉ chỉnh sửa
+                      các giá trị này cho phù hợp thực tế, không tạo thêm hay seed dữ liệu mới.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="text-[11px] text-muted-foreground space-y-2">
@@ -576,16 +498,6 @@ const SettingsPage = () => {
                 )}
 
                 <div className="flex flex-wrap gap-2 items-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSeed}
-                    disabled={seeding}
-                  >
-                    {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Seed mặc định
-                  </Button>
                   <select
                     className="h-8 rounded-md border border-border bg-background px-2 text-xs"
                     value={filterGroup}
@@ -618,119 +530,6 @@ const SettingsPage = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Tạo System Setting mới</CardTitle>
-                      <CardDescription className="text-xs">
-                        Dùng cho các tham số cấu hình hệ thống như MAX_ORDERS_PER_TRIP, TAX_RATE, v.v.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-xs">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div>
-                          <Label className="text-xs">Key *</Label>
-                          <Input
-                            value={newSetting.key}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({ ...prev, key: e.target.value }))
-                            }
-                            placeholder="VD: MAX_ORDERS_PER_TRIP"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Giá trị *</Label>
-                          <Input
-                            value={newSetting.value}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({ ...prev, value: e.target.value }))
-                            }
-                            placeholder="VD: 100"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Nhóm</Label>
-                          <select
-                            className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
-                            value={newSetting.group ?? 'OTHER'}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({
-                                ...prev,
-                                group: e.target.value as SystemSetting['group'],
-                              }))
-                            }
-                          >
-                            <option value="SYSTEM">SYSTEM</option>
-                            <option value="FINANCE">FINANCE</option>
-                            <option value="DELIVERY">DELIVERY</option>
-                            <option value="PRODUCTION">PRODUCTION</option>
-                            <option value="ORDER">ORDER</option>
-                            <option value="INVENTORY">INVENTORY</option>
-                            <option value="OTHER">OTHER</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div>
-                          <Label className="text-xs">Data type</Label>
-                          <select
-                            className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
-                            value={newSetting.dataType ?? 'STRING'}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({
-                                ...prev,
-                                dataType: e.target
-                                  .value as NonNullable<SystemSetting['dataType']>,
-                              }))
-                            }
-                          >
-                            <option value="STRING">STRING</option>
-                            <option value="NUMBER">NUMBER</option>
-                            <option value="BOOLEAN">BOOLEAN</option>
-                            <option value="JSON">JSON</option>
-                          </select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <Label className="text-xs">Mô tả</Label>
-                          <Input
-                            value={newSetting.description ?? ''}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({
-                                ...prev,
-                                description: e.target.value,
-                              }))
-                            }
-                            placeholder="Ghi chú ý nghĩa của setting"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-1">
-                        <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            className="h-3 w-3"
-                            checked={newSetting.isPublic ?? false}
-                            onChange={(e) =>
-                              setNewSetting((prev) => ({
-                                ...prev,
-                                isPublic: e.target.checked,
-                              }))
-                            }
-                          />
-                          Cho phép client đọc trực tiếp (isPublic)
-                        </label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="default"
-                          disabled={creating}
-                          onClick={() => void handleCreateSystemSetting()}
-                        >
-                          {creating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                          Tạo setting
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
                   {isLoadingSystemSettings && (
                     <Card>
                       <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -746,8 +545,7 @@ const SettingsPage = () => {
                       <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          Chưa có cài đặt hệ thống nào. Bạn có thể dùng nút
-                          &quot;Seed mặc định&quot; bên trên để tạo dữ liệu mẫu.
+                          Chưa có cài đặt hệ thống nào cho nhóm này.
                         </CardContent>
                       </Card>
                     )}
@@ -778,7 +576,7 @@ const SettingsPage = () => {
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="space-y-1">
                                     <CardTitle className="text-sm font-semibold">
-                                      {setting.key}
+                                      {getFriendlyKeyLabel(setting.key)}
                                     </CardTitle>
                                     <div className="flex flex-wrap gap-1.5 items-center">
                                       <Badge variant="outline" className="text-[10px] px-2 py-0.5">
@@ -868,15 +666,6 @@ const SettingsPage = () => {
                                       ) : (
                                         'Lưu thay đổi'
                                       )}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      className="flex-shrink-0 text-red-600 border-red-200 hover:bg-red-50"
-                                      onClick={() => void handleDeleteSystemSetting(setting)}
-                                    >
-                                      Xóa
                                     </Button>
                                   </div>
                                 </div>
