@@ -8,12 +8,21 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Modal } from '../components/ui/Modal';
 import { productApi } from '@/api/ProductApi';
 import { categoryApi, type Category } from '@/api/CategoryApi';
-import type { Product } from '@/api/ProductApi';
+import type { Product, CreateProductRequest } from '@/api/ProductApi';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
+import { useAuthStore } from '@/shared/zustand/authStore';
+import { uploadProductImage } from '@/shared/lib/firebase';
+import toast from 'react-hot-toast';
 
 const ProductsRecipesPage = () => {
     const navigate = useNavigate();
+    const { isManagerReadOnly } = useManagerReadOnly();
+    const { user } = useAuthStore();
+    const isAdmin = user?.role === 'Admin';
+    const productsBasePath = isAdmin ? '/admin/products' : '/manager/products';
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +30,18 @@ const ProductsRecipesPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [_categoryLoading, setCategoryLoading] = useState(false);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [createLoading, setCreateLoading] = useState(false);
+    const [createForm, setCreateForm] = useState<CreateProductRequest>({
+        name: '',
+        sku: '',
+        categoryId: '',
+        price: 0,
+        shelfLifeDays: 1,
+        weight: 0.5,
+        image: undefined,
+    });
+    const [createImageFile, setCreateImageFile] = useState<File | null>(null);
 
     const ITEMS_PER_PAGE = 9;
     const [currentPage, setCurrentPage] = useState(1);
@@ -115,6 +136,51 @@ const ProductsRecipesPage = () => {
         return product.categoryId?.name || 'Uncategorized';
     };
 
+    const openCreate = () => {
+        if (isManagerReadOnly) return;
+        setCreateForm({
+            name: '',
+            sku: '',
+            categoryId: categories[0]?._id || '',
+            price: 0,
+            shelfLifeDays: 1,
+            weight: 0.5,
+            image: undefined,
+        });
+        setCreateImageFile(null);
+        setIsCreateOpen(true);
+    };
+
+    const handleCreate = async () => {
+        if (isManagerReadOnly) return;
+        if (!createForm.name.trim() || !createForm.sku.trim() || !createForm.categoryId) {
+            toast.error('Vui lòng nhập Tên, SKU và Category.');
+            return;
+        }
+        try {
+            setCreateLoading(true);
+            let imageUrl: string | undefined = undefined;
+            if (createImageFile) {
+                imageUrl = await uploadProductImage(createImageFile);
+            }
+            const payload: CreateProductRequest = {
+                ...createForm,
+                price: Number(createForm.price) || 0,
+                shelfLifeDays: Number(createForm.shelfLifeDays) || 1,
+                weight: createForm.weight != null ? Number(createForm.weight) || 0.5 : 0.5,
+                image: imageUrl,
+            };
+            await productApi.create(payload);
+            toast.success('Đã tạo sản phẩm.');
+            setIsCreateOpen(false);
+            await fetchProducts();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Không tạo được sản phẩm.');
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
@@ -150,7 +216,11 @@ const ProductsRecipesPage = () => {
                 <div>
                 </div>
                 <div className="flex gap-2">
-                    <Button className="bg-gradient-to-r from-orange-600 to-amber-600">
+                    <Button
+                        className="bg-gradient-to-r from-orange-600 to-amber-600"
+                        disabled={isManagerReadOnly}
+                        onClick={openCreate}
+                    >
                         <Plus className="w-4 h-4 mr-2" />
                         Add Product
                     </Button>
@@ -234,8 +304,8 @@ const ProductsRecipesPage = () => {
                             icon={UtensilsCrossed}
                             title="No Products Found"
                             message={searchQuery ? 'Try a different search term' : 'Add your first product to get started'}
-                            actionLabel={!searchQuery ? "Add Product" : undefined}
-                            onAction={!searchQuery ? () => { } : undefined}
+                                actionLabel={!searchQuery && !isManagerReadOnly ? "Add Product" : undefined}
+                                onAction={!searchQuery && !isManagerReadOnly ? openCreate : undefined}
                         />
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -245,7 +315,7 @@ const ProductsRecipesPage = () => {
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-all hover:shadow-md group cursor-pointer"
-                                    onClick={() => navigate(`/manager/products/${product._id}`)}
+                                    onClick={() => navigate(`${productsBasePath}/${product._id}`)}
                                 >
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-3">
@@ -271,7 +341,7 @@ const ProductsRecipesPage = () => {
                                             className="opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                navigate(`/manager/products/${product._id}`);
+                                                navigate(`${productsBasePath}/${product._id}`);
                                             }}
                                         >
                                             <Eye className="w-4 h-4" />
@@ -364,6 +434,107 @@ const ProductsRecipesPage = () => {
                     </button>
                 </div>
             )}
+
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => !createLoading && setIsCreateOpen(false)}
+                title="Tạo sản phẩm"
+                description="Nhập thông tin cơ bản và tải ảnh lên Firebase Storage"
+                size="lg"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={createLoading}>
+                            Hủy
+                        </Button>
+                        <Button
+                            className="bg-gradient-to-r from-orange-600 to-amber-600"
+                            onClick={handleCreate}
+                            disabled={createLoading || isManagerReadOnly}
+                        >
+                            {createLoading ? 'Đang tạo...' : 'Tạo'}
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Tên *</label>
+                            <Input
+                                value={createForm.name}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                                placeholder="Ví dụ: Bánh mì"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">SKU *</label>
+                            <Input
+                                value={createForm.sku}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
+                                placeholder="VD: SKU-001"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Category *</label>
+                            <select
+                                className="flex h-10 w-full rounded-xl border border-input bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-base appearance-none cursor-pointer"
+                                value={createForm.categoryId}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, categoryId: e.target.value }))}
+                            >
+                                {categories.map((c) => (
+                                    <option key={c._id} value={c._id}>
+                                        {c.categoryName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Giá (VND)</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={createForm.price}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, price: Number(e.target.value) || 0 }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Shelf life (days)</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={createForm.shelfLifeDays}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, shelfLifeDays: Number(e.target.value) || 1 }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Weight (kg / unit)</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={createForm.weight ?? 0}
+                                onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                        ...p,
+                                        weight: Number(e.target.value) || 0,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Ảnh sản phẩm</label>
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Nếu chọn ảnh, hệ thống sẽ upload lên Firebase và lưu URL vào trường <code>image</code>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

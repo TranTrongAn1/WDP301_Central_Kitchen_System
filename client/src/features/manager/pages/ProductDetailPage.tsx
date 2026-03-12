@@ -9,16 +9,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { ErrorState } from '../components/ui/ErrorState';
-import { ConfirmModal } from '../components/ui/Modal';
-import { productApi } from '@/api/ProductApi';
+import { ConfirmModal, Modal } from '../components/ui/Modal';
+import { Input } from '../components/ui/Input';
+import { productApi, type UpdateProductRequest } from '@/api/ProductApi';
 import { ingredientApi } from '@/api/InventoryApi';
 import { categoryApi } from '@/api/CategoryApi';
 import type { Product } from '@/api/ProductApi';
 import type { Ingredient } from '@/api/InventoryApi';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
+import { useAuthStore } from '@/shared/zustand/authStore';
+import { uploadProductImage } from '@/shared/lib/firebase';
+import toast from 'react-hot-toast';
 
 const ProductDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { isManagerReadOnly } = useManagerReadOnly();
+    const { user } = useAuthStore();
+    const isAdmin = user?.role === 'Admin';
+    const productsBasePath = isAdmin ? '/admin/products' : '/manager/products';
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -26,6 +35,17 @@ const ProductDetailPage = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [categoryName, setCategoryName] = useState<string>('');
     const [ingredientMap, setIngredientMap] = useState<Record<string, string>>({});
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editForm, setEditForm] = useState<UpdateProductRequest>({
+        name: '',
+        sku: '',
+        price: 0,
+        shelfLifeDays: 1,
+        weight: 0.5,
+        image: undefined,
+    });
+    const [editImageFile, setEditImageFile] = useState<File | null>(null);
 
     const fetchProduct = async () => {
         if (!id) return;
@@ -35,6 +55,15 @@ const ProductDetailPage = () => {
             const response = await productApi.getById(id);
             const data = (response as any)?.data || response;
             setProduct(data);
+            setEditForm({
+                name: data?.name,
+                sku: data?.sku,
+                categoryId: typeof data?.categoryId === 'string' ? data?.categoryId : data?.categoryId?._id,
+                price: data?.price,
+                shelfLifeDays: data?.shelfLifeDays,
+                weight: data?.weight ?? 0.5,
+                image: data?.image,
+            });
 
             // Fetch all ingredients once and create a map
             try {
@@ -80,15 +109,52 @@ const ProductDetailPage = () => {
 
     const handleDelete = async () => {
         if (!id) return;
+        if (isManagerReadOnly) {
+            toast.error('Manager không được phép xóa sản phẩm.');
+            return;
+        }
         try {
             setDeleteLoading(true);
             await productApi.delete(id);
-            navigate('/manager/products');
+            navigate(productsBasePath);
         } catch (err) {
             console.error('Error deleting product:', err);
-            alert('Failed to delete product. It may be used in bundles.');
+            toast.error('Không xóa được sản phẩm. Có thể đang được dùng trong bundle.');
         } finally {
             setDeleteLoading(false);
+        }
+    };
+
+    const openEdit = () => {
+        if (isManagerReadOnly) return;
+        setEditImageFile(null);
+        setIsEditOpen(true);
+    };
+
+    const handleUpdate = async () => {
+        if (!id) return;
+        if (isManagerReadOnly) return;
+        try {
+            setEditLoading(true);
+            let imageUrl = editForm.image;
+            if (editImageFile) {
+                imageUrl = await uploadProductImage(editImageFile, id);
+            }
+            const payload: UpdateProductRequest = {
+                ...editForm,
+                image: imageUrl,
+                price: Number(editForm.price) || 0,
+                shelfLifeDays: Number(editForm.shelfLifeDays) || 1,
+                weight: editForm.weight != null ? Number(editForm.weight) || 0.5 : undefined,
+            };
+            await productApi.update(id, payload);
+            toast.success('Đã cập nhật sản phẩm.');
+            setIsEditOpen(false);
+            await fetchProduct();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Không cập nhật được sản phẩm.');
+        } finally {
+            setEditLoading(false);
         }
     };
 
@@ -154,7 +220,7 @@ const ProductDetailPage = () => {
     if (error || !product) {
         return (
             <div className="space-y-6">
-                <Button variant="outline" onClick={() => navigate('/manager/products')}>
+                <Button variant="outline" onClick={() => navigate(productsBasePath)}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Products
                 </Button>
@@ -181,7 +247,7 @@ const ProductDetailPage = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate('/manager/products')}>
+                    <Button variant="outline" onClick={() => navigate(productsBasePath)}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
                     </Button>
@@ -191,7 +257,7 @@ const ProductDetailPage = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" disabled={isManagerReadOnly} onClick={openEdit}>
                         <Edit className="w-4 h-4 mr-1" />
                         Edit
                     </Button>
@@ -200,6 +266,7 @@ const ProductDetailPage = () => {
                         size="sm"
                         className="text-red-500"
                         onClick={() => setIsDeleteModalOpen(true)}
+                        disabled={isManagerReadOnly}
                     >
                         <Trash2 className="w-4 h-4" />
                     </Button>
@@ -252,6 +319,15 @@ const ProductDetailPage = () => {
                                         <div>
                                             <p className="text-sm text-muted-foreground">Shelf Life</p>
                                             <p className="font-semibold">{product.shelfLifeDays} days</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                                            <Package className="w-4 h-4 text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Weight</p>
+                                            <p className="font-semibold">{product.weight ?? 0.5} kg / unit</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -424,6 +500,91 @@ const ProductDetailPage = () => {
                 variant="danger"
                 loading={deleteLoading}
             />
+
+            <Modal
+                isOpen={isEditOpen}
+                onClose={() => !editLoading && setIsEditOpen(false)}
+                title="Sửa sản phẩm"
+                description="Cập nhật thông tin và (tuỳ chọn) upload ảnh mới lên Firebase"
+                size="lg"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={editLoading}>
+                            Hủy
+                        </Button>
+                        <Button
+                            className="bg-gradient-to-r from-orange-600 to-amber-600"
+                            onClick={handleUpdate}
+                            disabled={editLoading || isManagerReadOnly}
+                        >
+                            {editLoading ? 'Đang lưu...' : 'Lưu'}
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Tên</label>
+                            <Input
+                                value={editForm.name ?? ''}
+                                onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">SKU</label>
+                            <Input
+                                value={editForm.sku ?? ''}
+                                onChange={(e) => setEditForm((p) => ({ ...p, sku: e.target.value }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Giá (VND)</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={Number(editForm.price ?? 0)}
+                                onChange={(e) => setEditForm((p) => ({ ...p, price: Number(e.target.value) || 0 }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Shelf life (days)</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={Number(editForm.shelfLifeDays ?? 1)}
+                                onChange={(e) => setEditForm((p) => ({ ...p, shelfLifeDays: Number(e.target.value) || 1 }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Weight (kg / unit)</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={Number(editForm.weight ?? 0)}
+                                onChange={(e) =>
+                                    setEditForm((p) => ({
+                                        ...p,
+                                        weight: Number(e.target.value) || 0,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="text-sm font-medium mb-1 block">Ảnh sản phẩm (upload mới)</label>
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setEditImageFile(e.target.files?.[0] ?? null)}
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Nếu không chọn ảnh mới, hệ thống giữ nguyên URL ảnh hiện tại.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

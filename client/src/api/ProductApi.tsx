@@ -30,6 +30,7 @@ export interface Product {
     } | string;
     price: number;
     shelfLifeDays: number;
+    weight?: number;
     image?: string;
     recipe: RecipeItem[];
     bundleItems: BundleItem[];
@@ -43,6 +44,7 @@ export interface CreateProductRequest {
     categoryId: string;
     price: number;
     shelfLifeDays: number;
+    weight?: number;
     image?: string;
     recipe?: {
         ingredientId: string;
@@ -60,6 +62,7 @@ export interface UpdateProductRequest {
     categoryId?: string;
     price?: number;
     shelfLifeDays?: number;
+    weight?: number;
     image?: string;
     recipe?: {
         ingredientId: string;

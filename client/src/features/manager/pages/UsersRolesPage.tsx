@@ -8,11 +8,13 @@ import UpdateUserModal from '@/features/admin/components/UpdateUserModal';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function UsersRolesPage() {
   const { darkMode } = useThemeStore();
+  const { isManagerReadOnly } = useManagerReadOnly();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -82,6 +84,10 @@ export default function UsersRolesPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isManagerReadOnly) {
+      alert('Manager không được phép tạo user.');
+      return;
+    }
     if (!newUser.roleId) {
       alert('Vui lòng chọn role.');
       return;
@@ -115,6 +121,10 @@ export default function UsersRolesPage() {
 
   const handleToggleStatus = async (user: User) => {
     setOpenMenuId(null);
+    if (isManagerReadOnly) {
+      alert('Manager không được phép đổi trạng thái user.');
+      return;
+    }
     if (!window.confirm(`${user.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'} tài khoản "${user.fullName}"?`)) return;
     try {
       await userApi.updateUserStatus(user._id, !user.isActive);
@@ -126,6 +136,7 @@ export default function UsersRolesPage() {
 
   const handleEditUser = async (user: User) => {
     setOpenMenuId(null);
+    if (isManagerReadOnly) return;
     try {
       const fresh = await userApi.getById(user._id);
       setSelectedUser(fresh ?? user);
@@ -190,7 +201,11 @@ export default function UsersRolesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Users & Roles</h1>
           <p className="text-sm text-muted-foreground mt-1">Tổng: {filteredUsers.length} user (không bao gồm Admin)</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="bg-amber-600 hover:bg-amber-700">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="bg-amber-600 hover:bg-amber-700"
+          disabled={isManagerReadOnly}
+        >
           Thêm user
         </Button>
       </div>

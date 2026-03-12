@@ -6,7 +6,6 @@ const MENU_ITEMS = [
   { icon: 'storefront', label: 'Stores', path: '/admin/stores' },
   { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
   { icon: 'group', label: 'Users', path: '/admin/users' },
-  { icon: 'factory', label: 'Production Plans', path: '/admin/production' },
   { icon: 'inventory_2', label: 'Inventory & Batches', path: '/admin/inventory' },
   { icon: 'restaurant_menu', label: 'Products & Recipes', path: '/admin/products' },
   { icon: 'category', label: 'Categories', path: '/admin/categories' },

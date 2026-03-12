@@ -7,6 +7,8 @@ export interface VehicleType {
   name: string;
   description?: string;
   isActive: boolean;
+  capacity?: number;
+  unit?: 'kg' | 'ton' | 'box';
   createdAt?: string;
   updatedAt?: string;
 }

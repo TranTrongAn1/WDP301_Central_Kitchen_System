@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
@@ -11,7 +11,6 @@ import {
     ArrowLeft,
     Truck,
     MapPin,
-    CalendarDays,
     DollarSign,
     Trash2,
     Plus,
@@ -42,6 +41,7 @@ const ShipmentDetail = () => {
     const [loadingAvailable, setLoadingAvailable] = useState(false);
     const [minOrdersPerTrip, setMinOrdersPerTrip] = useState<number | null>(null);
     const [ingredientSummary, setIngredientSummary] = useState<{ name: string; unit: string; totalQty: number }[]>([]);
+    const [totalWeightKg, setTotalWeightKg] = useState(0);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -97,6 +97,7 @@ const ShipmentDetail = () => {
     useEffect(() => {
         if (tripOrders.length === 0) {
             setIngredientSummary([]);
+            setTotalWeightKg(0);
             return;
         }
         let cancelled = false;
@@ -109,12 +110,17 @@ const ShipmentDetail = () => {
                 const products: Product[] = (productsRes as any)?.data ?? (Array.isArray(productsRes) ? productsRes : []);
                 const ingredients: Ingredient[] = (ingredientsRes as any)?.data ?? (Array.isArray(ingredientsRes) ? ingredientsRes : []);
                 const ingMap: Record<string, { name: string; unit: string; totalQty: number }> = {};
+                let totalWeight = 0;
                 for (const order of tripOrders) {
                     if (!order.items) continue;
                     for (const item of order.items) {
                         const pid = typeof item.productId === 'object' ? (item.productId as any)?._id : item.productId;
                         const product = products.find((p: Product) => p._id === pid);
                         const qty = item.quantity ?? (item as any).approvedQuantity ?? 0;
+
+                        // Cộng khối lượng (dùng weight từ product, mặc định 0.5kg nếu thiếu)
+                        const weightPerUnit = (product as Product | undefined)?.weight ?? 0.5;
+                        totalWeight += weightPerUnit * qty;
                         if (!product?.recipe) continue;
                         for (const rec of product.recipe) {
                             const ingId = typeof rec.ingredientId === 'object' ? (rec.ingredientId as any)?._id : rec.ingredientId;
@@ -129,9 +135,13 @@ const ShipmentDetail = () => {
                 }
                 if (!cancelled) {
                     setIngredientSummary(Object.values(ingMap));
+                    setTotalWeightKg(totalWeight);
                 }
             } catch {
-                if (!cancelled) setIngredientSummary([]);
+                if (!cancelled) {
+                    setIngredientSummary([]);
+                    setTotalWeightKg(0);
+                }
             }
         };
         run();
@@ -306,6 +316,49 @@ const ShipmentDetail = () => {
 
     const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
+    const vehicleType = (trip ? (trip as any).vehicleType : undefined) as
+        | { name?: string; capacity?: number; unit?: 'kg' | 'ton' | 'box' }
+        | undefined;
+
+    const getVehicleCapacityText = () => {
+        if (!vehicleType || !vehicleType.capacity || !vehicleType.unit) return 'Chưa gán';
+        const { capacity, unit } = vehicleType;
+        if (unit === 'kg') return `${capacity} kg`;
+        if (unit === 'ton') return `${capacity} tấn (~${capacity * 1000} kg)`;
+        if (unit === 'box') return `${capacity} boxes (giới hạn theo số lượng items)`;
+        return `${capacity} ${unit}`;
+    };
+
+    const totalItems = useMemo(() => {
+        return tripOrders.reduce((sum, order) => {
+            if (!order.items || order.items.length === 0) return sum;
+            const orderQty = order.items.reduce((s, item: any) => {
+                const qty = item.quantity ?? item.approvedQuantity ?? 0;
+                return s + qty;
+            }, 0);
+            return sum + orderQty;
+        }, 0);
+    }, [tripOrders]);
+
+    const getWeightTextClass = () => {
+        if (!vehicleType || !vehicleType.capacity || !vehicleType.unit) return '';
+        if (vehicleType.unit === 'box') {
+            if (!totalItems) return '';
+            const ratio = totalItems / vehicleType.capacity;
+            if (ratio > 1) return 'text-red-600';
+            if (ratio > 0.8) return 'text-amber-600';
+            return 'text-emerald-600';
+        }
+        const capacityKg = vehicleType.unit === 'kg'
+            ? vehicleType.capacity
+            : vehicleType.capacity * 1000;
+        if (!capacityKg) return '';
+        const ratio = totalWeightKg / capacityKg;
+        if (ratio > 1) return 'text-red-600';
+        if (ratio > 0.8) return 'text-amber-600';
+        return 'text-emerald-600';
+    };
+
     const handleBack = () => {
         // Ưu tiên theo path hiện tại để giữ đúng module
         if (location.pathname.startsWith('/manager')) {
@@ -441,12 +494,22 @@ const ShipmentDetail = () => {
                 </div>
                 <div className="p-6 rounded-xl border border-border bg-card flex items-center gap-4">
                     <div className="p-4 rounded-xl bg-primary/10 text-primary">
-                        <CalendarDays className="w-8 h-8" />
+                        <Truck className="w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Hoàn thành lúc</p>
-                        <p className="text-lg font-bold text-card-foreground">
-                            {trip.completedTime ? new Date(trip.completedTime).toLocaleString('vi-VN') : 'Chưa hoàn thành'}
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Khối lượng vs Sức chở
+                        </p>
+                        <p className={`text-sm font-bold ${getWeightTextClass()}`}>
+                            {totalWeightKg.toFixed(2)} kg
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                            Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span>
+                            {totalItems > 0 && (
+                                <>
+                                    {' '}• Tổng số lượng: <span className="font-semibold">{totalItems}</span>
+                                </>
+                            )}
                         </p>
                     </div>
                 </div>

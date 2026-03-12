@@ -175,20 +175,6 @@ export const DashboardSideBar = ({
           end: false,
         },
         {
-          icon: ClipboardList,
-          label: "Orders & Shipments",
-          subLabel: "Đơn hàng & Giao hàng",
-          path: "/admin/orders",
-          end: false,
-        },
-        {
-          icon: ChefHat,
-          label: "Production Plans",
-          subLabel: "Kế hoạch sản xuất",
-          path: "/admin/production",
-          end: false,
-        },
-        {
           icon: Boxes,
           label: "Inventory & Batches",
           subLabel: "Kho & Lô hàng",
@@ -270,20 +256,6 @@ export const DashboardSideBar = ({
           end: true,
         },
         {
-          icon: ClipboardList,
-          label: "Orders & Shipments",
-          subLabel: "Đơn hàng & Giao hàng",
-          path: "/manager/orders",
-          end: false,
-        },
-        {
-          icon: ChefHat,
-          label: "Production Plans",
-          subLabel: "Kế hoạch sản xuất",
-          path: "/manager/production",
-          end: false,
-        },
-        {
           icon: Boxes,
           label: "Inventory & Batches",
           subLabel: "Kho & Lô hàng",
@@ -316,13 +288,6 @@ export const DashboardSideBar = ({
           label: "Suppliers",
           subLabel: "Nhà cung cấp",
           path: "/manager/suppliers",
-          end: true,
-        },
-        {
-          icon: Car,
-          label: "Vehicle Types",
-          subLabel: "Loại xe",
-          path: "/manager/vehicle-types",
           end: true,
         },
         {

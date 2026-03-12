@@ -29,8 +29,10 @@ import {
 import { Label } from '../components/ui/Label';
 import { categoryApi, type Category } from '@/api/CategoryApi';
 import toast from 'react-hot-toast';
+import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 
 export default function CategoryPage() {
+  const { isManagerReadOnly } = useManagerReadOnly();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -115,6 +117,10 @@ export default function CategoryPage() {
   };
 
   const handleSubmit = async (data: { categoryName: string }) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager chỉ được xem, không được chỉnh sửa danh mục.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (editingCategory) {
@@ -136,6 +142,10 @@ export default function CategoryPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (isManagerReadOnly) {
+      toast.error('Manager không được phép xóa danh mục.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
         await categoryApi.delete(id);
@@ -149,11 +159,13 @@ export default function CategoryPage() {
   };
 
   const handleEdit = (category: Category) => {
+    if (isManagerReadOnly) return;
     setEditingCategory(category);
     setIsFormOpen(true);
   };
 
   const handleCreate = () => {
+    if (isManagerReadOnly) return;
     setEditingCategory(null);
     setIsFormOpen(true);
   };
@@ -169,7 +181,11 @@ export default function CategoryPage() {
       >
         <div>
         </div>
-        <Button onClick={handleCreate} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
+        <Button
+          onClick={handleCreate}
+          className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90"
+          disabled={isManagerReadOnly}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Category
         </Button>
@@ -288,6 +304,7 @@ export default function CategoryPage() {
                               <DropdownMenuItem
                                 onClick={() => handleEdit(category)}
                                 className="cursor-pointer rounded-lg"
+                                disabled={isManagerReadOnly}
                               >
                                 <Pencil className="w-4 h-4 mr-2" />
                                 Edit
@@ -295,6 +312,7 @@ export default function CategoryPage() {
                               <DropdownMenuItem
                                 onClick={() => handleDelete(category._id)}
                                 className="cursor-pointer rounded-lg text-destructive"
+                                disabled={isManagerReadOnly}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
