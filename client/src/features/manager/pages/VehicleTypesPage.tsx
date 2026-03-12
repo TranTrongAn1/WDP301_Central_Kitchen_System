@@ -21,6 +21,8 @@ export default function VehicleTypesPage() {
     name: '',
     description: '',
     isActive: true,
+    capacity: undefined,
+    unit: 'kg',
   });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export default function VehicleTypesPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: '', description: '', isActive: true });
+    setForm({ name: '', description: '', isActive: true, capacity: undefined, unit: 'kg' });
     setModalOpen('create');
   };
 
@@ -55,6 +57,8 @@ export default function VehicleTypesPage() {
       name: v.name,
       description: v.description ?? '',
       isActive: v.isActive ?? true,
+      capacity: v.capacity,
+      unit: v.unit ?? 'kg',
     });
     setModalOpen('edit');
   };
@@ -63,6 +67,10 @@ export default function VehicleTypesPage() {
     e.preventDefault();
     if (!form.name.trim()) {
       toast.error('Nhập tên loại xe.');
+      return;
+    }
+    if (form.capacity != null && (isNaN(form.capacity) || form.capacity <= 0)) {
+      toast.error('Sức chở tối đa phải là số lớn hơn 0.');
       return;
     }
     setSaving(true);
@@ -125,6 +133,7 @@ export default function VehicleTypesPage() {
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 font-medium">Tên</th>
                   <th className="px-4 py-3 font-medium">Mô tả</th>
+                  <th className="px-4 py-3 font-medium">Sức chở tối đa</th>
                   <th className="px-4 py-3 font-medium">Trạng thái</th>
                   <th className="px-4 py-3 text-right font-medium">Thao tác</th>
                 </tr>
@@ -132,7 +141,7 @@ export default function VehicleTypesPage() {
               <tbody>
                 {list.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                       Chưa có loại xe. Thêm loại xe để chọn khi tạo chuyến giao.
                     </td>
                   </tr>
@@ -142,6 +151,16 @@ export default function VehicleTypesPage() {
                       <td className="px-4 py-3">{v.name}</td>
                       <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
                         {v.description || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {v.capacity != null && v.unit ? (
+                          v.unit === 'kg' ? `${v.capacity} kg` :
+                          v.unit === 'ton' ? `${v.capacity} tấn (~${v.capacity * 1000} kg)` :
+                          v.unit === 'box' ? `${v.capacity} thùng/hộp` :
+                          `${v.capacity} ${v.unit}`
+                        ) : (
+                          'Chưa cấu hình'
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={v.isActive ? 'default' : 'secondary'}>
@@ -207,6 +226,41 @@ export default function VehicleTypesPage() {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Tùy chọn"
               />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Sức chở tối đa</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.capacity ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      capacity: e.target.value ? Number(e.target.value) : undefined,
+                    }))
+                  }
+                  placeholder="VD: 500 nếu đơn vị là kg, 1 nếu đơn vị là tấn"
+                />
+              </div>
+              <div>
+                <Label>Đơn vị sức chở</Label>
+                <select
+                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.unit ?? 'kg'}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      unit: e.target.value as VehicleTypeInput['unit'],
+                    }))
+                  }
+                >
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="ton">Tấn (ton)</option>
+                  <option value="box">Thùng / Hộp (box)</option>
+                </select>
+              </div>
             </div>
             {editing && (
               <div className="flex items-center gap-2">
