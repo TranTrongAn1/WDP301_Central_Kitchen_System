@@ -1656,7 +1656,6 @@ paths:
       tags:
         - Vehicle Types
       summary: Get all vehicle types
-      description: Retrieve all vehicle types sorted by newest first.
       security:
         - BearerAuth: []
       responses:
@@ -1675,12 +1674,10 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/VehicleType'
-
     post:
       tags:
         - Vehicle Types
-      summary: Create new vehicle type
-      description: Create a new vehicle type for fleet management. (Admin only)
+      summary: Create new vehicle type (Admin only)
       security:
         - BearerAuth: []
       requestBody:
@@ -1689,9 +1686,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VehicleTypeInput'
+            # Thêm example cho FE dễ nhìn
+            example:
+              name: 'Xe bán tải Ford Ranger'
+              capacity: 800
+              unit: 'kg'
+              description: 'Dùng để giao hỏa tốc nội thành'
       responses:
         '201':
-          description: Vehicle type created successfully
+          description: Created successfully
           content:
             application/json:
               schema:
@@ -1701,8 +1704,6 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/VehicleType'
-        '400':
-          $ref: '#/components/responses/BadRequest'
 
   /api/vehicle-types/{id}:
     parameters:
@@ -1711,33 +1712,21 @@ paths:
         required: true
         schema:
           type: string
-        description: Vehicle Type ID
     get:
       tags:
         - Vehicle Types
-      summary: Get vehicle type by ID
+      summary: Get single vehicle type
       security:
         - BearerAuth: []
       responses:
         '200':
           description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: '#/components/schemas/VehicleType'
         '404':
-          $ref: '#/components/responses/NotFound'
-
+          $ref: '#/components/schemas/Error'
     put:
       tags:
         - Vehicle Types
-      summary: Update vehicle type
-      description: Update name, description or status. (Admin only)
+      summary: Update vehicle type (Admin only)
       security:
         - BearerAuth: []
       requestBody:
@@ -1745,32 +1734,24 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VehicleTypeUpdate'
+            # Thêm example
+            example:
+              capacity: 1000
+              unit: 'kg'
+              description: 'Cập nhật lại tải trọng sau khi đăng kiểm'
       responses:
         '200':
           description: Updated successfully
-        '404':
-          $ref: '#/components/responses/NotFound'
-
     delete:
       tags:
         - Vehicle Types
-      summary: Delete vehicle type (Soft Delete)
-      description: Deactivates the vehicle type by setting isActive to false. (Admin only)
+      summary: Delete vehicle type (Soft delete)
+      description: Set isActive to false
       security:
         - BearerAuth: []
       responses:
         '200':
           description: Deactivated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                    example: Vehicle type deactivated successfully
   # FEATURE 4: LOGISTICS & SUPPLY CHAIN
   # ============================================================
   /api/logistics/orders:
@@ -2146,9 +2127,6 @@ paths:
         2. Groups them into a single delivery trip
         3. All orders transition from 'Approved' to 'In_Transit'
         
-        **Business Rule:**
-        - The total number of orders assigned to this trip MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
-        
         **Traceability:** Trip → Multiple Orders → Store Inventory
       security:
         - BearerAuth: []
@@ -2194,26 +2172,24 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: 'Delivery trip created successfully with 3 orders'
+                    example: 'Delivery trip created successfully with 3 orders in Planning status.'
                   data:
                     type: object
                     properties:
                       trip:
                         $ref: '#/components/schemas/DeliveryTrip'
-                      orders:
-                        type: array
-                        description: 'Updated orders now in In_Transit status'
-                        items:
-                          $ref: '#/components/schemas/Order'
+                      totalOrders:
+                        type: integer
+                        example: 3
         '400':
-          description: Bad Request (Invalid input, orders not in "Ready_For_Shipping" status, or limit exceeded)
+          description: Bad Request (Invalid input or orders not in "Ready_For_Shipping" status)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: 'Exceeded maximum limit. A delivery trip can only have up to 100 orders. You provided 105.'
+                message: "All orders must have 'Ready_For_Shipping' status. Invalid orders: ORD-1234"
         '404':
           description: One or more orders not found
           content:
@@ -2427,9 +2403,6 @@ paths:
         - All orders must have 'Ready_For_Shipping' status
         - Duplicate order IDs are automatically prevented
         
-        **Business Rule:**
-        - The total number of orders (existing + new) MUST NOT exceed the system limit `MAX_ORDERS_PER_TRIP`.
-        
         **Workflow:** Coordinator builds trip by adding ready-for-shipping orders one by one or in batches.
       security:
         - BearerAuth: []
@@ -2480,14 +2453,14 @@ paths:
                         type: integer
                         example: 1
         '400':
-          description: Bad Request (Invalid input, trip not in Planning, orders not Ready_For_Shipping, or capacity limit exceeded)
+          description: Bad Request (Invalid input, trip not in Planning, or orders not Ready_For_Shipping)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 success: false
-                message: 'Capacity exceeded. Trip has 90 orders. Adding 15 new orders exceeds the limit of 100 per trip.'
+                message: "Cannot add orders to trip with status 'In_Transit'. Only 'Planning' trips can be modified."
         '404':
           description: Delivery trip or orders not found
           content:
@@ -5124,46 +5097,68 @@ components:
           example: '65e2f1a2b3c4d5e6f7a8b9c0'
         name:
           type: string
-          description: 'Tên loại xe'
-          example: 'Xe tải 5 tấn'
+          example: 'Xe tải 1.5 Tấn'
+        capacity:               # <-- Nó nằm ở đây nè
+          type: number
+          example: 1500
+        unit:                   # <-- Và ở đây nữa
+          type: string
+          example: 'kg'
         description:
           type: string
-          description: 'Mô tả chi tiết về loại xe'
-          example: 'Chuyên chở hàng đông lạnh, tải trọng tối đa 5000kg'
+          example: 'Chuyên chở hàng đông lạnh nội thành'
         isActive:
           type: boolean
-          description: 'Trạng thái hoạt động (mặc định true)'
           example: true
         createdAt:
           type: string
           format: date-time
+          example: '2026-03-12T12:45:22.951Z'
         updatedAt:
           type: string
           format: date-time
+          example: '2026-03-12T12:45:22.951Z'
 
     VehicleTypeInput:
       type: object
       required:
         - name
+        - capacity
       properties:
         name:
           type: string
-          example: 'Xe máy điện'
+          example: 'Xe bán tải Ford Ranger'
+        capacity:
+          type: number
+          example: 800
+        unit:
+          type: string
+          enum: ['kg', 'ton', 'box']
+          default: 'kg'
+          example: 'kg'
         description:
           type: string
-          example: 'Phương tiện di chuyển nội khu'
+          example: 'Dùng để giao hỏa tốc nội thành'
 
     VehicleTypeUpdate:
       type: object
       properties:
         name:
           type: string
+          example: 'Xe tải 2 Tấn'
+        capacity:
+          type: number
+          example: 2000
+        unit:
+          type: string
+          enum: ['kg', 'ton', 'box']
+          example: 'kg'
         description:
           type: string
+          example: 'Đã nâng cấp thùng xe'
         isActive:
           type: boolean
-          description: 'Dùng để kích hoạt lại hoặc tạm khóa loại xe'
-
+          example: true
     # ============================================================
     # SYSTEM SETTINGS SCHEMAS
     # ============================================================
@@ -5367,99 +5362,5 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-
-# SAU ĐÓ, BẠN CẦN QUAY LÊN PHẦN PATHS ĐỂ THÊM CÁC ENDPOINT NÀY:
-# (Dán đoạn này vào dưới mục paths:)
-paths:
-  /api/vehicle-types:
-    get:
-      tags:
-        - Vehicle Types
-      summary: Get all vehicle types
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully retrieved list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  count:
-                    type: integer
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/VehicleType'
-    post:
-      tags:
-        - Vehicle Types
-      summary: Create new vehicle type (Admin only)
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VehicleTypeInput'
-      responses:
-        '201':
-          description: Created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: '#/components/schemas/VehicleType'
-
-  /api/vehicle-types/{id}:
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-    get:
-      tags:
-        - Vehicle Types
-      summary: Get single vehicle type
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Success
-        '404':
-          $ref: '#/components/schemas/Error'
-    put:
-      tags:
-        - Vehicle Types
-      summary: Update vehicle type (Admin only)
-      security:
-        - BearerAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VehicleTypeUpdate'
-      responses:
-        '200':
-          description: Updated successfully
-    delete:
-      tags:
-        - Vehicle Types
-      summary: Delete vehicle type (Soft delete)
-      description: Set isActive to false
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Deactivated successfully
 
     
