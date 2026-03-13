@@ -27,6 +27,7 @@ const MAPPING = {
   'cube.box.fill': 'category',
   'clock.fill': 'history',
   hourglass: 'hourglass-empty',
+  'doc.text.fill': 'receipt',
 } as IconMapping;
 
 /**
