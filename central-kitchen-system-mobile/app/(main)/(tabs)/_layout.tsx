@@ -30,7 +30,7 @@ export default function TabLayout() {
           title: "Trang chủ",
         }}
       />
-      {/* Store Staff: 4 tabs — Bán hàng | Kho | Đơn hàng | Cài đặt (cart is inside Bán hàng flow, not a tab) */}
+      {/* --- STORE STAFF TABS --- */}
       <Tabs.Screen
         name="products"
         options={{
@@ -73,26 +73,18 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="store-orders"
-        options={{
-          href: null,
-          title: "Đơn (Store)",
-        }}
+        options={{ href: null, title: "Đơn (Store)" }}
       />
       <Tabs.Screen
         name="store-products"
-        options={{
-          href: null,
-          title: "SP (Store)",
-        }}
+        options={{ href: null, title: "SP (Store)" }}
       />
-      {/* Ẩn hoàn toàn nhóm store (mock UI cũ) khỏi tab bar */}
       <Tabs.Screen
         name="store"
-        options={{
-          href: null,
-          title: "Store",
-        }}
+        options={{ href: null, title: "Store" }}
       />
+
+      {/* --- KITCHEN STAFF TABS --- */}
       <Tabs.Screen
         name="kitchen-orders"
         options={{
@@ -117,6 +109,22 @@ export default function TabLayout() {
           ),
         }}
       />
+      
+      {/* ====== TAB MỚI THÊM: YÊU CẦU NGUYÊN LIỆU ====== */}
+      <Tabs.Screen
+        name="ingredient-requests"
+        options={{
+          title: "Yêu cầu NL",
+          href: isKitchen ? undefined : null, // Chỉ Bếp mới thấy tab này
+          tabBarIcon: ({ color }) => (
+            // Dùng icon tờ giấy ghi chú cho phiếu yêu cầu
+            <IconSymbol size={28} name="list.bullet.rectangle.fill" color={color} />
+
+          ),
+        }}
+      />
+      {/* =============================================== */}
+
       <Tabs.Screen
         name="kitchen-history"
         options={{
@@ -129,19 +137,14 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="kitchen-batches"
-        options={{
-          href: null,
-          title: "Batch",
-        }}
+        options={{ href: null, title: "Batch" }}
       />
-      {/* Ẩn hoàn toàn nhóm kitchen (mock UI cũ) khỏi tab bar */}
       <Tabs.Screen
         name="kitchen"
-        options={{
-          href: null,
-          title: "Kitchen",
-        }}
+        options={{ href: null, title: "Kitchen" }}
       />
+
+      {/* --- COMMON TABS --- */}
       <Tabs.Screen
         name="settings"
         options={{
@@ -154,10 +157,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          href: null,
-          title: "Hồ sơ",
-        }}
+        options={{ href: null, title: "Hồ sơ" }}
       />
     </Tabs>
   );
