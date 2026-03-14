@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
     try {
       await login(username.trim(), password);
-      router.replace('/(tabs)');
+      router.replace('/(main)/(tabs)');
     } catch (error) {
       if (__DEV__) {
         // eslint-disable-next-line no-console

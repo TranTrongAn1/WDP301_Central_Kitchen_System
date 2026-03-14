@@ -12,6 +12,7 @@ import type {
   IngredientBatchResponse,
   IngredientBatchesResponse,
 } from "@/lib/ingredient-batches";
+import type { IngredientUsagesResponse } from "@/lib/ingredient-usages";
 import type {
   Ingredient,
   IngredientResponse,
@@ -32,6 +33,10 @@ import type {
 } from "@/lib/production-plans";
 import type { Product, ProductsResponse } from "@/lib/products";
 import type { SystemSettingResponse, SystemSettingsResponse } from "@/lib/system-settings";
+import type {
+  DeliveryTripResponse,
+  DeliveryTripsResponse,
+} from "@/lib/trips";
 import type { WalletResponse } from "@/lib/wallet";
 
 const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
@@ -293,6 +298,23 @@ export const ingredientBatchesApi = {
     }),
 };
 
+export const ingredientUsagesApi = {
+  getAll: (
+    params?: { productionPlanId?: string },
+    token?: string | null,
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.productionPlanId) {
+      search.set("productionPlanId", params.productionPlanId);
+    }
+    const qs = search.toString();
+    return request<IngredientUsagesResponse>(
+      `/api/ingredient-usages${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) },
+    );
+  },
+};
+
 export const logisticsOrdersApi = {
   getAll: (params?: { storeId?: string; status?: string }, token?: string | null) => {
     const search = new URLSearchParams();
@@ -319,6 +341,30 @@ export const logisticsOrdersApi = {
       method: "POST",
       headers: withAuth(token),
     }),
+};
+
+export const deliveryTripsApi = {
+  getAll: (params?: { status?: string }, token?: string | null) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    const qs = search.toString();
+    return request<DeliveryTripsResponse>(
+      `/api/logistics/trips${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token) }
+    );
+  },
+  getById: (id: string, token?: string | null) =>
+    request<DeliveryTripResponse>(`/api/logistics/trips/${id}`, {
+      headers: withAuth(token),
+    }),
+  startShipping: (id: string, token?: string | null) =>
+    request<{ success: boolean; message?: string; data?: unknown }>(
+      `/api/logistics/trips/${id}/start-shipping`,
+      {
+        method: "POST",
+        headers: withAuth(token),
+      }
+    ),
 };
 
 export const invoicesApi = {

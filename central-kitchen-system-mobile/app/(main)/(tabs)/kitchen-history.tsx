@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useProductionPlans } from "@/hooks/use-production-plans";
-import type { ProductionPlan } from "@/lib/production-plans";
+import { useDeliveryTrips } from "@/hooks/use-delivery-trips";
+import type { DeliveryTrip, TripStatus } from "@/lib/trips";
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
@@ -22,91 +22,91 @@ function formatDate(iso?: string) {
   });
 }
 
-function productSummary(plan: ProductionPlan): string {
-  const details = plan.details ?? [];
-  if (details.length === 0) return "—";
-  const names = details.slice(0, 2).map((d) => {
-    const p = d.productId;
-    return typeof p === "object" && p?.name ? p.name : "SP";
-  });
-  return names.join(", ") + (details.length > 2 ? "..." : "");
+const STATUS_OPTIONS: { value: "" | TripStatus; label: string }[] = [
+  { value: "", label: "Tất cả" },
+  { value: "Planning", label: "Planning" },
+  { value: "In_Transit", label: "In Transit" },
+  { value: "Completed", label: "Completed" },
+  { value: "Cancelled", label: "Cancelled" },
+];
+
+function tripCode(trip: DeliveryTrip): string {
+  return trip.tripCode ?? trip.tripNumber ?? `TRIP-${trip._id.slice(-6).toUpperCase()}`;
+}
+
+function vehicleName(trip: DeliveryTrip): string {
+  const vehicle = trip.vehicleType ?? trip.vehicleTypeId;
+  if (!vehicle) return "—";
+  if (typeof vehicle === "string") return vehicle;
+  return vehicle.name ?? vehicle._id;
 }
 
 export default function KitchenHistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [planDate, setPlanDate] = useState("");
-  const { plans, isLoading, error, refetch } = useProductionPlans({
-    status: "Completed",
-    planDate: planDate || undefined,
+  const [statusFilter, setStatusFilter] = useState<"" | TripStatus>("");
+  const { trips, isLoading, error, refetch } = useDeliveryTrips({
+    status: statusFilter || undefined,
   });
-
-  const today = new Date().toISOString().slice(0, 10);
+  const safeTrips = Array.isArray(trips) ? trips : [];
 
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Lịch sử sản xuất</Text>
+        <Text style={styles.title}>Kế hoạch vận chuyển</Text>
         <Pressable style={styles.refreshBtn} onPress={refetch}>
           <Text style={styles.refreshBtnText}>Làm mới</Text>
         </Pressable>
       </View>
 
       <View style={styles.filters}>
-        <Pressable
-          style={[styles.filterChip, !planDate && styles.filterChipActive]}
-          onPress={() => setPlanDate("")}
-        >
-          <Text
+        {STATUS_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.value}
             style={[
-              styles.filterChipText,
-              !planDate && styles.filterChipTextActive,
+              styles.filterChip,
+              statusFilter === opt.value && styles.filterChipActive,
             ]}
+            onPress={() => setStatusFilter(opt.value)}
           >
-            Tất cả
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.filterChip, planDate === today && styles.filterChipActive]}
-          onPress={() => setPlanDate(today)}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              planDate === today && styles.filterChipTextActive,
-            ]}
-          >
-            Hôm nay
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.filterChipText,
+                statusFilter === opt.value && styles.filterChipTextActive,
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {isLoading ? (
         <ActivityIndicator color="#D91E18" style={styles.loader} />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
-      ) : plans.length === 0 ? (
-        <Text style={styles.empty}>Chưa có đơn hoàn thành.</Text>
+      ) : safeTrips.length === 0 ? (
+        <Text style={styles.empty}>Chưa có kế hoạch vận chuyển.</Text>
       ) : (
-        plans.map((plan) => (
+        safeTrips.map((trip) => (
           <Pressable
-            key={plan._id}
+            key={trip._id}
             style={styles.card}
-            onPress={() => router.push(`/kitchen/production/${plan._id}`)}
+            onPress={() => router.push(`/trips/${trip._id}`)}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.cardCode}>{plan.planCode}</Text>
+              <Text style={styles.cardCode}>{tripCode(trip)}</Text>
               <Text style={styles.cardDate}>
-                {formatDate(plan.planDate)}
+                {formatDate(trip.createdAt)}
               </Text>
             </View>
             <Text style={styles.cardProducts} numberOfLines={2}>
-              {productSummary(plan)}
+              {trip.notes?.trim() || "Không có ghi chú"}
             </Text>
             <Text style={styles.cardMeta}>
-              Số dòng: {plan.details?.length ?? 0} • Hoàn thành
+              Trạng thái: {trip.status} • Xe: {vehicleName(trip)}
             </Text>
           </Pressable>
         ))
@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 16,
+    flexWrap: "wrap",
   },
   filterChip: {
     paddingHorizontal: 14,
