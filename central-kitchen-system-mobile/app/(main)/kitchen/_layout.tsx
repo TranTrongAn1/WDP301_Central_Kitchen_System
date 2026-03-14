@@ -5,6 +5,7 @@ export default function KitchenLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="production/recipe" options={{ headerShown: false }} />
       <Stack.Screen name="production/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="ingredient-usages" options={{ headerShown: false }} />
       <Stack.Screen name="ingredient-batches" options={{ headerShown: false }} />
       <Stack.Screen name="batch/[id]" options={{ headerShown: false }} />
       <Stack.Screen

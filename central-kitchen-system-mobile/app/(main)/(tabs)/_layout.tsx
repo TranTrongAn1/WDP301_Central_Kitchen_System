@@ -109,7 +109,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       {/* ====== TAB MỚI THÊM: YÊU CẦU NGUYÊN LIỆU ====== */}
       <Tabs.Screen
         name="ingredient-requests"
@@ -128,10 +128,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="kitchen-history"
         options={{
-          title: "Lịch sử",
+          title: "Vận chuyển",
           href: isKitchen ? undefined : null,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="clock.fill" color={color} />
+            <IconSymbol size={28} name="shippingbox.fill" color={color} />
           ),
         }}
       />

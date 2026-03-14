@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,9 +37,16 @@ export default function InventoryScreen() {
         )}
       </View>
 
-      <Pressable style={styles.secondaryButton} onPress={refetch}>
-        <Text style={styles.secondaryButtonText}>Làm mới</Text>
-      </Pressable>
+      <View style={styles.actionRow}>
+        <Pressable style={styles.secondaryButton} onPress={refetch}>
+          <Text style={styles.secondaryButtonText}>Làm mới</Text>
+        </Pressable>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => router.push('/kitchen/ingredient-usages')}>
+          <Text style={styles.secondaryButtonText}>Lịch sử</Text>
+        </Pressable>
+      </View>
 
       {isLoading ? <ActivityIndicator color="#D91E18" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -106,12 +113,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   secondaryButton: {
-    alignSelf: 'flex-start',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#FFD6D6',
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginBottom: 12,
   },
   secondaryButtonText: {
