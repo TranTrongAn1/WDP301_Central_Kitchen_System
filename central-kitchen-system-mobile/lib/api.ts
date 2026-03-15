@@ -454,3 +454,58 @@ export const walletApi = {
     }),
 };
 
+export const ingredientRequestsApi = {
+  getAll: async (status: string, token: string | undefined | null) => {
+    // 1. Khai báo headers chuẩn TypeScript
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    // 2. Nếu có token thì nhét thêm vào
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests?status=${status}`,
+      {
+        method: "GET",
+        headers, 
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Lỗi khi gọi API danh sách yêu cầu");
+    }
+
+    return response.json();
+  },
+
+  create: async (data: any, token: string | undefined | null) => {
+    // Tương tự cho hàm create
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Lỗi khi tạo yêu cầu mới");
+    }
+
+    return response.json();
+  },
+};
