@@ -611,11 +611,44 @@ const getWalletBalance = async (req, res) => {
   }
 };
 
+/**
+ * @desc Get deposit requests with optional filters
+ * @route GET /api/payment/deposit-requests
+ * @access Private
+ */
+const getDepositRequests = async (req, res) => {
+  try {
+    const { storeId, status } = req.query;
+
+    const filter = {};
+    if (storeId) filter.storeId = storeId;
+    if (status) filter.status = status;
+
+    const requests = await DepositRequest.find(filter)
+      .populate('storeId', 'storeName storeCode')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: requests.length,
+      data: requests,
+    });
+  } catch (error) {
+    console.error('❌ Get Deposit Requests Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve deposit requests',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = { 
   createPaymentLink, 
   createDepositLink,
   handlePayOSWebhook, 
   depositToWallet,
   payWithWallet,
-  getWalletBalance
+  getWalletBalance,
+  getDepositRequests
 };

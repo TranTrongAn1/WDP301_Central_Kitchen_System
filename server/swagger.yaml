@@ -3122,6 +3122,49 @@ paths:
         '500':
           description: Internal server error or PayOS API error
 
+  /api/payment/deposit-requests:
+    get:
+      tags:
+        - Payment
+      summary: Get all deposit requests
+      description: Retrieve top-up history. Can filter by storeId or status.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: Filter by Store ID
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Completed, Failed]
+          description: Filter by deposit request status
+      responses:
+        '200':
+          description: Successfully retrieved deposit requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: number
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DepositRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/payment/webhook:
     post:
       tags:
@@ -5168,6 +5211,35 @@ components:
           format: date-time
           description: 'Transaction timestamp'
           example: '2026-01-30T14:30:00.000Z'
+
+    DepositRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+        storeId:
+          type: object
+          description: Populated Store reference
+          properties:
+            _id:
+              type: string
+            storeName:
+              type: string
+            storeCode:
+              type: string
+        amount:
+          type: number
+        payosOrderCode:
+          type: number
+        status:
+          type: string
+          enum: [Pending, Completed, Failed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     Error:
       type: object

@@ -7,6 +7,7 @@ const {
   depositToWallet,
   payWithWallet,
   getWalletBalance,
+  getDepositRequests,
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -51,5 +52,7 @@ router.post('/pay-with-wallet', protect, payWithWallet);
  * @access  Private (Store staff/Admin)
  */
 router.get('/wallet/:storeId', protect, getWalletBalance);
+
+router.get('/deposit-requests', protect, getDepositRequests);
 
 module.exports = router;
