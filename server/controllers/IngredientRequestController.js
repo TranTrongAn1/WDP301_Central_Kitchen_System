@@ -7,7 +7,7 @@ const Ingredient = require('../models/Ingredient');
 
 exports.createRequest = async (req, res) => {
   try {
-    const { ingredientId, quantityRequested, unit, note } = req.body;
+    const { ingredientId, quantityRequested, unit, requestType, note } = req.body;
 
     // Validate cơ bản
     if (!ingredientId || !quantityRequested) {
@@ -18,6 +18,7 @@ exports.createRequest = async (req, res) => {
       ingredientId,
       quantityRequested,
       unit: unit || 'kg',
+      requestType: requestType || 'URGENT', // THÊM DÒNG NÀY ĐỂ LƯU VÀO DB
       note,
       status: 'PENDING',
       requestedBy: req.user._id 
@@ -31,7 +32,7 @@ exports.createRequest = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
-
+// 2. LẤY DANH SÁCH YÊU CẦU (Có filter theo status)
 // 2. LẤY DANH SÁCH YÊU CẦU (Có filter theo status)
 exports.getAllRequests = async (req, res) => {
   try {
@@ -43,9 +44,9 @@ exports.getAllRequests = async (req, res) => {
       filter.status = status;
     }
 
-    // Dùng populate để lấy tên nguyên liệu từ bảng Ingredients
+    // SỬA DÒNG NÀY: Thêm 'ingredientName' vào list các field cần populate
     const requests = await IngredientRequest.find(filter)
-      .populate('ingredientId', 'name code') // Kéo field name và code từ Ingredient
+      .populate('ingredientId', 'name ingredientName code unit') // Cứ liệt kê hết các field có thể chứa tên vào đây cho chắc cú
       .sort({ createdAt: -1 }); // Mới nhất lên đầu
 
     res.status(200).json({ success: true, data: requests });
