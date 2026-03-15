@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
+const DepositRequest = require('../models/DepositRequest');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const axios = require('axios');
@@ -87,6 +88,113 @@ const createPaymentLink = async (req, res) => {
 };
 
 /**
+ * @desc Create Payment Link for Wallet Top-up via Direct API Call
+ */
+const createDepositLink = async (req, res) => {
+  let orderCode;
+  try {
+    const { storeId, amount } = req.body;
+
+    if (!storeId || !amount) {
+      return res.status(400).json({ success: false, message: 'Store ID and amount are required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(storeId)) {
+      return res.status(400).json({ success: false, message: 'Invalid storeId format' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be greater than 0' });
+    }
+
+    const roundedAmount = Math.round(Number(amount));
+    if (!Number.isFinite(roundedAmount) || roundedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be a valid positive number' });
+    }
+
+    // Retry a few times to avoid rare collisions on short numeric order codes.
+    let hasUniqueOrderCode = false;
+    let attempts = 0;
+    while (attempts < 5) {
+      orderCode = Number(String(Date.now() + attempts).slice(-6));
+
+      const [invoiceExists, depositExists] = await Promise.all([
+        Invoice.exists({ payosOrderCode: orderCode }),
+        DepositRequest.exists({ payosOrderCode: orderCode }),
+      ]);
+
+      if (!invoiceExists && !depositExists) {
+        hasUniqueOrderCode = true;
+        break;
+      }
+      attempts += 1;
+    }
+
+    if (!hasUniqueOrderCode) {
+      return res.status(500).json({ success: false, message: 'Unable to generate unique orderCode' });
+    }
+
+    await DepositRequest.create({
+      storeId,
+      amount: roundedAmount,
+      payosOrderCode: orderCode,
+      status: 'Pending',
+    });
+
+    const description = `Nap vi Kendo ${orderCode}`.substring(0, 25);
+    const paymentBody = {
+      amount: roundedAmount,
+      cancelUrl: `${process.env.CLIENT_URL}/payment/cancel`,
+      description,
+      orderCode,
+      returnUrl: `${process.env.CLIENT_URL}/payment/success`,
+    };
+
+    const signature = createPayOSSignature(paymentBody, process.env.PAYOS_CHECKSUM_KEY);
+
+    const response = await axios.post(
+      'https://api-merchant.payos.vn/v2/payment-requests',
+      { ...paymentBody, signature },
+      {
+        headers: {
+          'x-client-id': process.env.PAYOS_CLIENT_ID,
+          'x-api-key': process.env.PAYOS_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data && response.data.code === '00') {
+      const result = response.data.data;
+      return res.status(200).json({
+        success: true,
+        message: 'Deposit payment link created successfully',
+        data: {
+          checkoutUrl: result.checkoutUrl,
+          qrCode: result.qrCode,
+          orderCode,
+          amount: roundedAmount,
+          storeId,
+        },
+      });
+    }
+
+    await DepositRequest.updateOne({ payosOrderCode: orderCode }, { $set: { status: 'Failed' } });
+    throw new Error(response.data.desc || 'PayOS API Error');
+  } catch (error) {
+    if (orderCode) {
+      await DepositRequest.updateOne(
+        { payosOrderCode: orderCode, status: 'Pending' },
+        { $set: { status: 'Failed' } }
+      );
+    }
+    const errorMsg = error.response ? error.response.data.desc : error.message;
+    console.error('❌ Create Deposit Link Error:', errorMsg);
+    return res.status(500).json({ success: false, message: errorMsg });
+  }
+};
+
+/**
  * @desc Handle PayOS Webhook (Verify and Update Invoice)
  */
 const handlePayOSWebhook = async (req, res) => {
@@ -128,24 +236,78 @@ const handlePayOSWebhook = async (req, res) => {
       return res.json({ success: true });
     }
 
-    // Tìm hóa đơn bằng orderCode (PayOS trả về orderCode kiểu Number)
-    const invoice = await Invoice.findOne({ payosOrderCode: Number(orderCode) });
+    const numericOrderCode = Number(orderCode);
 
-    if (!invoice) {
-      console.error(`❌ Invoice not found for orderCode: ${orderCode}`);
-      return res.json({ success: true });
-    }
-
-    // Cập nhật trạng thái hóa đơn
-    if (invoice.paymentStatus !== 'Paid') {
+    // 1) Try Invoice payment flow first.
+    const invoice = await Invoice.findOne({ payosOrderCode: numericOrderCode });
+    if (invoice) {
+      if (invoice.paymentStatus !== 'Paid') {
         invoice.paymentStatus = 'Paid';
         invoice.paidAmount = amount || invoice.totalAmount;
         invoice.paymentDate = new Date();
+        invoice.paymentMethod = 'PayOS';
         await invoice.save();
         console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
+      }
+      return res.json({ success: true });
     }
 
-    return res.json({ success: true });
+    // 2) Fallback to DepositRequest flow.
+    const depositRequest = await DepositRequest.findOne({ payosOrderCode: numericOrderCode });
+
+    if (!depositRequest) {
+      console.warn(`⚠️ No invoice or deposit request found for orderCode: ${numericOrderCode}`);
+      return res.json({ success: true });
+    }
+
+    if (depositRequest.status !== 'Pending') {
+      return res.json({ success: true });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      let wallet = await Wallet.findOne({ storeId: depositRequest.storeId }).session(session);
+
+      if (!wallet) {
+        wallet = new Wallet({
+          storeId: depositRequest.storeId,
+          balance: 0,
+          status: 'Active',
+        });
+        await wallet.save({ session });
+      }
+
+      if (wallet.status === 'Locked') {
+        throw new Error('Wallet is locked. Cannot complete deposit request.');
+      }
+
+      wallet.balance += depositRequest.amount;
+      await wallet.save({ session });
+
+      const transaction = new WalletTransaction({
+        walletId: wallet._id,
+        amount: depositRequest.amount,
+        type: 'Deposit',
+        description: `PayOS top-up orderCode ${depositRequest.payosOrderCode}`,
+        timestamp: new Date(),
+      });
+      await transaction.save({ session });
+
+      depositRequest.status = 'Completed';
+      await depositRequest.save({ session });
+
+      await session.commitTransaction();
+      console.log(`✅ Deposit request ${depositRequest._id} completed. Wallet credited: ${depositRequest.amount}`);
+      return res.json({ success: true });
+    } catch (depositError) {
+      await session.abortTransaction();
+      console.error('❌ Deposit webhook processing error:', depositError.message);
+      return res.json({ success: true });
+    } finally {
+      session.endSession();
+    }
 
   } catch (error) {
     console.error('❌ Webhook Error:', error.message);
@@ -451,6 +613,7 @@ const getWalletBalance = async (req, res) => {
 
 module.exports = { 
   createPaymentLink, 
+  createDepositLink,
   handlePayOSWebhook, 
   depositToWallet,
   payWithWallet,

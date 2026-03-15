@@ -3051,6 +3051,77 @@ paths:
                     type: string
                     example: 'Invoice not found'
 
+  /api/payment/deposit-link:
+    post:
+      tags:
+        - Payment
+      summary: Create PayOS payment link for wallet top-up
+      description: |
+        Generate a payment link/QR code for a store to deposit funds into their wallet.
+        Returns a PayOS checkout URL.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - storeId
+                - amount
+              properties:
+                storeId:
+                  type: string
+                  description: Store ID to receive wallet top-up
+                  example: '60d5ec49f1b2c8b1f8e4e1a7'
+                amount:
+                  type: number
+                  minimum: 1
+                  description: Deposit amount (must be positive)
+                  example: 500000
+      responses:
+        '200':
+          description: Deposit payment link created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Deposit payment link created successfully'
+                  data:
+                    type: object
+                    properties:
+                      checkoutUrl:
+                        type: string
+                        description: PayOS checkout URL for deposit payment
+                        example: 'https://pay.payos.vn/web/aGlzdG9yeS8...'
+                      qrCode:
+                        type: string
+                        description: QR code image URL for payment
+                        example: 'https://img.vietqr.io/image/...'
+                      orderCode:
+                        type: number
+                        description: Unique numeric order code for PayOS
+                        example: 123456
+                      amount:
+                        type: number
+                        description: Deposit amount
+                        example: 500000
+                      storeId:
+                        type: string
+                        description: Target store for wallet top-up
+                        example: '60d5ec49f1b2c8b1f8e4e1a7'
+        '400':
+          description: Bad request (missing fields or invalid amount)
+        '500':
+          description: Internal server error or PayOS API error
+
   /api/payment/webhook:
     post:
       tags:
@@ -3058,7 +3129,10 @@ paths:
       summary: PayOS webhook for payment status updates
       description: |
         Public endpoint for PayOS to send payment confirmation webhooks.
-        This endpoint verifies the webhook signature and updates invoice payment status.
+        This endpoint verifies the webhook signature before processing and now handles BOTH:
+
+        - Invoice payments: finds invoice by payosOrderCode and updates invoice status to Paid.
+        - Wallet deposits: finds pending DepositRequest by payosOrderCode, credits the store wallet balance, creates a Deposit WalletTransaction, and marks the DepositRequest as Completed.
         
         **IMPORTANT:** This endpoint is PUBLIC (no authentication required) as it is called by PayOS servers.
         The webhook data is verified using PayOS checksum validation before processing.
