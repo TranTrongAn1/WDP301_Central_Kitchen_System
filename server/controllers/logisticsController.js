@@ -816,7 +816,16 @@ const addOrdersToTrip = async (req, res, next) => {
         path: 'orders',
         populate: [
           { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          },
         ],
       },
     ]);
@@ -960,7 +969,16 @@ const removeOrdersFromTrip = async (req, res, next) => {
         path: 'orders',
         populate: [
           { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          },
         ],
       },
     ]);
@@ -1103,8 +1121,16 @@ const startShipping = async (req, res, next) => {
         path: 'orders',
         populate: [
           { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
-          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          },
         ],
       },
     ]);
@@ -1544,7 +1570,16 @@ const getTripById = async (req, res, next) => {
         path: 'orders',
         populate: [
           { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' }
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          }
         ]
       });
     if (!trip) {
@@ -1699,8 +1734,16 @@ const createDeliveryTrip = async (req, res, next) => {
         path: 'orders',
         populate: [
           { path: 'storeId', select: 'storeName storeCode address' },
-          { path: 'items.productId', select: 'name sku' },
-          { path: 'items.batchId', select: 'batchCode mfgDate expDate' },
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          },
         ],
       },
     ]);
@@ -1925,7 +1968,22 @@ const updateDeliveryTrip = async (req, res, next) => {
 
     await trip.populate([
       { path: 'vehicleType', select: 'name description' },
-      { path: 'orders', select: 'orderNumber status storeId' },
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku weight' },
+          {
+            path: 'items.batchId',
+            select: 'batchCode mfgDate expDate productionPlanId',
+            populate: {
+              path: 'productionPlanId',
+              model: 'ProductionPlan',
+              select: 'planCode planDate',
+            },
+          },
+        ],
+      },
     ]);
 
     res.status(200).json({
