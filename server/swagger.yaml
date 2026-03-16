@@ -2235,7 +2235,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [Planning, In_Transit, Completed, Cancelled]
+            enum: [Planning, Waiting_For_Loading, In_Transit, Completed, Cancelled]
           description: Filter by trip status
       responses:
         '200':
@@ -2291,7 +2291,7 @@ paths:
       description: |
         Update `vehicleType` and/or `notes` for a delivery trip.
         
-        **Allowed statuses:** `Planning`, `Ready_For_Shipping`
+        **Allowed statuses:** `Planning`, `Waiting_For_Loading`, `Cancelled`
         
         **Blocked statuses:** `In_Transit`, `Completed` — returns 400 to prevent changes to an active or finalized shipment.
         
@@ -2502,7 +2502,7 @@ paths:
         Remove specific orders from a delivery trip and set them back to 'Ready_For_Shipping' status.
         
         **Requirements:**
-        - Trip must NOT be 'In_Transit' or 'Completed'
+        - Trip must be in 'Planning' status
         - Removed orders are set back to 'Ready_For_Shipping' (not rejected)
         
         **Use Case:** Coordinator adjusts trip composition during planning phase.
@@ -2571,19 +2571,19 @@ paths:
         Start the actual shipping process, moving the trip and all its orders directly to in-transit status.
         
         **Actions:**
-        - Updates trip status from 'Planning' to 'In_Transit'
+        - Updates trip status from 'Waiting_For_Loading' to 'In_Transit'
         - Updates all orders in trip to 'In_Transit' status
         - Sets shippedDate timestamp for all orders
         - Sets trip departureTime timestamp
         - Deducts stock quantities from FinishedBatches
         
         **Requirements:**
-        - Trip must be in 'Planning' status
+        - Trip must be in 'Waiting_For_Loading' status
         
         **Business Rule:**
         - The trip MUST have at least the minimum required orders (`MIN_ORDERS_PER_TRIP`) to depart.
         
-        **Workflow:** Coordinator dispatches the truck directly from Planning. No kitchen handoff step required.
+        **Workflow:** Coordinator dispatches the truck after moving it to Waiting_For_Loading. No kitchen handoff step required.
       security:
         - BearerAuth: []
       parameters:
@@ -2622,7 +2622,7 @@ paths:
                         type: integer
                         example: 3
         '400':
-          description: Bad Request (Invalid operation, trip not in Planning, or minimum orders not met)
+          description: Bad Request (Invalid operation, trip not in Waiting_For_Loading, or minimum orders not met)
           content:
             application/json:
               schema:
@@ -2639,6 +2639,60 @@ paths:
               example:
                 success: false
                 message: 'Delivery trip not found'
+
+  /api/logistics/trips/{id}/status:
+    patch:
+      tags:
+        - Logistics
+      summary: Update delivery trip status
+      description: |
+        Update the status of a delivery trip.
+
+        **Allowed statuses:** `Planning`, `Waiting_For_Loading`, `In_Transit`, `Completed`, `Cancelled`
+
+        **Transition guard:**
+        - If current status is `In_Transit`, only `In_Transit` or `Completed` are allowed.
+        - If current status is `Completed`, no backward status change is allowed.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Delivery Trip ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Planning, Waiting_For_Loading, In_Transit, Completed, Cancelled]
+                  example: Waiting_For_Loading
+      responses:
+        '200':
+          description: Delivery trip status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/DeliveryTrip'
+        '400':
+          description: Invalid status or invalid status transition
+        '404':
+          description: Delivery trip not found
 
   /api/logistics/invoices:
     get:
@@ -4930,9 +4984,9 @@ components:
           example: ['60d5ec49f1b2c8b1f8e4e1a9', '60d5ec49f1b2c8b1f8e4e1aa', '60d5ec49f1b2c8b1f8e4e1ab']
         status:
           type: string
-          enum: [Planning, In_Transit, Completed, Cancelled]
+          enum: [Planning, Waiting_For_Loading, In_Transit, Completed, Cancelled]
           default: Planning
-          description: 'Current trip status. Workflow: Planning -> In_Transit (shipping started) -> Completed (all orders received)'
+          description: 'Current trip status. Workflow: Planning -> Waiting_For_Loading -> In_Transit -> Completed'
         completedTime:
           type: string
           format: date-time

@@ -887,33 +887,14 @@ const removeOrdersFromTrip = async (req, res, next) => {
       throw new Error('Delivery trip not found');
     }
 
-    // Check trip status - cannot remove orders from trips beyond Planning
-    if (trip.status === 'Transferred_To_Kitchen') {
+    // Check trip status - can only remove orders during Planning phase
+    if (trip.status !== 'Planning') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
-      throw new Error('Cannot remove orders from a trip that has been transferred to kitchen');
-    }
-
-    if (trip.status === 'Ready_For_Shipping') {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Cannot remove orders from a trip that is ready for shipping');
-    }
-
-    if (trip.status === 'In_Transit') {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Cannot remove orders from an In_Transit trip');
-    }
-
-    if (trip.status === 'Completed') {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('Cannot remove orders from a Completed trip');
+      throw new Error(
+        `Cannot remove orders from trip with status '${trip.status}'. Only 'Planning' trips can be modified.`
+      );
     }
 
     // ========================================
@@ -1006,7 +987,7 @@ const removeOrdersFromTrip = async (req, res, next) => {
 };
 
 /**
- * @desc    Start shipping process (move from Planning to In Transit)
+ * @desc    Start shipping process (move from Waiting_For_Loading to In Transit)
  * @route   POST /api/logistics/trips/:id/start-shipping
  * @access  Private (Coordinator, Manager, Admin)
  */
@@ -1034,12 +1015,12 @@ const startShipping = async (req, res, next) => {
     // ========================================
     // STEP 2: Validate Trip Status
     // ========================================
-    if (trip.status !== 'Planning') {
+    if (trip.status !== 'Waiting_For_Loading') {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
       throw new Error(
-        `Cannot start shipping. Trip must be in 'Planning' status. Current status: '${trip.status}'`
+        `Cannot start shipping. Trip must be in 'Waiting_For_Loading' status. Current status: '${trip.status}'`
       );
     }
 
@@ -1997,6 +1978,75 @@ const updateDeliveryTrip = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update delivery trip status
+ * @route   PATCH /api/logistics/trips/:id/status
+ * @access  Private (Coordinator, Manager, Admin, KitchenStaff)
+ */
+const updateTripStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      'Planning',
+      'Waiting_For_Loading',
+      'In_Transit',
+      'Completed',
+      'Cancelled',
+    ];
+
+    if (!status || !allowedStatuses.includes(status)) {
+      res.status(400);
+      return next(
+        new Error(
+          `Invalid status. Allowed values: ${allowedStatuses.join(', ')}`
+        )
+      );
+    }
+
+    const trip = await DeliveryTrip.findById(id);
+    if (!trip) {
+      res.status(404);
+      return next(new Error('Delivery trip not found'));
+    }
+
+    if (
+      (trip.status === 'In_Transit' && !['In_Transit', 'Completed'].includes(status)) ||
+      (trip.status === 'Completed' && status !== 'Completed')
+    ) {
+      res.status(400);
+      return next(
+        new Error(
+          `Cannot change status backward from '${trip.status}' to '${status}'`
+        )
+      );
+    }
+
+    trip.status = status;
+    await trip.save();
+
+    await trip.populate([
+      { path: 'vehicleType', select: 'name description unit capacity' },
+      {
+        path: 'orders',
+        populate: [
+          { path: 'storeId', select: 'storeName storeCode address' },
+          { path: 'items.productId', select: 'name sku weight' },
+        ],
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery trip status updated successfully',
+      data: trip,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Hard delete a delivery trip (only if status is Planning)
  * @route   DELETE /api/logistics/trips/:id
  * @access  Private (Coordinator, Manager, Admin)
@@ -2080,6 +2130,7 @@ module.exports = {
   getTrips,
   getTripById,
   updateDeliveryTrip,
+  updateTripStatus,
   addOrdersToTrip,
   removeOrdersFromTrip,
   startShipping,

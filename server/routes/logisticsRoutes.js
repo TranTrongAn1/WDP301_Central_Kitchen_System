@@ -11,6 +11,7 @@ const {
   getTrips,
   getTripById,
   updateDeliveryTrip,
+  updateTripStatus,
   aggregateDailyDemand,
   recordPayment,
   addOrdersToTrip,
@@ -100,10 +101,17 @@ router.post(
 );
 
 // Get all delivery trips
-router.get('/trips', getTrips);
+router.get('/trips', authorize('Coordinator', 'Manager', 'Admin', 'KitchenStaff'), getTrips);
 
 // Get single delivery trip by ID
-router.get('/trips/:id', getTripById);
+router.get('/trips/:id', authorize('Coordinator', 'Manager', 'Admin', 'KitchenStaff'), getTripById);
+
+// Update delivery trip status (Coordinator, Manager, Admin, KitchenStaff)
+router.patch(
+  '/trips/:id/status',
+  authorize('Coordinator', 'Manager', 'Admin', 'KitchenStaff'),
+  updateTripStatus
+);
 
 // Update delivery trip vehicleType and/or notes (Coordinator, Manager, Admin)
 router.patch(
