@@ -51,6 +51,14 @@ const ingredientRequestSchema = new mongoose.Schema({
     type: String, // Link ảnh chụp hóa đơn/bill tính tiền để kế toán duyệt
     default: ''
   },
+  expectedDeliveryDate: {
+    type: Date,
+    default: null // Điều phối sẽ điền ngày này lúc bấm APPROVED (đối với đồ Kế hoạch)
+  },
+  neededByDate: {
+    type: Date,
+    default: null
+  },
   // ----------------------------------------
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,
