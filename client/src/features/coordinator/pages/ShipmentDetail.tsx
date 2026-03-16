@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
-import { systemSettingApi } from '@/api/SystemSettingApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
@@ -80,19 +79,6 @@ const ShipmentDetail = () => {
         fetchDetail();
     }, [id, refreshTrigger]);
 
-    useEffect(() => {
-        const fetchLimits = async () => {
-            try {
-                const res = await systemSettingApi.getByKey('MIN_ORDERS_PER_TRIP');
-                const raw = res?.data?.value;
-                const num = raw != null ? Number(raw) : NaN;
-                if (!Number.isNaN(num) && num > 0) setMinOrdersPerTrip(num);
-            } catch {
-                setMinOrdersPerTrip(null);
-            }
-        };
-        void fetchLimits();
-    }, []);
 
     useEffect(() => {
         if (tripOrders.length === 0) {
