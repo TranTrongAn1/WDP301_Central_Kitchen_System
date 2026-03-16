@@ -10,6 +10,7 @@ import { authApi } from '../../../api/AuthApi';
 
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { AppLogo } from '@/shared/components/AppLogo';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -92,14 +93,10 @@ const LoginForm = () => {
         </Link>
 
         <div className="flex flex-col items-center gap-4 pt-4">
-          <div className="bg-primary/90 text-white p-3 rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl">bakery_dining</span>
-          </div>
           <div className="text-center">
-            <h1 className="text-foreground tracking-tight text-3xl font-bold leading-tight">
-              Kendo<span className="text-primary">Bakery</span>
-            </h1>
-            <p className="text-muted-foreground text-sm font-medium mt-1">Management System</p>
+            <div className="flex justify-center">
+              <AppLogo className="justify-center" />
+            </div>
           </div>
         </div>
 

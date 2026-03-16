@@ -4,6 +4,7 @@ import { AdminSidebar } from './components/AdminSidebar';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore'; 
 import { authApi } from '@/api/AuthApi';
+import { AppLogo } from '@/shared/components/AppLogo';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
     "/admin": { name: "Dashboard", desc: "Tổng quan hệ thống" },
@@ -69,10 +70,12 @@ export const AdminLayout = () => {
                 <header className={`h-[73px] flex items-center justify-between px-6 border-b z-40 sticky top-0 transition-all duration-300 ${
                     darkMode ? 'bg-[#1C1C21] border-gray-800' : 'bg-white border-orange-100'
                 }`}>
-                    
-                    <div className="flex flex-col">
-                        <h1 className="text-xl font-bold">{currentPage.name}</h1>
-                        <h2 className="text-sm text-gray-500">{currentPage.desc}</h2>
+                    <div className="flex items-center gap-4">
+                        <AppLogo className="hidden md:flex" />
+                        <div className="flex flex-col">
+                            <h1 className="text-xl font-bold">{currentPage.name}</h1>
+                            <h2 className="text-sm text-gray-500">{currentPage.desc}</h2>
+                        </div>
                     </div>
 
                     <div className="hidden md:flex flex-1 max-w-md mx-8">

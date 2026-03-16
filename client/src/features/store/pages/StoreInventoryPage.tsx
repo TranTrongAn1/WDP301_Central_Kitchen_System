@@ -11,7 +11,12 @@ const StoreInventoryPage = () => {
 
   useEffect(() => {
     const fetchInventory = async () => {
-      if (!user?.storeId) {
+      const storeId =
+        (user as any)?.storeId?._id ||
+        (user as any)?.storeId ||
+        '';
+
+      if (!storeId) {
         setError('Không xác định được cửa hàng hiện tại.');
         setLoading(false);
         return;
@@ -20,7 +25,7 @@ const StoreInventoryPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await inventoryApi.getByStore(user.storeId);
+        const res = await inventoryApi.getByStore(storeId);
         const body = (res as any)?.data ?? res;
         setData(body as StoreInventoryResponse);
       } catch {

@@ -23,6 +23,7 @@ import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/zustand/authStore";
 import type { UserRole } from "@/shared/types/auth";
 import { useThemeStore } from "@/shared/zustand/themeStore";
+import { AppLogo } from "@/shared/components/AppLogo";
 
 interface DashboardSideBarProps {
   isCollapsed: boolean;
@@ -379,38 +380,11 @@ export const DashboardSideBar = ({
         >
           <div
             className={cn(
-              "flex items-center gap-3 w-full",
-              isCollapsed ? "justify-center" : ""
+              "w-full",
+              isCollapsed ? "flex justify-center" : ""
             )}
           >
-            <div
-              className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0 transition-all duration-300",
-                darkMode
-                  ? "bg-primary/20 group-hover:bg-primary/30"
-                  : "bg-primary/10 group-hover:bg-primary/20"
-              )}
-            >
-              <ChefHat className="h-6 w-6 text-primary" />
-            </div>
-
-            <div
-              className={cn(
-                "overflow-hidden transition-all duration-300 ease-in-out",
-                isCollapsed
-                  ? "w-0 opacity-0"
-                  : "w-auto opacity-100 min-w-0"
-              )}
-            >
-              <div className="whitespace-nowrap">
-                <h1 className="text-lg font-bold text-foreground">
-                  Central <span className="text-primary">Kitchen</span>
-                </h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground">
-                  Management System
-                </p>
-              </div>
-            </div>
+            <AppLogo showText={!isCollapsed} />
           </div>
         </div>
 

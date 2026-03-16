@@ -17,8 +17,9 @@ export interface InvoicePaymentResult {
 }
 
 export interface RecordInvoicePaymentPayload {
-  method: 'Wallet' | 'PayOS' | 'Cash';
+  paymentMethod: 'Wallet' | 'PayOS' | 'Cash';
   amount: number;
+  paymentNotes?: string;
 }
 
 export const invoiceApi = {
@@ -30,8 +31,8 @@ export const invoiceApi = {
 
     const list =
       res && typeof res === 'object' && 'data' in res
-        ? ((res as any).data as Invoice[])
-        : ((res as any) as Invoice[]) ?? [];
+        ? ((res as { data?: Invoice[] }).data as Invoice[] | undefined) ?? []
+        : (res as Invoice[]) ?? [];
 
     if (!Array.isArray(list) || list.length === 0) return null;
     return list[0] ?? null;
@@ -46,21 +47,14 @@ export const invoiceApi = {
       `/logistics/invoices/${invoiceId}/payment`,
       payload
     );
-    return (res as any)?.success
+    const body = res as { success?: boolean; message?: string } | undefined;
+    return body?.success
       ? { success: true }
-      : { success: false, message: (res as any)?.message };
+      : { success: false, message: body?.message };
   },
 
-  payWithWalletForInvoice: async (
-    invoiceId: string,
-    storeId: string,
-    amount: number
-  ): Promise<InvoicePaymentResult> => {
-    await paymentApi.payWithWallet({
-      storeId,
-      invoiceId,
-      amount,
-    });
+  payWithWalletForInvoice: async (invoiceId: string): Promise<InvoicePaymentResult> => {
+    await paymentApi.payWithWallet({ invoiceId });
     return { success: true };
   },
 
@@ -75,10 +69,13 @@ export const invoiceApi = {
       cancelUrl,
     });
 
+    const typed =
+      (res as { data?: { checkoutUrl?: string; checkout_url?: string }; checkoutUrl?: string }) ||
+      {};
     const url =
-      (res as any)?.data?.checkoutUrl ??
-      (res as any)?.data?.checkout_url ??
-      (res as any)?.checkoutUrl ??
+      typed.data?.checkoutUrl ??
+      typed.data?.checkout_url ??
+      typed.checkoutUrl ??
       null;
     return url;
   },

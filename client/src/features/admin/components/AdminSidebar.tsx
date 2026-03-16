@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { AppLogo } from '@/shared/components/AppLogo';
 
 const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
@@ -31,20 +32,12 @@ export const AdminSidebar = () => {
         }`}
     >
       {/* Logo Section */}
-      <div className={`h-16 flex items-center px-6 border-b ${darkMode ? 'border-gray-800' : 'border-gray-100'
-        }`}>
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-500/10 rounded-lg">
-            <span className="material-symbols-outlined text-amber-500">bakery_dining</span>
-          </div>
-          <div>
-            <h1 className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-              Kendo Bakery
-            </h1>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Admin Portal</p>
-          </div>
-        </div>
+      <div
+        className={`h-16 flex items-center px-6 border-b ${
+          darkMode ? 'border-gray-800' : 'border-gray-100'
+        }`}
+      >
+        <AppLogo textClassName="text-xs" />
       </div>
 
       {/* Menu Items */}
