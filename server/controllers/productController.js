@@ -2,6 +2,28 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Ingredient = require('../models/Ingredient');
 
+const formatProductForResponse = (productDoc) => {
+  const product = productDoc.toObject({ virtuals: true });
+
+  product.weightFormatted =
+    typeof product.weight === 'number' ? `${product.weight} kg` : null;
+
+  if (Array.isArray(product.recipe)) {
+    product.recipe = product.recipe.map((item) => {
+      const unit = item?.ingredientId?.unit;
+
+      return {
+        ...item,
+        quantityFormatted: unit
+          ? `${item.quantity} ${unit}`
+          : `${item.quantity}`,
+      };
+    });
+  }
+
+  return product;
+};
+
 const getProducts = async (req, res, next) => {
   try {
     const { categoryId } = req.query;
@@ -14,10 +36,13 @@ const getProducts = async (req, res, next) => {
       .populate('recipe.ingredientId', 'name unit costPrice')
       .populate('bundleItems.childProductId', 'name sku price')
       .sort({ name: 1 });
+
+    const formattedProducts = products.map(formatProductForResponse);
+
     res.status(200).json({
       success: true,
       count: products.length,
-      data: products,
+      data: formattedProducts,
     });
   } catch (error) {
     next(error);
@@ -34,9 +59,12 @@ const getProductById = async (req, res, next) => {
       res.status(404);
       return next(new Error('Product not found'));
     }
+
+    const formattedProduct = formatProductForResponse(product);
+
     res.status(200).json({
       success: true,
-      data: product,
+      data: formattedProduct,
     });
   } catch (error) {
     next(error);
@@ -107,10 +135,12 @@ const createProduct = async (req, res, next) => {
     await product.populate('recipe.ingredientId', 'name unit costPrice');
     await product.populate('bundleItems.childProductId', 'name sku price');
 
+    const formattedProduct = formatProductForResponse(product);
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: product,
+      data: formattedProduct,
     });
   } catch (error) {
     next(error);
@@ -171,10 +201,13 @@ const updateProduct = async (req, res, next) => {
       .populate('categoryId', 'name description')
       .populate('recipe.ingredientId', 'name unit costPrice')
       .populate('bundleItems.childProductId', 'name sku price');
+
+    const formattedProduct = formatProductForResponse(product);
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
-      data: product,
+      data: formattedProduct,
     });
   } catch (error) {
     next(error);
