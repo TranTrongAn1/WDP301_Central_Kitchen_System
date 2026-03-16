@@ -971,6 +971,10 @@ paths:
                   type: number
                   example: 0.5
                   description: 'Weight of one unit of the product in KG for logistics calculation'
+                weightUnit:
+                  type: string
+                  example: 'kg'
+                  description: 'Unit of measurement for the product weight'
                 image:
                   type: string
                   example: 'https://example.com/green-bean-mooncake.jpg'
@@ -1075,6 +1079,10 @@ paths:
                   type: number
                   example: 0.5
                   description: 'Weight of one unit of the product in KG for logistics calculation'
+                weightUnit:
+                  type: string
+                  example: 'kg'
+                  description: 'Unit of measurement for the product weight'
                 image:
                   type: string
                 recipe:
@@ -4649,11 +4657,10 @@ components:
           type: number
           example: 0.5
           description: 'Weight of one unit of the product in KG for logistics calculation'
-        weightFormatted:
+        weightUnit:
           type: string
-          example: '0.5 kg'
-          description: 'Human-readable weight with unit (Response only)'
-          readOnly: true
+          example: 'kg'
+          description: 'Unit of measurement for the product weight'
         image:
           type: string
           example: 'https://example.com/mooncake.jpg'
@@ -4668,11 +4675,6 @@ components:
               quantity:
                 type: number
                 description: 'Quantity per 1 unit of product'
-              quantityFormatted:
-                type: string
-                example: '0.05 kg'
-                description: 'Human-readable quantity with populated ingredient unit (Response only)'
-                readOnly: true
           example:
             - ingredientId: '60d5ec49f1b2c8b1f8e4e1a2'
               quantity: 0.05
