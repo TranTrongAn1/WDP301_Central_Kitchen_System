@@ -285,7 +285,7 @@ const Shipments = () => {
                         "bg-primary text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/20"
                     )}
                 >
-                    <Plus className="w-5 h-5" /> New Trip
+                    <Plus className="w-5 h-5" /> Lập chuyến giao mới
                 </button>
             </div>
 
@@ -361,7 +361,7 @@ const Shipments = () => {
             {totalPages > 1 && (
                 <div className="flex justify-end items-center gap-2 mt-8 select-none">
                     <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30">
-                        <ChevronLeft className="w-4 h-4" /> Back
+                        <ChevronLeft className="w-4 h-4" /> Trước
                     </button>
                     <div className="flex items-center gap-1.5">
                         {getPageNumbers().map((page, index) => (
@@ -371,7 +371,7 @@ const Shipments = () => {
                         ))}
                     </div>
                     <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30">
-                        Next <ChevronRight className="w-4 h-4" />
+                        Sau <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>
             )}
@@ -488,9 +488,9 @@ const Shipments = () => {
                         </div>
 
                         <div className={`p-6 border-t flex gap-4 ${darkMode ? 'bg-[#2A2A30] border-gray-700/50' : 'bg-gray-50 border-gray-100'}`}>
-                            <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-wider text-muted-foreground hover:bg-secondary transition-colors">Cancel</button>
+                            <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-wider text-muted-foreground hover:bg-secondary transition-colors">Hủy</button>
                             <button disabled={selectedOrderIds.length === 0 || isCreating} onClick={handleSaveTrip} className="flex-[2] py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-30">
-                                {isCreating ? 'Saving...' : (editingTrip ? `Update Trip (${selectedOrderIds.length})` : `Create Trip (${selectedOrderIds.length})`)}
+                                {isCreating ? 'Đang lưu...' : (editingTrip ? `Cập nhật chuyến (${selectedOrderIds.length})` : `Tạo chuyến (${selectedOrderIds.length})`)}
                             </button>
                         </div>
                     </div>

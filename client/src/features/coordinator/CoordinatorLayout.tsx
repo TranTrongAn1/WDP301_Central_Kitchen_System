@@ -6,12 +6,12 @@ import { authApi } from '@/api/AuthApi';
 import { CoordinatorSidebar } from './components/CoordinatorSideBar';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
-    "/coordinator": { name: "Logistics Dashboard", desc: "Tổng quan vận chuyển & điều phối" },
-    "/coordinator/dashboard": { name: "Logistics Dashboard", desc: "Tổng quan vận chuyển & điều phối" },
-    "/coordinator/orders": { name: "Order Management", desc: "Tiếp nhận & Xử lý đơn hàng từ Store" },
-    "/coordinator/shipments": { name: "Shipment Planning", desc: "Lập lịch & Theo dõi chuyến hàng" },
-    "/coordinator/inventory": { name: "Finished Goods Inventory", desc: "Kho thành phẩm sẵn sàng giao" },
-    "/coordinator/issues": { name: "Issue Handling", desc: "Xử lý sự cố & Đổi trả" },
+    "/coordinator": { name: "Tổng quan Logistics", desc: "Tổng quan vận chuyển & điều phối" },
+    "/coordinator/dashboard": { name: "Tổng quan Logistics", desc: "Tổng quan vận chuyển & điều phối" },
+    "/coordinator/orders": { name: "Đơn hàng cửa hàng", desc: "Tiếp nhận & xử lý đơn từ cửa hàng" },
+    "/coordinator/shipments": { name: "Chuyến giao hàng", desc: "Lập lịch & theo dõi chuyến giao" },
+    "/coordinator/inventory": { name: "Kho thành phẩm cửa hàng", desc: "Theo dõi tồn kho thành phẩm tại cửa hàng" },
+    "/coordinator/issues": { name: "Sự cố & Đổi trả", desc: "Đối soát giao nhận, hư hỏng & thiếu hụt" },
 };
 
 export const CoordinatorLayout = () => {
@@ -25,7 +25,7 @@ export const CoordinatorLayout = () => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    const currentPage = PAGE_TITLE[location.pathname] || { name: "Coordinator Portal", desc: "Điều phối viên" };
+    const currentPage = PAGE_TITLE[location.pathname] || { name: "Cổng điều phối", desc: "Trang làm việc cho điều phối viên" };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

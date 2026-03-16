@@ -57,7 +57,7 @@ export default function CategoryPage() {
         setCategories(categoriesData);
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to fetch categories';
+      const errorMessage = error.response?.data?.message || 'Không thể tải danh sách danh mục';
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -125,16 +125,16 @@ export default function CategoryPage() {
     try {
       if (editingCategory) {
         await categoryApi.update(editingCategory._id, data);
-        toast.success('Category updated successfully');
+        toast.success('Cập nhật danh mục thành công');
       } else {
         await categoryApi.create(data);
-        toast.success('Category created successfully');
+        toast.success('Tạo danh mục thành công');
       }
       setIsFormOpen(false);
       setEditingCategory(null);
       fetchCategories();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'An error occurred';
+      const errorMessage = error.response?.data?.message || 'Đã có lỗi xảy ra';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -146,13 +146,13 @@ export default function CategoryPage() {
       toast.error('Manager không được phép xóa danh mục.');
       return;
     }
-    if (window.confirm('Are you sure you want to delete this category?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa danh mục này?')) {
       try {
         await categoryApi.delete(id);
-        toast.success('Category deleted successfully');
+        toast.success('Xóa danh mục thành công');
         fetchCategories();
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 'An error occurred';
+        const errorMessage = error.response?.data?.message || 'Đã có lỗi xảy ra';
         toast.error(errorMessage);
       }
     }
@@ -187,7 +187,7 @@ export default function CategoryPage() {
           disabled={isManagerReadOnly}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Category
+          Thêm danh mục
         </Button>
       </motion.div>
 
@@ -203,7 +203,7 @@ export default function CategoryPage() {
               <Package className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Categories</p>
+              <p className="text-sm text-muted-foreground">Tổng số danh mục</p>
               <p className="text-2xl font-bold">{totalCategories}</p>
             </div>
           </CardContent>
@@ -219,7 +219,7 @@ export default function CategoryPage() {
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search categories..."
+              placeholder="Tìm kiếm danh mục..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 rounded-xl"
@@ -239,15 +239,15 @@ export default function CategoryPage() {
               <TableRow className="hover:bg-transparent border-b border-border/50">
                 <TableHead className="w-12"></TableHead>
                 <TableHead className="w-12"></TableHead>
-                <TableHead>Category Name</TableHead>
-                <TableHead>Created At</TableHead>
+                <TableHead>Tên danh mục</TableHead>
+                <TableHead>Ngày tạo</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     </div>
@@ -255,8 +255,8 @@ export default function CategoryPage() {
                 </TableRow>
               ) : filteredCategories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No categories found
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Không tìm thấy danh mục nào
                   </TableCell>
                 </TableRow>
               ) : (
@@ -307,7 +307,7 @@ export default function CategoryPage() {
                                 disabled={isManagerReadOnly}
                               >
                                 <Pencil className="w-4 h-4 mr-2" />
-                                Edit
+                                Chỉnh sửa
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDelete(category._id)}
@@ -315,7 +315,7 @@ export default function CategoryPage() {
                                 disabled={isManagerReadOnly}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
+                                Xóa
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -343,8 +343,8 @@ export default function CategoryPage() {
                                       <Package className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                      <h3 className="font-bold text-lg">Category Details</h3>
-                                      <p className="text-sm text-muted-foreground">View category information</p>
+                                      <h3 className="font-bold text-lg">Chi tiết danh mục</h3>
+                                      <p className="text-sm text-muted-foreground">Xem thông tin danh mục</p>
                                     </div>
                                   </div>
 
@@ -353,21 +353,21 @@ export default function CategoryPage() {
                                       whileHover={{ scale: 1.02 }}
                                       className="p-4 rounded-xl bg-background/50 dark:bg-white/5 border border-border/30"
                                     >
-                                      <p className="text-xs text-muted-foreground mb-1">Category Name</p>
+                                      <p className="text-xs text-muted-foreground mb-1">Tên danh mục</p>
                                       <p className="font-semibold">{category.categoryName}</p>
                                     </motion.div>
                                     <motion.div
                                       whileHover={{ scale: 1.02 }}
                                       className="p-4 rounded-xl bg-background/50 dark:bg-white/5 border border-border/30"
                                     >
-                                      <p className="text-xs text-muted-foreground mb-1">Created At</p>
+                                      <p className="text-xs text-muted-foreground mb-1">Ngày tạo</p>
                                       <p className="font-semibold">{new Date(category.createdAt).toLocaleString('vi-VN')}</p>
                                     </motion.div>
                                     <motion.div
                                       whileHover={{ scale: 1.02 }}
                                       className="p-4 rounded-xl bg-background/50 dark:bg-white/5 border border-border/30"
                                     >
-                                      <p className="text-xs text-muted-foreground mb-1">Last Updated</p>
+                                      <p className="text-xs text-muted-foreground mb-1">Cập nhật lần cuối</p>
                                       <p className="font-semibold">{new Date(category.updatedAt).toLocaleString('vi-VN')}</p>
                                     </motion.div>
                                     <motion.div
@@ -449,9 +449,9 @@ export default function CategoryPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{editingCategory ? 'Edit Category' : 'Add New Category'}</DialogTitle>
+            <DialogTitle>{editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</DialogTitle>
             <DialogDescription>
-              {editingCategory ? 'Update category information' : 'Create a new category'}
+              {editingCategory ? 'Cập nhật thông tin danh mục' : 'Tạo một danh mục mới'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => {
@@ -460,21 +460,21 @@ export default function CategoryPage() {
             handleSubmit({ categoryName: formData.get('categoryName') as string });
           }} className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="categoryName">Category Name</Label>
+              <Label htmlFor="categoryName">Tên danh mục</Label>
               <Input
                 id="categoryName"
                 name="categoryName"
                 defaultValue={editingCategory?.categoryName}
-                placeholder="e.g., Bánh Nướng"
+                placeholder="VD: Bánh nướng"
                 required
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
-                Cancel
+                Hủy
               </Button>
               <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
-                {isSubmitting ? 'Saving...' : editingCategory ? 'Update' : 'Create'}
+                {isSubmitting ? 'Đang lưu...' : editingCategory ? 'Cập nhật' : 'Tạo mới'}
               </Button>
             </div>
           </form>

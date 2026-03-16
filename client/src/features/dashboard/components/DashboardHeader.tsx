@@ -6,7 +6,6 @@ import { useAuthStore } from "@/shared/zustand/authStore";
 import { authApi } from "@/api/AuthApi";
 import { useThemeStore } from "@/shared/zustand/themeStore";
 import { cn } from "@/shared/lib/utils";
-import { AppLogo } from "@/shared/components/AppLogo";
 import {
   Sun,
   Moon,
@@ -60,17 +59,17 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/admin/feedback": { name: "Feedback", title: "Danh sách phản hồi" },
   "/admin/settings": { name: "Settings", title: "Cài đặt hệ thống" },
   "/coordinator/dashboard": { name: "Logistics Dashboard", title: "Tổng quan vận chuyển & điều phối" },
-  "/coordinator/orders": { name: "Store Orders", title: "Đơn hàng từ cửa hàng" },
+  "/coordinator/orders": { name: "Đơn hàng cửa hàng", title: "Đơn hàng từ cửa hàng" },
   "/coordinator/orders/:id": { name: "Order Detail", title: "Chi tiết đơn hàng" },
   "/coordinator/shipments": { name: "Shipments", title: "Lập lịch & theo dõi chuyến giao hàng" },
   "/coordinator/shipments/:id": { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" },
   "/coordinator/inventory": { name: "Finished Goods", title: "Kho thành phẩm sẵn sàng giao" },
   "/coordinator/ingredient-requests": { name: "Phiếu xin mua", title: "Phiếu xin mua nguyên liệu" },
   "/coordinator/issues": { name: "Issues & Returns", title: "Xử lý sự cố & đổi trả" },
-  "/store/dashboard": { name: "Store Dashboard", title: "Tổng quan hoạt động cửa hàng" },
-  "/store/orders": { name: "Store Orders", title: "Đơn nội bộ & phản hồi" },
-  "/store/orders/new": { name: "Create Store Order", title: "Tạo đơn nội bộ từ catalog sản phẩm" },
-  "/store/inventory": { name: "Store Inventory", title: "Tồn kho thành phẩm tại cửa hàng" },
+  "/store/dashboard": { name: "Dashboard cửa hàng", title: "Tổng quan hoạt động cửa hàng" },
+  "/store/orders": { name: "Đơn nội bộ", title: "Đơn nội bộ & phản hồi" },
+  "/store/orders/new": { name: "Tạo đơn nội bộ", title: "Tạo đơn nội bộ từ catalog sản phẩm" },
+  "/store/inventory": { name: "Tồn kho cửa hàng", title: "Tồn kho thành phẩm tại cửa hàng" },
   "/kitchen/dashboard": { name: "Kitchen Dashboard", title: "Tổng quan bếp & sản xuất" },
   "/kitchen/production": { name: "Kitchen Production", title: "Kế hoạch sản xuất của bếp" },
   "/kitchen/production/queue": { name: "Production Queue", title: "Ưu tiên sản xuất trong ngày" },
@@ -136,7 +135,6 @@ export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
         </button>
 
         <div className="flex items-center gap-4">
-          <AppLogo className="hidden sm:flex" />
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tight text-foreground">
               {pageName?.name}

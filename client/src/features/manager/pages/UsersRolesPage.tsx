@@ -37,7 +37,7 @@ export default function UsersRolesPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const getRoleName = (roleId: any) =>
-    typeof roleId === 'object' && roleId !== null ? roleId.roleName || 'No Role' : 'No Role';
+    typeof roleId === 'object' && roleId !== null ? roleId.roleName || 'Chưa gán vai trò' : 'Chưa gán vai trò';
 
   const fetchData = async () => {
     try {
@@ -89,7 +89,7 @@ export default function UsersRolesPage() {
       return;
     }
     if (!newUser.roleId) {
-      alert('Vui lòng chọn role.');
+      alert('Vui lòng chọn vai trò.');
       return;
     }
     try {
@@ -130,7 +130,7 @@ export default function UsersRolesPage() {
       await userApi.updateUserStatus(user._id, !user.isActive);
       setUsers(users.map((u) => (u._id === user._id ? { ...u, isActive: !u.isActive } : u)));
     } catch {
-      alert('Không thể cập nhật trạng thái.');
+      alert('Không thể cập nhật trạng thái tài khoản.');
     }
   };
 
@@ -149,7 +149,7 @@ export default function UsersRolesPage() {
   const onUpdateUserSubmit = async (id: string, data: any) => {
     try {
       await userApi.updateUser(id, data);
-      alert('Cập nhật thành công.');
+      alert('Cập nhật tài khoản thành công.');
       setShowUpdateModal(false);
       fetchData();
     } catch (error: any) {
@@ -198,8 +198,8 @@ export default function UsersRolesPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Users & Roles</h1>
-          <p className="text-sm text-muted-foreground mt-1">Tổng: {filteredUsers.length} user (không bao gồm Admin)</p>
+          <h1 className="text-2xl font-bold tracking-tight">Người dùng & Vai trò</h1>
+          <p className="text-sm text-muted-foreground mt-1">Tổng: {filteredUsers.length} tài khoản (không bao gồm Admin)</p>
         </div>
         <Button
           onClick={() => setShowAddModal(true)}
@@ -225,9 +225,9 @@ export default function UsersRolesPage() {
             <table className="w-full text-sm text-left">
               <thead className={`text-xs uppercase font-semibold ${darkMode ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
                 <tr>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Store</th>
+                  <th className="px-4 py-3">Người dùng</th>
+                  <th className="px-4 py-3">Vai trò</th>
+                  <th className="px-4 py-3">Cửa hàng</th>
                   <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
@@ -247,7 +247,7 @@ export default function UsersRolesPage() {
                     <td className="px-4 py-3">{user.storeId?.storeName || user.storeId?.name || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={user.isActive ? 'text-green-600' : 'text-gray-500'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
+                        {user.isActive ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right relative">

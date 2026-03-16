@@ -564,12 +564,12 @@ const SettingsPage = () => {
                         {settingsInGroup.map((setting) => {
                           const typeLabel =
                             setting.dataType === 'NUMBER'
-                              ? 'Number'
+                              ? 'Số'
                               : setting.dataType === 'BOOLEAN'
-                                ? 'Boolean'
+                                ? 'Đúng / Sai'
                                 : setting.dataType === 'JSON'
                                   ? 'JSON'
-                                  : 'String';
+                                  : 'Chuỗi';
                           return (
                             <Card key={setting._id || setting.key}>
                               <CardHeader className="pb-2">
@@ -614,7 +614,7 @@ const SettingsPage = () => {
                                         }
                                       />
                                       <span className="text-muted-foreground">
-                                        {setting.value === 'true' ? 'True' : 'False'}
+                                        {setting.value === 'true' ? 'Bật' : 'Tắt'}
                                       </span>
                                     </div>
                                   ) : setting.dataType === 'JSON' ? (

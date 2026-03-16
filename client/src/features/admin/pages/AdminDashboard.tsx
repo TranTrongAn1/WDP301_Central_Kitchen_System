@@ -56,12 +56,12 @@ function formatDate(d: string) {
 }
 
 const QUICK_LINKS = [
-  { label: 'Accounts', path: '/admin/account', icon: Users, color: 'from-rose-500 to-pink-600' },
-  { label: 'System Settings', path: '/admin/settings', icon: Settings, color: 'from-slate-500 to-zinc-600' },
-  { label: 'Production Plans', path: '/admin/production', icon: ChefHat, color: 'from-amber-500 to-orange-600' },
-  { label: 'Orders & Shipments', path: '/admin/orders', icon: ClipboardList, color: 'from-blue-500 to-indigo-600' },
-  { label: 'Products & Recipes', path: '/admin/products', icon: Package, color: 'from-emerald-500 to-teal-600' },
-  { label: 'Stores', path: '/admin/stores', icon: Store, color: 'from-violet-500 to-purple-600' },
+  { label: 'Tài khoản', path: '/admin/account', icon: Users, color: 'from-rose-500 to-pink-600' },
+  { label: 'Cài đặt hệ thống', path: '/admin/settings', icon: Settings, color: 'from-slate-500 to-zinc-600' },
+  { label: 'Kế hoạch sản xuất', path: '/admin/production', icon: ChefHat, color: 'from-amber-500 to-orange-600' },
+  { label: 'Đơn hàng & Giao nhận', path: '/admin/orders', icon: ClipboardList, color: 'from-blue-500 to-indigo-600' },
+  { label: 'Sản phẩm & Công thức', path: '/admin/products', icon: Package, color: 'from-emerald-500 to-teal-600' },
+  { label: 'Cửa hàng', path: '/admin/stores', icon: Store, color: 'from-violet-500 to-purple-600' },
 ];
 
 const AdminDashboard = () => {
@@ -138,10 +138,10 @@ const AdminDashboard = () => {
   }, []);
 
   const planStatusData = [
-    { key: 'Planned', label: 'Planned', value: plans.filter((p) => p.status === 'Planned').length, fill: 'hsl(var(--chart-1))' },
-    { key: 'In_Progress', label: 'In Progress', value: plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length, fill: 'hsl(var(--chart-2))' },
-    { key: 'Completed', label: 'Completed', value: plans.filter((p) => p.status === 'Completed').length, fill: 'hsl(var(--chart-3))' },
-    { key: 'Cancelled', label: 'Cancelled', value: plans.filter((p) => p.status === 'Cancelled').length, fill: 'hsl(var(--chart-4))' },
+    { key: 'Planned', label: 'Đã lập kế hoạch', value: plans.filter((p) => p.status === 'Planned').length, fill: 'hsl(var(--chart-1))' },
+    { key: 'In_Progress', label: 'Đang thực hiện', value: plans.filter((p) => p.status === 'In_Progress' || p.status === 'InProgress').length, fill: 'hsl(var(--chart-2))' },
+    { key: 'Completed', label: 'Hoàn thành', value: plans.filter((p) => p.status === 'Completed').length, fill: 'hsl(var(--chart-3))' },
+    { key: 'Cancelled', label: 'Đã hủy', value: plans.filter((p) => p.status === 'Cancelled').length, fill: 'hsl(var(--chart-4))' },
   ];
 
   const recentPlans = plans.slice(0, 5);
@@ -153,19 +153,19 @@ const AdminDashboard = () => {
     : 'bg-white border-gray-100 shadow-sm';
 
   const statCards = [
-    { label: 'Users', value: loading ? 0 : usersCount, icon: Users, gradient: 'from-rose-500 to-pink-600', href: '/admin/account' },
-    { label: 'Stores', value: loading ? 0 : storesCount, icon: Store, gradient: 'from-emerald-500 to-teal-600', href: '/admin/stores' },
-    { label: 'Production Plans', value: loading ? 0 : plans.length, icon: ChefHat, gradient: 'from-amber-500 to-orange-600', href: '/admin/production' },
-    { label: 'In Progress', value: loading ? 0 : inProgressPlans, icon: TrendingUp, gradient: 'from-orange-500 to-red-500', href: '/admin/production' },
-    { label: 'Orders', value: loading ? 0 : ordersCount, icon: ClipboardList, gradient: 'from-blue-500 to-indigo-600', href: '/admin/orders' },
-    { label: 'Trips', value: loading ? 0 : trips.length, icon: Truck, gradient: 'from-cyan-500 to-blue-600', href: '/admin/shipments' },
+    { label: 'Người dùng', value: loading ? 0 : usersCount, icon: Users, gradient: 'from-rose-500 to-pink-600', href: '/admin/account' },
+    { label: 'Cửa hàng', value: loading ? 0 : storesCount, icon: Store, gradient: 'from-emerald-500 to-teal-600', href: '/admin/stores' },
+    { label: 'Kế hoạch sản xuất', value: loading ? 0 : plans.length, icon: ChefHat, gradient: 'from-amber-500 to-orange-600', href: '/admin/production' },
+    { label: 'Đang thực hiện', value: loading ? 0 : inProgressPlans, icon: TrendingUp, gradient: 'from-orange-500 to-red-500', href: '/admin/production' },
+    { label: 'Đơn hàng', value: loading ? 0 : ordersCount, icon: ClipboardList, gradient: 'from-blue-500 to-indigo-600', href: '/admin/orders' },
+    { label: 'Chuyến giao', value: loading ? 0 : trips.length, icon: Truck, gradient: 'from-cyan-500 to-blue-600', href: '/admin/shipments' },
     {
       label: 'Inventory',
       value: loading ? 0 : inventorySummary?.totalItems ?? 0,
       icon: Package,
       gradient: 'from-violet-500 to-purple-600',
       href: '/admin/inventory',
-      sub: inventorySummary?.storeCount ? `${inventorySummary.storeCount} stores` : undefined,
+      sub: inventorySummary?.storeCount ? `${inventorySummary.storeCount} cửa hàng` : undefined,
     },
   ];
 
@@ -200,11 +200,11 @@ const AdminDashboard = () => {
           <motion.section variants={item} className={cn('rounded-xl border p-5', cardClass)}>
             <div className="mb-3 flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              <h2 className="text-base font-bold text-foreground">Plans by Status</h2>
+              <h2 className="text-base font-bold text-foreground">Kế hoạch theo trạng thái</h2>
             </div>
             <div className="h-56">
               {loading ? (
-                <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Loading...</div>
+                <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Đang tải...</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={planStatusData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -213,7 +213,7 @@ const AdminDashboard = () => {
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }}
-                      formatter={(value: number | undefined) => [value ?? 0, 'Count']}
+                      formatter={(value: number | undefined) => [value ?? 0, 'Số lượng']}
                     />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={44}>
                       {planStatusData.map((entry, idx) => (
@@ -229,22 +229,22 @@ const AdminDashboard = () => {
           <motion.section variants={item} className={cn('rounded-xl border p-5', cardClass)}>
             <div className="mb-3 flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              <h2 className="text-base font-bold text-foreground">Today's Demand</h2>
+              <h2 className="text-base font-bold text-foreground">Nhu cầu hôm nay</h2>
             </div>
             <div className="h-56">
               {loading ? (
-                <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Loading...</div>
+                <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Đang tải...</div>
               ) : aggregate.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={aggregate.slice(0, 8)} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <XAxis dataKey="productName" tick={{ fontSize: 10 }} tickFormatter={(v) => (v.length > 12 ? v.slice(0, 10) + '…' : v)} />
                     <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }} formatter={(value: number | undefined) => [value ?? 0, 'Quantity']} />
-                    <Bar dataKey="totalQuantity" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Total Qty" />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }} formatter={(value: number | undefined) => [value ?? 0, 'Số lượng']} />
+                    <Bar dataKey="totalQuantity" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Tổng SL" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">No orders for today</div>
+                <div className="flex h-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">Không có đơn hàng nào hôm nay</div>
               )}
             </div>
           </motion.section>
@@ -254,23 +254,23 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <motion.section variants={item} className={cn('rounded-xl border p-4', cardClass)}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground">Recent Orders</h2>
-              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/orders')}>View all</button>
+              <h2 className="text-sm font-bold text-foreground">Đơn hàng gần đây</h2>
+              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/orders')}>Xem tất cả</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 pr-2 font-medium">Code</th>
-                    <th className="pb-2 pr-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Date</th>
+                    <th className="pb-2 pr-2 font-medium">Mã đơn</th>
+                    <th className="pb-2 pr-2 font-medium">Trạng thái</th>
+                    <th className="pb-2 font-medium">Ngày</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Loading...</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                   ) : recentOrders.length === 0 ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">No orders</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Không có đơn hàng</td></tr>
                   ) : (
                     recentOrders.map((o) => (
                       <tr key={o._id} className="border-b border-border/50">
@@ -287,23 +287,23 @@ const AdminDashboard = () => {
 
           <motion.section variants={item} className={cn('rounded-xl border p-4', cardClass)}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground">Recent Trips</h2>
-              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/orders')}>View all</button>
+              <h2 className="text-sm font-bold text-foreground">Chuyến giao gần đây</h2>
+              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/orders')}>Xem tất cả</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 pr-2 font-medium">Trip Code</th>
-                    <th className="pb-2 pr-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Orders</th>
+                    <th className="pb-2 pr-2 font-medium">Mã chuyến</th>
+                    <th className="pb-2 pr-2 font-medium">Trạng thái</th>
+                    <th className="pb-2 font-medium">Số đơn</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Loading...</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                   ) : recentTrips.length === 0 ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">No trips</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Không có chuyến giao</td></tr>
                   ) : (
                     recentTrips.map((t) => (
                       <tr key={t._id} className="border-b border-border/50">
@@ -320,23 +320,23 @@ const AdminDashboard = () => {
 
           <motion.section variants={item} className={cn('rounded-xl border p-4', cardClass)}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground">Recent Plans</h2>
-              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/production')}>View all</button>
+              <h2 className="text-sm font-bold text-foreground">Kế hoạch gần đây</h2>
+              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => navigate('/admin/production')}>Xem tất cả</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 pr-2 font-medium">Plan Code</th>
-                    <th className="pb-2 pr-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Date</th>
+                    <th className="pb-2 pr-2 font-medium">Mã kế hoạch</th>
+                    <th className="pb-2 pr-2 font-medium">Trạng thái</th>
+                    <th className="pb-2 font-medium">Ngày</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Loading...</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Đang tải...</td></tr>
                   ) : recentPlans.length === 0 ? (
-                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">No plans</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-center text-muted-foreground">Không có kế hoạch</td></tr>
                   ) : (
                     recentPlans.map((p) => (
                       <tr key={p._id} className="border-b border-border/50">
@@ -354,7 +354,7 @@ const AdminDashboard = () => {
 
         {/* Quick links */}
         <motion.section variants={item} className={cn('rounded-xl border p-4', cardClass)}>
-          <h2 className="mb-3 text-sm font-bold text-foreground">Quick Actions</h2>
+          <h2 className="mb-3 text-sm font-bold text-foreground">Thao tác nhanh</h2>
           <div className="flex flex-wrap gap-2">
             {QUICK_LINKS.map((link) => (
               <motion.button

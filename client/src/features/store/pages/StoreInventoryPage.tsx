@@ -72,9 +72,9 @@ const StoreInventoryPage = () => {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Store • Inventory
-          </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              CỬA HÀNG • TỒN KHO
+            </p>
           <h1 className="mt-1 text-base font-bold text-foreground">
             Tồn kho tại cửa hàng
           </h1>
@@ -125,7 +125,7 @@ const StoreInventoryPage = () => {
               <thead>
                 <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
                   <th className="pb-2 pr-2 font-medium">Sản phẩm</th>
-                  <th className="pb-2 pr-2 font-medium">SKU</th>
+                  <th className="pb-2 pr-2 font-medium">Mã sản phẩm (SKU)</th>
                   <th className="pb-2 pr-2 font-medium">Mã lô</th>
                   <th className="pb-2 pr-2 font-medium">HSD</th>
                   <th className="pb-2 pr-2 font-medium text-right">Số lượng</th>
@@ -185,7 +185,7 @@ const StoreInventoryPage = () => {
                 {selectedItem.productId?.name}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                SKU: {selectedItem.productId?.sku}
+                Mã sản phẩm (SKU): {selectedItem.productId?.sku}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -495,7 +495,7 @@ const ProfilePage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">
-                      Store Wallet
+                      VÍ CỬA HÀNG
                     </p>
                     <p className="mt-1 text-lg font-bold">
                       {isLoadingWallet

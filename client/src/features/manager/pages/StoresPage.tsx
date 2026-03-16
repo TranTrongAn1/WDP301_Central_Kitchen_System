@@ -50,7 +50,7 @@ const StoresPage = () => {
             setStores(Array.isArray(data) ? data : []);
         } catch (err: unknown) {
             console.error('Error fetching stores:', err);
-            setError('Failed to load stores');
+            setError('Không thể tải danh sách cửa hàng');
         } finally {
             setLoading(false);
         }
@@ -81,7 +81,7 @@ const StoresPage = () => {
             fetchStores();
         } catch (err) {
             console.error('Error creating store:', err);
-            alert('Failed to create store');
+            alert('Tạo cửa hàng thất bại');
         } finally {
             setFormLoading(false);
         }
@@ -99,7 +99,7 @@ const StoresPage = () => {
             fetchStores();
         } catch (err) {
             console.error('Error updating store:', err);
-            alert('Failed to update store');
+            alert('Cập nhật cửa hàng thất bại');
         } finally {
             setFormLoading(false);
         }
@@ -183,7 +183,7 @@ const StoresPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading stores...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải danh sách cửa hàng...</span>
             </div>
         );
     }
@@ -191,7 +191,7 @@ const StoresPage = () => {
     if (error) {
         return (
             <ErrorState
-                title="Failed to load stores"
+                title="Không thể tải danh sách cửa hàng"
                 message={error}
                 onRetry={fetchStores}
             />
@@ -201,7 +201,7 @@ const StoresPage = () => {
     const StoreForm = () => (
         <div className="space-y-4">
             <div>
-                <label className="text-sm font-medium mb-1 block">Store Name *</label>
+                <label className="text-sm font-medium mb-1 block">Tên cửa hàng *</label>
                 <Input
                     placeholder="Enter store name"
                     value={formData.storeName}
@@ -209,7 +209,7 @@ const StoresPage = () => {
                 />
             </div>
             <div>
-                <label className="text-sm font-medium mb-1 block">Store Code *</label>
+                <label className="text-sm font-medium mb-1 block">Mã cửa hàng *</label>
                 <Input
                     placeholder="e.g. KD-D1-001"
                     value={formData.storeCode}
@@ -217,7 +217,7 @@ const StoresPage = () => {
                 />
             </div>
             <div>
-                <label className="text-sm font-medium mb-1 block">Address *</label>
+                <label className="text-sm font-medium mb-1 block">Địa chỉ *</label>
                 <Input
                     placeholder="Enter full address"
                     value={formData.address}
@@ -225,7 +225,7 @@ const StoresPage = () => {
                 />
             </div>
             <div>
-                <label className="text-sm font-medium mb-1 block">Phone *</label>
+                <label className="text-sm font-medium mb-1 block">Số điện thoại *</label>
                 <Input
                     placeholder="e.g. 0901234567"
                     value={formData.phone}
@@ -244,14 +244,14 @@ const StoresPage = () => {
                 />
             </div>
             <div>
-                <label className="text-sm font-medium mb-1 block">Status</label>
+                <label className="text-sm font-medium mb-1 block">Trạng thái</label>
                 <select
                     className="flex h-12 w-full rounded-xl border border-input bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-base"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as 'Active' | 'Inactive' })}
                 >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="Active">Đang hoạt động</option>
+                    <option value="Inactive">Ngưng hoạt động</option>
                 </select>
             </div>
         </div>
@@ -273,7 +273,7 @@ const StoresPage = () => {
                         disabled={isManagerReadOnly}
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        Add Store
+                        Thêm cửa hàng
                     </Button>
                 </div>
             </div>
@@ -286,7 +286,7 @@ const StoresPage = () => {
                                 <StoreIcon className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Total Stores</p>
+                                <p className="text-sm text-muted-foreground">Tổng số cửa hàng</p>
                                 <p className="text-2xl font-bold">{stores.length}</p>
                             </div>
                         </div>
@@ -299,7 +299,7 @@ const StoresPage = () => {
                                 <StoreIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Active Stores</p>
+                                <p className="text-sm text-muted-foreground">Cửa hàng đang hoạt động</p>
                                 <p className="text-2xl font-bold text-green-600">{activeStores}</p>
                             </div>
                         </div>
@@ -312,7 +312,7 @@ const StoresPage = () => {
                                 <StoreIcon className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Inactive Stores</p>
+                                <p className="text-sm text-muted-foreground">Cửa hàng ngưng hoạt động</p>
                                 <p className="text-2xl font-bold">{stores.length - activeStores}</p>
                             </div>
                         </div>
@@ -326,7 +326,7 @@ const StoresPage = () => {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search stores by name, code, or address..."
+                                placeholder="Tìm cửa hàng theo tên, mã hoặc địa chỉ..."
                                 className="pl-10"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -336,19 +336,19 @@ const StoresPage = () => {
                 </CardHeader>
                 <CardContent>
                     {filteredStores.length === 0 ? (
-                        <EmptyState
+                            <EmptyState
                             icon={StoreIcon}
-                            title="No Stores Found"
-                            message={searchQuery ? 'Try a different search term' : 'Add your first store to get started'}
-                            actionLabel={!searchQuery ? "Add Store" : undefined}
+                            title="Không tìm thấy cửa hàng"
+                            message={searchQuery ? 'Hãy thử từ khóa khác' : 'Thêm cửa hàng đầu tiên để bắt đầu'}
+                            actionLabel={!searchQuery ? "Thêm cửa hàng" : undefined}
                             onAction={!searchQuery ? () => setIsCreateModalOpen(true) : undefined}
                         />
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {currentStores.map((store) => {
                                 const isActive = store.status === 'Active' || store.status === true;
-                                const storeName = store.name || store.storeName || 'Unknown Store';
-                                const storeAddress = store.address || store.adress || 'No address';
+                                const storeName = store.name || store.storeName || 'Cửa hàng không xác định';
+                                const storeAddress = store.address || store.adress || 'Chưa có địa chỉ';
 
                                 return (
                                     <motion.div
@@ -371,7 +371,7 @@ const StoresPage = () => {
                                                 </div>
                                             </div>
                                             <Badge variant={isActive ? 'success' : 'secondary'}>
-                                                {isActive ? 'Active' : 'Inactive'}
+                                                {isActive ? 'Đang hoạt động' : 'Ngưng hoạt động'}
                                             </Badge>
                                         </div>
 
@@ -382,7 +382,7 @@ const StoresPage = () => {
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
                                                 <Phone className="w-4 h-4 text-muted-foreground" />
-                                                <span className="text-muted-foreground">{store.phone_number || 'No phone'}</span>
+                                                <span className="text-muted-foreground">{store.phone_number || 'Chưa có số điện thoại'}</span>
                                             </div>
                                         </div>
 
@@ -394,7 +394,7 @@ const StoresPage = () => {
                                                 onClick={() => openDetailModal(store)}
                                             >
                                                 <Eye className="w-4 h-4 mr-1" />
-                                                View Details
+                                                Xem chi tiết
                                             </Button>
                                             <Button
                                                 variant="outline"
@@ -468,20 +468,20 @@ const StoresPage = () => {
             <Modal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                title="Add New Store"
-                description="Create a new store location"
+                title="Thêm cửa hàng mới"
+                description="Tạo thông tin cho một cửa hàng mới"
                 size="md"
                 footer={
                     <>
                         <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                            Cancel
+                            Hủy
                         </Button>
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleCreateStore}
                             disabled={formLoading || !formData.storeName || !formData.storeCode}
                         >
-                            {formLoading ? 'Creating...' : 'Create Store'}
+                            {formLoading ? 'Đang tạo...' : 'Tạo cửa hàng'}
                         </Button>
                     </>
                 }
@@ -492,20 +492,20 @@ const StoresPage = () => {
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
-                title="Edit Store"
-                description="Update store information"
+                title="Chỉnh sửa cửa hàng"
+                description="Cập nhật thông tin cửa hàng"
                 size="md"
                 footer={
                     <>
                         <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                            Cancel
+                            Hủy
                         </Button>
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleEditStore}
                             disabled={formLoading}
                         >
-                            {formLoading ? 'Saving...' : 'Save Changes'}
+                            {formLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
                         </Button>
                     </>
                 }
@@ -517,11 +517,11 @@ const StoresPage = () => {
             <Modal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}
-                title="Store Details"
+                title="Chi tiết cửa hàng"
                 size="md"
                 footer={
                     <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
-                        Close
+                        Đóng
                     </Button>
                 }
             >
@@ -538,7 +538,7 @@ const StoresPage = () => {
                                 <h3 className="text-xl font-semibold">{selectedStore.name || selectedStore.storeName}</h3>
                                 <p className="text-muted-foreground">{selectedStore.store_code || selectedStore.storeCode}</p>
                                 <Badge variant={(selectedStore.status === 'Active' || selectedStore.status === true) ? 'success' : 'secondary'}>
-                                    {(selectedStore.status === 'Active' || selectedStore.status === true) ? 'Active' : 'Inactive'}
+                                    {(selectedStore.status === 'Active' || selectedStore.status === true) ? 'Đang hoạt động' : 'Ngưng hoạt động'}
                                 </Badge>
                             </div>
                         </div>
@@ -547,29 +547,29 @@ const StoresPage = () => {
                             <div className="flex items-center gap-3">
                                 <MapPin className="w-5 h-5 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Address</p>
-                                    <p className="font-medium">{selectedStore.address || selectedStore.adress || 'N/A'}</p>
+                                    <p className="text-sm text-muted-foreground">Địa chỉ</p>
+                                    <p className="font-medium">{selectedStore.address || selectedStore.adress || '—'}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <Phone className="w-5 h-5 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Phone Number</p>
-                                    <p className="font-medium">{selectedStore.phone_number || 'N/A'}</p>
+                                    <p className="text-sm text-muted-foreground">Số điện thoại</p>
+                                    <p className="font-medium">{selectedStore.phone_number || '—'}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <Calendar className="w-5 h-5 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Created At</p>
+                                    <p className="text-sm text-muted-foreground">Ngày tạo</p>
                                     <p className="font-medium">
                                         {selectedStore.createdAt
-                                            ? new Date(selectedStore.createdAt).toLocaleDateString('en-US', {
+                                            ? new Date(selectedStore.createdAt).toLocaleDateString('vi-VN', {
                                                 year: 'numeric',
-                                                month: 'long',
+                                                month: '2-digit',
                                                 day: 'numeric'
                                             })
-                                            : 'N/A'}
+                                            : '—'}
                                     </p>
                                 </div>
                             </div>
@@ -577,7 +577,7 @@ const StoresPage = () => {
                                 <div className="flex items-center gap-3">
                                     <StoreIcon className="w-5 h-5 text-muted-foreground" />
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                                        <p className="text-sm text-muted-foreground">Số dư ví</p>
                                         <p className="font-medium">
                                             {new Intl.NumberFormat('vi-VN', {
                                                 style: 'currency',

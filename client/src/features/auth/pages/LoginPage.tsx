@@ -20,7 +20,7 @@ const LoginPage = () => {
       {/* Footer */}
       <div className="relative z-10 mt-8 mb-4">
         <p className="text-white/60 text-xs text-center drop-shadow-md">
-          © 2024 Kendo Bakery Inc. All rights reserved.
+          © 2024 Kendo Bakery Inc. Mọi quyền được bảo lưu.
         </p>
       </div>
     </div>

@@ -22,6 +22,7 @@ import OrdersShipmentsPage from '@/features/manager/pages/OrdersShipmentsPage';
 import ProductsRecipesPage from '@/features/manager/pages/ProductsRecipesPage';
 import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';
+import AdminPaymentPage from '@/features/admin/pages/AdminPaymentPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
 import FeedbackListPage from '@/features/manager/pages/FeedbackListPage';
 import UsersRolesPage from '@/features/manager/pages/UsersRolesPage';
@@ -118,7 +119,7 @@ function App() {
               <Route path="/admin/settings" element={<SettingsPage />} />
 
               {/* Payment & Wallet */}
-              <Route path="/admin/payment" element={<StoresPage />} />
+              <Route path="/admin/payment" element={<AdminPaymentPage />} />
             </Route>
           </Route>
 

@@ -63,28 +63,28 @@ export const DashboardSideBar = ({
     navItems = [
       {
         icon: LayoutDashboard,
-        label: "Dashboard",
+        label: "Tổng quan",
         subLabel: "Tổng quan cửa hàng",
         path: "/store/dashboard",
         end: true,
       },
       {
         icon: ClipboardList,
-        label: "Orders",
-        subLabel: "Đơn hàng & feedback",
+        label: "Đơn hàng",
+        subLabel: "Đơn hàng & phản hồi",
         path: "/store/orders",
         end: false,
       },
       {
         icon: Boxes,
-        label: "Inventory",
+        label: "Tồn kho",
         subLabel: "Tồn kho cửa hàng",
         path: "/store/inventory",
         end: false,
       },
       {
         icon: Package,
-        label: "Wallet",
+        label: "Ví cửa hàng",
         subLabel: "Ví cửa hàng",
         path: "/store/wallet",
         end: true,
@@ -95,42 +95,42 @@ export const DashboardSideBar = ({
     navItems = [
       {
         icon: LayoutDashboard,
-        label: "Dashboard",
+        label: "Tổng quan",
         subLabel: "Tổng quan bếp",
         path: "/kitchen/dashboard",
         end: true,
       },
       {
         icon: ChefHat,
-        label: "Production",
+        label: "Sản xuất",
         subLabel: "Kế hoạch sản xuất",
         path: "/kitchen/production",
         end: true,
       },
       {
         icon: ClipboardList,
-        label: "Production Queue",
+        label: "Hàng chờ sản xuất",
         subLabel: "Ưu tiên sản xuất hôm nay",
         path: "/kitchen/production/queue",
         end: true,
       },
       {
         icon: Boxes,
-        label: "Batches",
+        label: "Lô thành phẩm",
         subLabel: "Lô thành phẩm",
         path: "/kitchen/production/batches",
         end: true,
       },
       {
         icon: Truck,
-        label: "Trips",
+        label: "Chuyến giao",
         subLabel: "Chuyến giao từ bếp",
         path: "/kitchen/trips",
         end: true,
       },
       {
         icon: Package,
-        label: "Ingredients",
+        label: "Nguyên liệu",
         subLabel: "Nguyên liệu",
         path: "/kitchen/ingredients",
         end: true,
@@ -144,7 +144,7 @@ export const DashboardSideBar = ({
       },
       {
         icon: Truck,
-        label: "Suppliers",
+        label: "Nhà cung cấp",
         subLabel: "Nhà cung cấp",
         path: "/kitchen/suppliers",
         end: true,
@@ -156,49 +156,49 @@ export const DashboardSideBar = ({
       navItems = [
         {
           icon: LayoutDashboard,
-          label: "Dashboard",
+          label: "Tổng quan",
           subLabel: "Tổng quan hệ thống",
           path: "/admin/dashboard",
           end: true,
         },
         {
           icon: Users,
-          label: "Accounts",
+          label: "Tài khoản",
           subLabel: "Quản lý tài khoản",
           path: "/admin/account",
           end: false,
         },
         {
           icon: Store,
-          label: "Stores",
+          label: "Cửa hàng",
           subLabel: "Cửa hàng",
           path: "/admin/stores",
           end: false,
         },
         {
           icon: Boxes,
-          label: "Inventory & Batches",
+          label: "Kho & Lô hàng",
           subLabel: "Kho & Lô hàng",
           path: "/admin/inventory",
           end: false,
         },
         {
           icon: UtensilsCrossed,
-          label: "Products & Recipes",
+          label: "Sản phẩm & Công thức",
           subLabel: "Sản phẩm & Công thức",
           path: "/admin/products",
           end: false,
         },
         {
           icon: FolderTree,
-          label: "Categories",
+          label: "Danh mục",
           subLabel: "Danh mục",
           path: "/admin/categories",
           end: true,
         },
         {
           icon: Package,
-          label: "Ingredients",
+          label: "Nguyên liệu",
           subLabel: "Nguyên liệu",
           path: "/admin/ingredients",
           end: true,
@@ -212,35 +212,35 @@ export const DashboardSideBar = ({
         },
         {
           icon: Truck,
-          label: "Suppliers",
+          label: "Nhà cung cấp",
           subLabel: "Nhà cung cấp",
           path: "/admin/suppliers",
           end: true,
         },
         {
           icon: Car,
-          label: "Vehicle Types",
+          label: "Loại xe",
           subLabel: "Loại xe",
           path: "/admin/vehicle-types",
           end: true,
         },
         {
           icon: Package,
-          label: "Payment & Wallet",
+          label: "Thanh toán & Ví",
           subLabel: "Thanh toán & Ví",
           path: "/admin/payment",
           end: false,
         },
         {
           icon: MessageSquare,
-          label: "Feedback",
+          label: "Phản hồi",
           subLabel: "Phản hồi",
           path: "/admin/feedback",
           end: false,
         },
         {
           icon: Settings,
-          label: "Settings",
+          label: "Cài đặt",
           subLabel: "Cài đặt hệ thống",
           path: "/admin/settings",
           end: false,
@@ -251,77 +251,77 @@ export const DashboardSideBar = ({
       navItems = [
         {
           icon: LayoutDashboard,
-          label: "Dashboard",
+          label: "Tổng quan",
           subLabel: "Tổng quan",
           path: "/manager/dashboard",
           end: true,
         },
         {
           icon: Boxes,
-          label: "Inventory & Batches",
+          label: "Kho & Lô hàng",
           subLabel: "Kho & Lô hàng",
           path: "/manager/inventory",
           end: false,
         },
         {
           icon: UtensilsCrossed,
-          label: "Products & Recipes",
+          label: "Sản phẩm & Công thức",
           subLabel: "Sản phẩm & Công thức",
           path: "/manager/products",
           end: false,
         },
         {
           icon: FolderTree,
-          label: "Categories",
+          label: "Danh mục",
           subLabel: "Danh mục",
           path: "/manager/categories",
           end: true,
         },
         {
           icon: Package,
-          label: "Ingredients",
+          label: "Nguyên liệu",
           subLabel: "Nguyên liệu",
           path: "/manager/ingredients",
           end: true,
         },
         {
           icon: Truck,
-          label: "Suppliers",
+          label: "Nhà cung cấp",
           subLabel: "Nhà cung cấp",
           path: "/manager/suppliers",
           end: true,
         },
         {
           icon: Store,
-          label: "Stores",
+          label: "Cửa hàng",
           subLabel: "Cửa hàng",
           path: "/manager/stores",
           end: false,
         },
         {
           icon: Users,
-          label: "Users & Roles",
+          label: "Người dùng & Vai trò",
           subLabel: "Người dùng",
           path: "/manager/users",
           end: false,
         },
         {
           icon: Settings,
-          label: "Settings",
+          label: "Cài đặt",
           subLabel: "Cài đặt",
           path: "/manager/settings",
           end: false,
         },
         {
           icon: BarChart3,
-          label: "Reports",
+          label: "Báo cáo",
           subLabel: "Báo cáo & Phân tích",
           path: "/manager/reports",
           end: true,
         },
         {
           icon: MessageSquare,
-          label: "Feedback",
+          label: "Phản hồi",
           subLabel: "Phản hồi",
           path: "/manager/feedback",
           end: false,
@@ -441,14 +441,6 @@ export const DashboardSideBar = ({
                     >
                       <div className="flex flex-col whitespace-nowrap">
                         <span className="text-sm font-medium">{item.label}</span>
-                        <span
-                          className={cn(
-                            "text-xs",
-                            active ? "text-primary-foreground/80" : ""
-                          )}
-                        >
-                          {item.subLabel}
-                        </span>
                       </div>
                     </div>
                   </NavLink>

@@ -40,6 +40,23 @@ const StoreOrderDetailPage = () => {
 
   // Không fetch ví/invoice ở detail – thanh toán hiện xử lý theo paymentMethod khi tạo đơn.
 
+  const getOrderStatusLabel = (status: string) => {
+    const s = (status || '').trim();
+    const map: Record<string, string> = {
+      Pending: 'Chờ trung tâm duyệt',
+      Approved: 'Đã duyệt',
+      Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+      Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+      In_Transit: 'Đang giao đến cửa hàng',
+      'In Transit': 'Đang giao đến cửa hàng',
+      Received: 'Cửa hàng đã nhận',
+      Cancelled: 'Đã hủy',
+      Shipped: 'Đã giao',
+    };
+    const normalized = map[s] ?? map[s.replace(/\s+/g, '_')] ?? s;
+    return normalized || 'Không xác định';
+  };
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -102,13 +119,13 @@ const StoreOrderDetailPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-semibold">
-            Store Order
+            ĐƠN HÀNG CỬA HÀNG
           </p>
           <p className="font-mono text-sm font-semibold">
             {order.orderCode}
           </p>
           <p className="text-[11px] text-muted-foreground">
-            Trạng thái: {order.status}
+            Trạng thái: {getOrderStatusLabel(order.status as string)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -213,7 +230,13 @@ const StoreOrderDetailPage = () => {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Hình thức thanh toán</span>
               <span className="font-semibold">
-                {order.paymentMethod ?? 'Wallet'}
+                {order.paymentMethod === 'Wallet'
+                  ? 'Ví cửa hàng'
+                  : order.paymentMethod === 'Cash'
+                    ? 'Tiền mặt'
+                    : order.paymentMethod === 'BankTransfer'
+                      ? 'Chuyển khoản'
+                      : 'Khác'}
               </span>
             </div>
           </div>
@@ -229,7 +252,7 @@ const StoreOrderDetailPage = () => {
             <thead>
               <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
                 <th className="pb-2 pr-2 font-medium">Sản phẩm</th>
-                <th className="pb-2 pr-2 font-medium">SKU</th>
+                <th className="pb-2 pr-2 font-medium">Mã sản phẩm (SKU)</th>
                 <th className="pb-2 pr-2 font-medium text-right">SL đặt</th>
                 <th className="pb-2 pr-2 font-medium text-right">Đơn giá</th>
                 <th className="pb-2 pr-2 font-medium text-right">Thành tiền</th>

@@ -131,7 +131,7 @@ export default function StoreWalletPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-white/70">
                             <Wallet className="h-4 w-4" />
-                            <span>{user?.fullName || 'Store Wallet'}</span>
+                            <span>{user?.fullName || 'Ví cửa hàng'}</span>
                         </div>
                     </motion.div>
 
@@ -226,7 +226,9 @@ export default function StoreWalletPage() {
                             {wallet?.status && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Trạng thái</span>
-                                    <span>{wallet.status}</span>
+                                    <span>
+                                        {wallet.status === 'Active' ? 'Đang hoạt động' : 'Bị khóa'}
+                                    </span>
                                 </div>
                             )}
                             {wallet?.currency && (

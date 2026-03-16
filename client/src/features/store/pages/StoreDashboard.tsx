@@ -253,7 +253,7 @@ const StoreDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-                  Store Wallet
+                  VÍ CỬA HÀNG
                 </p>
                 <p className="text-lg font-bold mt-1">
                   {loadingMetrics

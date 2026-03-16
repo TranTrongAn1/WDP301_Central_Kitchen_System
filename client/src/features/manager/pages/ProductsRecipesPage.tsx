@@ -56,7 +56,7 @@ const ProductsRecipesPage = () => {
             setProducts(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching products:', err);
-            setError('Failed to load products');
+            setError('Không thể tải danh sách sản phẩm');
         } finally {
             setLoading(false);
         }
@@ -132,8 +132,8 @@ const ProductsRecipesPage = () => {
     };
 
     const getCategoryName = (product: Product) => {
-        if (typeof product.categoryId === 'string') return 'Uncategorized';
-        return product.categoryId?.name || 'Uncategorized';
+    if (typeof product.categoryId === 'string') return 'Chưa phân loại';
+    return product.categoryId?.name || 'Chưa phân loại';
     };
 
     const openCreate = () => {
@@ -185,7 +185,7 @@ const ProductsRecipesPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading products...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải danh sách sản phẩm...</span>
             </div>
         );
     }
@@ -198,9 +198,9 @@ const ProductsRecipesPage = () => {
                     </div>
                 </div>
                 <Card>
-                    <CardContent className="p-6">
+                            <CardContent className="p-6">
                         <ErrorState
-                            title="Failed to Load Products"
+                            title="Không thể tải danh sách sản phẩm"
                             message={error}
                             onRetry={fetchProducts}
                         />
@@ -222,7 +222,7 @@ const ProductsRecipesPage = () => {
                         onClick={openCreate}
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        Add Product
+                        Thêm sản phẩm
                     </Button>
                 </div>
             </div>
@@ -235,7 +235,7 @@ const ProductsRecipesPage = () => {
                                 <UtensilsCrossed className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Total Products</p>
+                                <p className="text-sm text-muted-foreground">Tổng số sản phẩm</p>
                                 <p className="text-2xl font-bold">{products.length}</p>
                             </div>
                         </div>
@@ -248,7 +248,7 @@ const ProductsRecipesPage = () => {
                                 <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">With Recipes</p>
+                                <p className="text-sm text-muted-foreground">Có công thức</p>
                                 <p className="text-2xl font-bold">{products.filter(p => p.recipe && p.recipe.length > 0).length}</p>
                             </div>
                         </div>
@@ -261,7 +261,7 @@ const ProductsRecipesPage = () => {
                                 <Package className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Bundle Products</p>
+                                <p className="text-sm text-muted-foreground">Sản phẩm gộp</p>
                                 <p className="text-2xl font-bold">{products.filter(p => p.bundleItems && p.bundleItems.length > 0).length}</p>
                             </div>
                         </div>
@@ -275,20 +275,20 @@ const ProductsRecipesPage = () => {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search products by name or SKU..."
+                                placeholder="Tìm kiếm theo tên hoặc SKU..."
                                 className="pl-10"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className="relative min-w-[180px]">
+                        <div className="relative min-w-[200px]">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <select
-                                className="flex h-10 w-full rounded-xl border border-input bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2 pl-10 text-base appearance-none cursor-pointer"
+                                className="flex h-10 w-full rounded-xl border border-input bg-background text-foreground dark:bg-neutral-900 dark:text-foreground px-4 py-2 pl-10 text-sm appearance-none cursor-pointer shadow-sm"
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
                             >
-                                <option value="">All Categories</option>
+                                <option value="">Tất cả danh mục</option>
                                 {categories.map((cat) => (
                                     <option key={cat._id} value={cat._id}>
                                         {cat.categoryName}
@@ -302,9 +302,9 @@ const ProductsRecipesPage = () => {
                     {filteredProducts.length === 0 ? (
                         <EmptyState
                             icon={UtensilsCrossed}
-                            title="No Products Found"
-                            message={searchQuery ? 'Try a different search term' : 'Add your first product to get started'}
-                                actionLabel={!searchQuery && !isManagerReadOnly ? "Add Product" : undefined}
+                            title="Không tìm thấy sản phẩm"
+                            message={searchQuery ? 'Hãy thử từ khóa khác' : 'Thêm sản phẩm đầu tiên để bắt đầu quản lý'}
+                                actionLabel={!searchQuery && !isManagerReadOnly ? "Thêm sản phẩm" : undefined}
                                 onAction={!searchQuery && !isManagerReadOnly ? openCreate : undefined}
                         />
                     ) : (
@@ -350,29 +350,29 @@ const ProductsRecipesPage = () => {
 
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Category</span>
+                                            <span className="text-muted-foreground">Danh mục</span>
                                             <Badge variant="outline">{getCategoryName(product)}</Badge>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Price</span>
+                                            <span className="text-muted-foreground">Giá</span>
                                             <span className="font-semibold text-orange-500">
                                                 {product.price?.toLocaleString()}đ
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Shelf Life</span>
-                                            <span>{product.shelfLifeDays} days</span>
+                                            <span className="text-muted-foreground">Hạn sử dụng</span>
+                                            <span>{product.shelfLifeDays} ngày</span>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Recipe</span>
-                                            <span>{product.recipe?.length || 0} ingredients</span>
+                                            <span className="text-muted-foreground">Công thức</span>
+                                            <span>{product.recipe?.length || 0} nguyên liệu</span>
                                         </div>
                                     </div>
 
                                     {product.bundleItems && product.bundleItems.length > 0 && (
                                         <div className="mt-3 pt-3 border-t">
                                             <Badge variant="secondary" className="w-full justify-center">
-                                                Bundle: {product.bundleItems.length} items
+                                                Gói: {product.bundleItems.length} sản phẩm
                                             </Badge>
                                         </div>
                                     )}
@@ -498,7 +498,7 @@ const ProductsRecipesPage = () => {
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1 block">Shelf life (days)</label>
+                            <label className="text-sm font-medium mb-1 block">Hạn sử dụng (ngày)</label>
                             <Input
                                 type="number"
                                 min={1}
@@ -507,7 +507,7 @@ const ProductsRecipesPage = () => {
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1 block">Weight (kg / unit)</label>
+                            <label className="text-sm font-medium mb-1 block">Khối lượng (kg / đơn vị)</label>
                             <Input
                                 type="number"
                                 min={0}

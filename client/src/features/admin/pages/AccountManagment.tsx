@@ -103,11 +103,11 @@ export const AccountManagement = () => {
         e.preventDefault();
         try {
             if (!newUser.roleId) {
-                toast.error('Please select a role');
+                toast.error('Vui lòng chọn vai trò');
                 return;
             }
             await userApi.createUser(newUser);
-            toast.success('User created successfully!');
+            toast.success('Tạo tài khoản thành công!');
             setShowAddModal(false);
             fetchData();
             
@@ -122,7 +122,7 @@ export const AccountManagement = () => {
             });
         } catch (error: any) {
             console.error(error);
-            toast.error(error.response?.data?.message || 'Failed to create user');
+            toast.error(error.response?.data?.message || 'Không thể tạo tài khoản');
         }
     };
 
@@ -148,7 +148,7 @@ export const AccountManagement = () => {
             setConfirmLoading(true);
             await userApi.updateUserStatus(user._id, !user.isActive);
             setUsers(users.map(u => u._id === user._id ? { ...u, isActive: !u.isActive } : u));
-            toast.success(user.isActive ? 'Đã chuyển user sang Inactive' : 'Đã kích hoạt user');
+            toast.success(user.isActive ? 'Đã chuyển tài khoản sang trạng thái không hoạt động' : 'Đã kích hoạt tài khoản');
         } catch (error) {
             console.error(error);
             toast.error('Cannot update status');
@@ -197,12 +197,12 @@ export const AccountManagement = () => {
     const onUpdateUserSubmit = async (id: string, data: any) => {
         try {
             await userApi.updateUser(id, data);
-            toast.success('User updated successfully!');
+            toast.success('Cập nhật tài khoản thành công!');
             setShowUpdateModal(false);
             fetchData();
         } catch (error: any) {
             console.error(error);
-            toast.error(error.response?.data?.message || 'Failed to update user');
+            toast.error(error.response?.data?.message || 'Không thể cập nhật tài khoản');
         }
     };
     const getRoleBadgeColor = (roleName: string | undefined) => {
@@ -271,33 +271,33 @@ export const AccountManagement = () => {
 
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Total Users: {users.length}</p>
+                    <h2 className="text-2xl font-bold tracking-tight">Quản lý tài khoản</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Tổng số tài khoản: {users.length}</p>
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
                     className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-amber-600/20 transition-all"
                 >
                     <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add User
+                    Thêm tài khoản
                 </button>
             </div>
 
-            <div className={`rounded-xl border shadow-sm ${darkMode ? 'bg-[#1C1C21] border-gray-800' : 'bg-white border-gray-200'}`}>
+            <div className={`rounded-xl border shadow-sm ${darkMode ? 'bg-card border-border' : 'bg-white border-orange-100'}`}>
                 <div className="overflow-x-auto overflow-y-visible min-h-[400px]">
                     <table className="w-full text-sm text-left border-collapse">
-                        <thead className={`text-xs uppercase font-semibold ${darkMode ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                        <thead className={`text-xs uppercase font-semibold ${darkMode ? 'bg-secondary/40 text-muted-foreground' : 'bg-orange-50 text-orange-700'}`}>
                             <tr>
-                                <th className="px-6 py-4">User Info</th>
-                                <th className="px-6 py-4">Role</th>
-                                <th className="px-6 py-4">Store</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                                <th className="px-6 py-4">Thông tin tài khoản</th>
+                                <th className="px-6 py-4">Vai trò</th>
+                                <th className="px-6 py-4">Cửa hàng</th>
+                                <th className="px-6 py-4">Trạng thái</th>
+                                <th className="px-6 py-4 text-right">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm">
                             {currentUsers.map((user, index) => (
-                                <tr key={user._id} className={`group transition-colors border-b last:border-0 ${darkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                <tr key={user._id} className={`group transition-colors border-b last:border-0 ${darkMode ? 'border-border hover:bg-secondary/40' : 'border-orange-100 hover:bg-orange-50/70'}`}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm ${darkMode ? 'bg-gray-800 text-amber-500' : 'bg-white text-amber-600 border border-gray-100'}`}>
@@ -315,7 +315,7 @@ export const AccountManagement = () => {
                                         </span>
                                     </td>
                                     <td className={`px-6 py-4 font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {user.storeId?.storeName || 'Central Kitchen'}
+                                        {user.storeId?.storeName || 'Bếp trung tâm'}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${user.isActive
@@ -323,7 +323,7 @@ export const AccountManagement = () => {
                                                 : 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
                                             }`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                                            {user.isActive ? 'Active' : 'Inactive'}
+                                            {user.isActive ? 'Đang hoạt động' : 'Không hoạt động'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right relative">
@@ -346,21 +346,21 @@ export const AccountManagement = () => {
                                                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
                                                     >
                                                         <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                        Update
+                                                        Cập nhật
                                                     </button>
                                                     <button
                                                         onClick={() => handleToggleStatus(user)}
                                                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${user.isActive ? (darkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50') : (darkMode ? 'text-green-400 hover:bg-green-500/10' : 'text-green-600 hover:bg-green-50')}`}
                                                     >
                                                         <span className="material-symbols-outlined text-[18px]">{user.isActive ? 'lock' : 'lock_open'}</span>
-                                                        {user.isActive ? 'Inactive' : 'Active'}
+                                                        {user.isActive ? 'Chuyển không hoạt động' : 'Kích hoạt'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteUser(user)}
                                                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${darkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'}`}
                                                     >
                                                         <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                        Delete
+                                                        Xóa
                                                     </button>
                                                 </div>
                                             </div>
@@ -371,7 +371,7 @@ export const AccountManagement = () => {
                         </tbody>
                     </table>
                     {users.length === 0 && !isLoading && (
-                        <div className={`p-8 text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No users found.</div>
+                        <div className={`p-8 text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Không tìm thấy tài khoản nào.</div>
                     )}
                 </div>
             </div>
@@ -391,7 +391,7 @@ export const AccountManagement = () => {
                                     <span className="material-symbols-outlined text-[18px]">
                                         chevron_left
                                     </span>
-                                    Prev
+                                    Trước
                                 </button>
                                 <div className="flex items-center gap-1">
                                     {pages.map((page, idx) =>
@@ -424,7 +424,7 @@ export const AccountManagement = () => {
                                     disabled={currentPage === totalPages}
                                     className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
                                 >
-                                    Next
+                                    Sau
                                     <span className="material-symbols-outlined text-[18px]">
                                         chevron_right
                                     </span>
@@ -440,7 +440,7 @@ export const AccountManagement = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className={`w-full max-w-lg rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 ${darkMode ? 'bg-[#1C1C21] border border-gray-800' : 'bg-white'}`}>
                         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-                            <h3 className="font-bold text-lg">Create New Account</h3>
+                            <h3 className="font-bold text-lg">Tạo tài khoản mới</h3>
                             <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-red-500">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
@@ -450,37 +450,37 @@ export const AccountManagement = () => {
                             {/* Form fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Full Name</label>
+                                    <label className="block text-sm font-medium mb-1.5">Họ và tên</label>
                                     <input type="text" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.fullName} onChange={e => setNewUser({ ...newUser, fullName: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Username</label>
+                                    <label className="block text-sm font-medium mb-1.5">Tên đăng nhập</label>
                                     <input type="text" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} />
                                 </div>
                             </div>
                             <div><label className="block text-sm font-medium mb-1.5">Email</label><input type="email" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
-                            <div><label className="block text-sm font-medium mb-1.5">Password</label><input type="password" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} /></div>
+                            <div><label className="block text-sm font-medium mb-1.5">Mật khẩu</label><input type="password" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} /></div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Role</label>
+                                    <label className="block text-sm font-medium mb-1.5">Vai trò</label>
                                     <select className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21]" value={newUser.roleId} onChange={handleRoleChange} required>
-                                        <option value="" disabled>Select Role</option>
+                                        <option value="" disabled>Chọn vai trò</option>
                                         {roles.map(role => (<option key={role._id} value={role._id}>{role.roleName}</option>))}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Store</label>
+                                    <label className="block text-sm font-medium mb-1.5">Cửa hàng</label>
                                     <select className={`w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21] ${!isStoreStaffSelected() ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}`} value={newUser.storeId} onChange={e => setNewUser({ ...newUser, storeId: e.target.value })} disabled={!isStoreStaffSelected()}>
-                                        {!isStoreStaffSelected() ? (<option value="">Central Kitchen (HQ)</option>) : (<option value="">-- Select a Store --</option>)}
+                                        {!isStoreStaffSelected() ? (<option value="">Bếp trung tâm (HQ)</option>) : (<option value="">-- Chọn cửa hàng --</option>)}
                                         {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName || store.name || store._id}</option>))}
                                     </select>
                                 </div>
                             </div>
 
                             <div className="pt-4 flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Cancel</button>
-                                <button type="submit" className="px-6 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20">Create Account</button>
+                                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Hủy</button>
+                                <button type="submit" className="px-6 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20">Tạo tài khoản</button>
                             </div>
                         </form>
                     </div>
@@ -510,21 +510,21 @@ export const AccountManagement = () => {
                 title={
                     confirmConfig?.type === 'toggleStatus'
                         ? confirmConfig.user?.isActive
-                            ? 'Deactivate user?'
-                            : 'Activate user?'
-                        : 'Delete user?'
+                            ? 'Ngừng kích hoạt tài khoản?'
+                            : 'Kích hoạt tài khoản?'
+                        : 'Xóa tài khoản?'
                 }
                 message={
                     confirmConfig?.type === 'toggleStatus'
-                        ? `Bạn có chắc muốn ${confirmConfig.user?.isActive ? 'deactivate' : 'activate'} tài khoản "${confirmConfig.user?.fullName}" (@${confirmConfig.user?.username})?`
-                        : `Xóa tài khoản "${confirmConfig?.user?.fullName}" (@${confirmConfig?.user?.username})? Thao tác này là soft-delete.`
+                        ? `Bạn có chắc muốn ${confirmConfig.user?.isActive ? 'ngừng kích hoạt' : 'kích hoạt'} tài khoản "${confirmConfig.user?.fullName}" (@${confirmConfig.user?.username})?`
+                        : `Xóa tài khoản "${confirmConfig?.user?.fullName}" (@${confirmConfig?.user?.username})? Thao tác này sẽ ẩn tài khoản khỏi hệ thống.`
                 }
                 confirmLabel={
                     confirmConfig?.type === 'toggleStatus'
                         ? confirmConfig.user?.isActive
-                            ? 'Deactivate'
-                            : 'Activate'
-                        : 'Delete'
+                            ? 'Ngừng kích hoạt'
+                            : 'Kích hoạt'
+                        : 'Xóa'
                 }
                 variant={confirmConfig?.type === 'deleteUser' ? 'danger' : 'default'}
                 loading={confirmLoading}

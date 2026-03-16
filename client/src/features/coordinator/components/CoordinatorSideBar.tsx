@@ -22,25 +22,23 @@ interface CoordinatorSideBarProps {
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  subLabel: string;
   path: string;
   end?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", subLabel: "Tổng quan", path: "/coordinator/dashboard", end: true },
-  { icon: ClipboardList, label: "Store Orders", subLabel: "Đơn hàng cửa hàng", path: "/coordinator/orders", end: false },
-  { icon: Truck, label: "Shipments", subLabel: "Chuyến giao hàng", path: "/coordinator/shipments", end: false },
-  { icon: Package, label: "Production Plans", subLabel: "Kế hoạch sản xuất", path: "/coordinator/production", end: false },
-  { icon: Package, label: "Finished Goods", subLabel: "Kho thành phẩm", path: "/coordinator/inventory", end: true },
-  { icon: ShoppingCart, label: "Phiếu xin mua", subLabel: "Xin mua nguyên liệu", path: "/coordinator/ingredient-requests", end: true },
-  { icon: AlertCircle, label: "Issues & Returns", subLabel: "Sự cố & Đổi trả", path: "/coordinator/issues", end: true },
+  { icon: LayoutDashboard, label: "Tổng quan", path: "/coordinator/dashboard", end: true },
+  { icon: ClipboardList, label: "Đơn cửa hàng", path: "/coordinator/orders", end: false },
+  { icon: Truck, label: "Chuyến giao", path: "/coordinator/shipments", end: false },
+  { icon: Package, label: "Kế hoạch sản xuất", path: "/coordinator/production", end: false },
+  { icon: Package, label: "Kho thành phẩm", path: "/coordinator/inventory", end: true },
+  { icon: ShoppingCart, label: "Phiếu xin mua", path: "/coordinator/ingredient-requests", end: true },
+  { icon: AlertCircle, label: "Sự cố & Đổi trả", path: "/coordinator/issues", end: true },
 ];
 
 export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBarProps) => {
   const [hoveredItem, setHoveredItem] = useState<{
     label: string;
-    subLabel: string;
     x: number;
     y: number;
   } | null>(null);
@@ -66,7 +64,6 @@ export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBar
         >
           <div className="px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white text-sm rounded-lg shadow-xl whitespace-nowrap animate-in fade-in-0 zoom-in-95 duration-150">
             <div className="font-medium">{hoveredItem.label}</div>
-            <div className="text-xs opacity-80">{hoveredItem.subLabel}</div>
             <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-800" />
           </div>
         </div>
@@ -115,7 +112,6 @@ export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBar
                         const rect = e.currentTarget.getBoundingClientRect();
                         setHoveredItem({
                           label: item.label,
-                          subLabel: item.subLabel,
                           x: rect.right + 8,
                           y: rect.top + rect.height / 2,
                         });
@@ -141,9 +137,6 @@ export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBar
                     >
                       <div className="flex flex-col whitespace-nowrap">
                         <span className="text-sm font-medium">{item.label}</span>
-                        <span className={cn("text-xs", active ? "text-primary-foreground/80" : "")}>
-                          {item.subLabel}
-                        </span>
                       </div>
                     </div>
                   </NavLink>
@@ -163,7 +156,7 @@ export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBar
                   ? "hover:bg-slate-700/50 text-muted-foreground hover:text-foreground"
                   : "hover:bg-orange-100 text-muted-foreground hover:text-foreground"
               )}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
