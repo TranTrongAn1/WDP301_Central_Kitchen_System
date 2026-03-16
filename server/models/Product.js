@@ -39,6 +39,11 @@ const productSchema = new mongoose.Schema(
       min: [0, 'Weight cannot be negative'],
       description: 'Weight of one unit of the product in KG for logistics calculation',
     },
+    weightUnit: {
+      type: String,
+      default: 'kg',
+      trim: true,
+    },
     image: {
       type: String,
       trim: true,

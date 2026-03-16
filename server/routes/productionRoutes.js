@@ -30,7 +30,7 @@ router.put(
 );
 
 router.patch(
-  '/:id/status',
+  '/:id',
   authorize('Admin', 'Manager', 'Coordinator', 'KitchenStaff'),
   updateProductionPlanStatus
 );

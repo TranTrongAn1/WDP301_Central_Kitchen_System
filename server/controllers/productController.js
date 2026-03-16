@@ -14,6 +14,7 @@ const getProducts = async (req, res, next) => {
       .populate('recipe.ingredientId', 'name unit costPrice')
       .populate('bundleItems.childProductId', 'name sku price')
       .sort({ name: 1 });
+
     res.status(200).json({
       success: true,
       count: products.length,
@@ -34,6 +35,7 @@ const getProductById = async (req, res, next) => {
       res.status(404);
       return next(new Error('Product not found'));
     }
+
     res.status(200).json({
       success: true,
       data: product,
@@ -51,6 +53,8 @@ const createProduct = async (req, res, next) => {
       categoryId,
       price,
       shelfLifeDays,
+      weight,
+      weightUnit,
       image,
       recipe,
       bundleItems,
@@ -98,6 +102,8 @@ const createProduct = async (req, res, next) => {
       categoryId,
       price,
       shelfLifeDays,
+      weight,
+      weightUnit,
       image,
       recipe: recipe || [],
       bundleItems: bundleItems || [],
@@ -171,6 +177,7 @@ const updateProduct = async (req, res, next) => {
       .populate('categoryId', 'name description')
       .populate('recipe.ingredientId', 'name unit costPrice')
       .populate('bundleItems.childProductId', 'name sku price');
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
