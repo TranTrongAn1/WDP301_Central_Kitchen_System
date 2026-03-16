@@ -1024,20 +1024,7 @@ const startShipping = async (req, res, next) => {
       );
     }
 
-    // ========================================
-    // STEP 3: Validate Trip Has ENOUGH Orders
-    // ========================================
-    const minOrdersPerTrip = await getSettingNumber('MIN_ORDERS_PER_TRIP', 5);
-    const currentOrderCount = trip.orders ? trip.orders.length : 0;
-
-    if (currentOrderCount < minOrdersPerTrip) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error(
-        `Cannot start shipping. A trip requires at least ${minOrdersPerTrip} orders to depart. Currently has ${currentOrderCount} order(s).`
-      );
-    }
+    // ĐÃ LƯỢC BỎ BƯỚC 3: VALIDATE TỐI THIỂU (Để xe có thể chạy tự do)
 
     // ========================================
     // STEP 4: Update All Orders to 'In_Transit' Status

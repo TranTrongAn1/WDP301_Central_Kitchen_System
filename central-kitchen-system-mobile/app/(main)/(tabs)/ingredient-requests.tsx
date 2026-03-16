@@ -100,15 +100,20 @@ const getIngredientName = (ingredientData: any) => {
               // onPress={() => router.push(`/kitchen/ingredient-requests/${item._id}`)}
               style={[styles.card, isUrgent && styles.cardUrgent]}>
               
-              <View style={styles.cardHeader}>
+<View style={styles.cardHeader}>
                 {/* HIỂN THỊ TÊN ĐÃ ĐƯỢC FIX */}
                 <Text style={styles.cardTitle}>
                   {getIngredientName(item.ingredientId)}
                 </Text>
 
-                {isUrgent && (
+                {/* KIỂM TRA ĐỂ HIỆN BADGE TƯƠNG ỨNG */}
+                {isUrgent ? (
                   <View style={styles.urgentBadge}>
                     <Text style={styles.urgentText}>MUA GẤP</Text>
+                  </View>
+                ) : (
+                  <View style={styles.plannedBadge}>
+                    <Text style={styles.plannedText}>KẾ HOẠCH</Text>
                   </View>
                 )}
               </View>
@@ -164,5 +169,7 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 12, color: '#8C8C8C' },
   cardValue: { fontSize: 12, fontWeight: '600', color: '#2A2A2A' },
   errorText: { color: '#D91E18', fontSize: 14, marginBottom: 12, fontWeight: '500' },
-  emptyText: { textAlign: 'center', color: '#8C8C8C', marginTop: 20, fontStyle: 'italic' }
+  emptyText: { textAlign: 'center', color: '#8C8C8C', marginTop: 20, fontStyle: 'italic' },
+  plannedBadge: { backgroundColor: '#E9F7EF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#27AE60' },
+  plannedText: { color: '#27AE60', fontSize: 10, fontWeight: 'bold' },
 });

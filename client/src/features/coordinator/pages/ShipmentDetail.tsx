@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
-import { systemSettingApi } from '@/api/SystemSettingApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
@@ -39,7 +38,6 @@ const ShipmentDetail = () => {
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [isAddingOrders, setIsAddingOrders] = useState(false);
     const [loadingAvailable, setLoadingAvailable] = useState(false);
-    const [minOrdersPerTrip, setMinOrdersPerTrip] = useState<number | null>(null);
     const [ingredientSummary, setIngredientSummary] = useState<{ name: string; unit: string; totalQty: number }[]>([]);
     const [totalWeightKg, setTotalWeightKg] = useState(0);
 
@@ -80,19 +78,6 @@ const ShipmentDetail = () => {
         fetchDetail();
     }, [id, refreshTrigger]);
 
-    useEffect(() => {
-        const fetchLimits = async () => {
-            try {
-                const res = await systemSettingApi.getByKey('MIN_ORDERS_PER_TRIP');
-                const raw = res?.data?.value;
-                const num = raw != null ? Number(raw) : NaN;
-                if (!Number.isNaN(num) && num > 0) setMinOrdersPerTrip(num);
-            } catch {
-                setMinOrdersPerTrip(null);
-            }
-        };
-        void fetchLimits();
-    }, []);
 
     useEffect(() => {
         if (tripOrders.length === 0) {
@@ -513,11 +498,6 @@ const ShipmentDetail = () => {
                         </p>
                     </div>
                 </div>
-                {minOrdersPerTrip && (
-                    <div className="p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 text-[11px] text-amber-800">
-                        Cần tối thiểu <span className="font-bold">{minOrdersPerTrip} đơn</span> trong một chuyến để bắt đầu giao hàng (MIN_ORDERS_PER_TRIP).
-                    </div>
-                )}
             </div>
 
             <div className="mb-8 rounded-xl border border-border bg-card p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

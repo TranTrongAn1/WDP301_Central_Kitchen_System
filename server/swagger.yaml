@@ -3552,7 +3552,7 @@ paths:
       responses:
         '200':
           description: Successfully retrieved expiring items
-          /api/inventory:
+  /api/inventory:
     get:
       tags:
         - Inventory

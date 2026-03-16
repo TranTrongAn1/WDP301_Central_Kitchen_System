@@ -41,20 +41,27 @@ const getStoreInventory = async (req, res, next) => {
       .populate('storeId', 'storeName address')
       .sort({ lastUpdated: -1 });
 
-    const summary = {};
+const summary = {};
     inventory.forEach((item) => {
+      if (!item.productId || !item.productId._id) {
+        return; 
+      }
       const productKey = item.productId._id.toString();
+      
       if (!summary[productKey]) {
         summary[productKey] = {
           productId: item.productId._id,
-          productName: item.productId.name,
-          productSku: item.productId.sku,
+          productName: item.productId.name || 'Sản phẩm lỗi tên',
+          productSku: item.productId.sku || 'N/A',
           totalQuantity: 0,
           batches: 0,
         };
       }
-      summary[productKey].totalQuantity += item.quantity;
+      
+      // Trong code cũ cộng `totalQuantity` 2 lần nếu có batchId. Giờ chỉ cộng 1 lần thôi.
+      summary[productKey].totalQuantity += (item.quantity || 0);
       summary[productKey].batches += 1;
+      
     });
 
     res.status(200).json({
@@ -72,6 +79,7 @@ const getStoreInventory = async (req, res, next) => {
     next(error);
   }
 };
+
 const updateInventoryQuantity = async (req, res, next) => {
   try {
     const { id } = req.params; // ID của bản ghi StoreInventory
