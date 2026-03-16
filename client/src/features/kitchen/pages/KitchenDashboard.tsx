@@ -96,7 +96,7 @@ const KitchenDashboard = () => {
 
   const tripsNeedingReady = trips.filter((t) => {
     const status = (t.status as string) || '';
-    return status === 'Planning' || status === 'Pending' || status === 'Transferred_To_Kitchen';
+    return status === 'Waiting_For_Loading';
   });
 
   const planStatusData = [
@@ -443,7 +443,7 @@ const KitchenDashboard = () => {
               </ul>
             )}
           </div>
-          {expiringSoonBatches.length > 0 && (
+                        {expiringSoonBatches.length > 0 && (
             <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <p>

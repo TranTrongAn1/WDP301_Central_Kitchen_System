@@ -210,10 +210,8 @@ const OrdersShipmentsPage = () => {
 
   const getTripStatusLabel = (status: string) => {
     const s = (status || '').trim();
-    if (s === 'Planning') return 'Đang chờ giao';
-    if (s === 'Pending') return 'Đang xử lý';
-    if (s === 'Transferred_To_Kitchen') return 'Bếp đang chuẩn bị';
-    if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'Sẵn sàng giao';
+    if (s === 'Planning') return 'Đang lập kế hoạch';
+    if (s === 'Waiting_For_Loading') return 'Đang chờ bốc hàng';
     if (s === 'In_Transit' || s === 'In Transit') return 'Đang giao cho cửa hàng';
     if (s === 'Completed') return 'Đã giao xong';
     if (s === 'Cancelled') return 'Đã hủy chuyến';

@@ -111,6 +111,14 @@ const ShipmentDetail = () => {
                 const ingredients: Ingredient[] = (ingredientsRes as any)?.data ?? (Array.isArray(ingredientsRes) ? ingredientsRes : []);
                 const ingMap: Record<string, { name: string; unit: string; totalQty: number }> = {};
                 let totalWeight = 0;
+                const normalizeWeightToKg = (weight?: number, unit?: string): number => {
+                    if (!weight || weight <= 0) return 0;
+                    const u = (unit || 'kg').toLowerCase();
+                    if (u === 'kg') return weight;
+                    if (u === 'g' || u === 'gram' || u === 'grams') return weight / 1000;
+                    if (u === 'ton' || u === 't' || u === 'tons') return weight * 1000;
+                    return weight;
+                };
                 for (const order of tripOrders) {
                     if (!order.items) continue;
                     for (const item of order.items) {
@@ -118,9 +126,11 @@ const ShipmentDetail = () => {
                         const product = products.find((p: Product) => p._id === pid);
                         const qty = item.quantity ?? (item as any).approvedQuantity ?? 0;
 
-                        // Cộng khối lượng (dùng weight từ product, mặc định 0.5kg nếu thiếu)
-                        const weightPerUnit = (product as Product | undefined)?.weight ?? 0.5;
-                        totalWeight += weightPerUnit * qty;
+                        // Cộng khối lượng (dùng weight + weightUnit từ product, mặc định 0.5kg nếu thiếu)
+                        const rawWeight = (product as Product | undefined)?.weight ?? 0.5;
+                        const unit = (product as any)?.weightUnit ?? 'kg';
+                        const weightPerUnitKg = normalizeWeightToKg(rawWeight, unit);
+                        totalWeight += weightPerUnitKg * qty;
                         if (!product?.recipe) continue;
                         for (const rec of product.recipe) {
                             const ingId = typeof rec.ingredientId === 'object' ? (rec.ingredientId as any)?._id : rec.ingredientId;
@@ -207,6 +217,13 @@ const ShipmentDetail = () => {
 
     const handleStartShipping = async () => {
         if (!id) return;
+        if (trip?.status !== 'Waiting_For_Loading') {
+            toast.error(
+                `Chỉ có thể bắt đầu giao khi chuyến đang ở trạng thái 'Đang chờ bốc hàng'.`
+            );
+            setConfirmAction(null);
+            return;
+        }
         try {
             setIsStartingShipping(true);
             await DeliveryTripApi.startShipping(id);
@@ -237,9 +254,12 @@ const ShipmentDetail = () => {
             } else {
                 toast.error('Lỗi khi gỡ đơn hàng!', { id: toastId });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error('Đã xảy ra lỗi kết nối');
+            const message =
+                error?.response?.data?.message ||
+                'Đã xảy ra lỗi khi gỡ đơn. Nếu chuyến không còn ở trạng thái Planning, hệ thống không cho phép gỡ đơn.';
+            toast.error(message);
         } finally {
             setConfirmAction(null);
         }
@@ -248,8 +268,7 @@ const ShipmentDetail = () => {
     const getTripStatusStyle = (status: string) => {
         const s = (status || '').trim();
         if (s === 'Planning') return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
-        if (s === 'Pending' || s === 'Transferred_To_Kitchen') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
-        if (s === 'ReadyForShipping' || s === 'Ready_For_Shipping' || s === 'Ready for shipping') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
+        if (s === 'Waiting_For_Loading') return 'bg-cyan-500/15 text-cyan-600 border-cyan-500/30';
         if (s === 'In_Transit' || s === 'In Transit') return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
         if (s === 'Completed') return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
         if (s === 'Cancelled') return 'bg-red-500/20 text-red-500 border-red-500/30';
@@ -259,12 +278,8 @@ const ShipmentDetail = () => {
     const getTripStatusLabel = (status: string) => {
         const s = (status || '').trim();
         const map: Record<string, string> = {
-            Planning: 'Đang chờ giao',
-            Pending: 'Đang xử lý',
-            Transferred_To_Kitchen: 'Bếp đang chuẩn bị',
-            ReadyForShipping: 'Sẵn sàng giao',
-            Ready_For_Shipping: 'Sẵn sàng giao',
-            'Ready for shipping': 'Sẵn sàng giao',
+            Planning: 'Đang lập kế hoạch',
+            Waiting_For_Loading: 'Đang chờ bốc hàng',
             In_Transit: 'Đang giao cho cửa hàng',
             'In Transit': 'Đang giao cho cửa hàng',
             Completed: 'Đã giao xong',
@@ -339,6 +354,50 @@ const ShipmentDetail = () => {
             return sum + orderQty;
         }, 0);
     }, [tripOrders]);
+
+    const productionPlanSummary = useMemo(() => {
+        if (!trip || !Array.isArray(trip.orders)) return [];
+        const planMap = new Map<
+            string,
+            { planCode: string; planDate?: string; totalWeightKg: number }
+        >();
+
+        const normalizeWeightToKg = (weight?: number, unit?: string): number => {
+            if (!weight || weight <= 0) return 0;
+            const u = (unit || 'kg').toLowerCase();
+            if (u === 'kg') return weight;
+            if (u === 'g' || u === 'gram' || u === 'grams') return weight / 1000;
+            if (u === 'ton' || u === 't' || u === 'tons') return weight * 1000;
+            return weight;
+        };
+
+        (trip.orders as any[]).forEach((o) => {
+            const items = Array.isArray(o.items) ? o.items : [];
+            items.forEach((item: any) => {
+                const qty = item.quantity ?? item.approvedQuantity ?? 0;
+                const rawWeight = item.productId?.weight ?? 0;
+                const unit = item.productId?.weightUnit ?? 'kg';
+                const weightPerUnit = normalizeWeightToKg(rawWeight, unit);
+                const batch = item.batchId;
+                const productionPlan = batch?.productionPlanId;
+                const planCode: string =
+                    productionPlan?.planCode ??
+                    (batch?.batchCode ? `Kế hoạch của lô ${batch.batchCode}` : 'Không xác định');
+                const planDate: string | undefined = productionPlan?.planDate;
+                const key = planCode + (planDate ?? '');
+
+                const current = planMap.get(key) ?? {
+                    planCode,
+                    planDate,
+                    totalWeightKg: 0,
+                };
+                current.totalWeightKg += (weightPerUnit || 0) * qty;
+                planMap.set(key, current);
+            });
+        });
+
+        return Array.from(planMap.values());
+    }, [trip]);
 
     const getWeightTextClass = () => {
         if (!vehicleType || !vehicleType.capacity || !vehicleType.unit) return '';
@@ -451,14 +510,35 @@ const ShipmentDetail = () => {
                             <Plus className="w-4 h-4" /> Thêm đơn hàng
                         </button>
                     )}
-                    {(
-                        trip.status === 'ReadyForShipping' ||
-                        trip.status === 'Ready_For_Shipping' ||
-                        trip.status === 'Ready for shipping' ||
-                        trip.status === 'Planning' ||
-                        trip.status === 'Pending' ||
-                        trip.status === 'Transferred_To_Kitchen'
-                    ) && user?.role !== 'KitchenStaff' && (
+                    {trip.status === 'Planning' && (
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (!id) return;
+                                try {
+                                    const res = await DeliveryTripApi.updateTripStatus(
+                                        id,
+                                        'Waiting_For_Loading'
+                                    );
+                                    toast.success(
+                                        res?.message ||
+                                            'Đã chuyển chuyến sang trạng thái chờ bốc hàng.'
+                                    );
+                                    setRefreshTrigger((prev) => prev + 1);
+                                } catch (error: any) {
+                                    const message =
+                                        error?.response?.data?.message ||
+                                        error?.message ||
+                                        'Không thể cập nhật trạng thái chuyến.';
+                                    toast.error(message);
+                                }
+                            }}
+                            className="bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-amber-700"
+                        >
+                            Chuyển sang chờ bốc hàng
+                        </button>
+                    )}
+                    {trip.status === 'Waiting_For_Loading' && user?.role !== 'Coordinator' && (
                             <button
                                 type="button"
                                 onClick={() => setConfirmAction({ type: 'startShipping' })}
@@ -572,6 +652,37 @@ const ShipmentDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {productionPlanSummary.length > 0 && (
+                <div className="mb-6 rounded-xl border border-border bg-card p-6">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
+                        Kế hoạch sản xuất liên quan chuyến giao
+                    </h3>
+                    <div className="space-y-2 text-xs">
+                        {productionPlanSummary.map((plan, idx) => (
+                            <div
+                                key={idx}
+                                className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2"
+                            >
+                                <div>
+                                    <p className="font-semibold text-card-foreground">
+                                        {plan.planCode}
+                                    </p>
+                                    {plan.planDate && (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Ngày kế hoạch:{' '}
+                                            {new Date(plan.planDate).toLocaleDateString('vi-VN')}
+                                        </p>
+                                    )}
+                                </div>
+                                <p className="text-[11px] font-bold text-primary">
+                                    {(plan.totalWeightKg || 0).toFixed(2)} kg
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {ingredientSummary.length > 0 && (
                 <div className="mb-6 rounded-xl border border-border bg-card p-6">

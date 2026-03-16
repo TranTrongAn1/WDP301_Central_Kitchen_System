@@ -110,12 +110,8 @@ const Shipments = () => {
     const getTripStatusLabel = (status: string) => {
         const s = (status || '').trim();
         const map: Record<string, string> = {
-            Planning: 'Đang chờ giao',
-            Pending: 'Đang xử lý',
-            Transferred_To_Kitchen: 'Bếp đang chuẩn bị',
-            ReadyForShipping: 'Sẵn sàng giao',
-            Ready_For_Shipping: 'Sẵn sàng giao',
-            'Ready for shipping': 'Sẵn sàng giao',
+            Planning: 'Đang lập kế hoạch',
+            Waiting_For_Loading: 'Đang chờ bốc hàng',
             In_Transit: 'Đang giao cho cửa hàng',
             'In Transit': 'Đang giao cho cửa hàng',
             Completed: 'Đã giao xong',
@@ -160,6 +156,15 @@ const Shipments = () => {
         return isReadyForShipping && notInAnyTrip;
     });
 
+    const normalizeWeightToKg = (weight?: number, unit?: string): number => {
+        if (!weight || weight <= 0) return 0;
+        const u = (unit || 'kg').toLowerCase();
+        if (u === 'kg') return weight;
+        if (u === 'g' || u === 'gram' || u === 'grams') return weight / 1000;
+        if (u === 'ton' || u === 't' || u === 'tons') return weight * 1000;
+        return weight;
+    };
+
     const getOrderWeightKg = (order: Order): number => {
         if (!order.items || order.items.length === 0) return 0;
         return order.items.reduce((sum, item) => {
@@ -168,9 +173,11 @@ const Shipments = () => {
                     ? item.productId
                     : item.productId?._id;
             const product = products.find((p) => p._id === productId);
-            const weight = product?.weight ?? 0.5;
+            const rawWeight = product?.weight ?? 0.5;
+            const unit = (product as any)?.weightUnit ?? 'kg';
+            const weightKg = normalizeWeightToKg(rawWeight, unit);
             const qty = item.quantity || 0;
-            return sum + weight * qty;
+            return sum + weightKg * qty;
         }, 0);
     };
 
