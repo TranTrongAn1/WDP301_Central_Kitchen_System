@@ -43,6 +43,7 @@ const ProductDetailPage = () => {
         price: 0,
         shelfLifeDays: 1,
         weight: 0.5,
+        weightUnit: 'kg',
         image: undefined,
     });
     const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -62,6 +63,7 @@ const ProductDetailPage = () => {
                 price: data?.price,
                 shelfLifeDays: data?.shelfLifeDays,
                 weight: data?.weight ?? 0.5,
+                weightUnit: data?.weightUnit ?? 'kg',
                 image: data?.image,
             });
 
@@ -146,6 +148,7 @@ const ProductDetailPage = () => {
                 price: Number(editForm.price) || 0,
                 shelfLifeDays: Number(editForm.shelfLifeDays) || 1,
                 weight: editForm.weight != null ? Number(editForm.weight) || 0.5 : undefined,
+                weightUnit: editForm.weightUnit || 'kg',
             };
             await productApi.update(id, payload);
             toast.success('Đã cập nhật sản phẩm.');
@@ -327,7 +330,9 @@ const ProductDetailPage = () => {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Khối lượng</p>
-                                            <p className="font-semibold">{product.weight ?? 0.5} kg / sản phẩm</p>
+                                            <p className="font-semibold">
+                                                {(product.weight ?? 0.5)} {product.weightUnit ?? 'kg'} / sản phẩm
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -557,7 +562,7 @@ const ProductDetailPage = () => {
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1 block">Weight (kg / unit)</label>
+                            <label className="text-sm font-medium mb-1 block">Khối lượng (kg / đơn vị)</label>
                             <Input
                                 type="number"
                                 min={0}

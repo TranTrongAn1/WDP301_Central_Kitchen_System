@@ -39,6 +39,7 @@ const ProductsRecipesPage = () => {
         price: 0,
         shelfLifeDays: 1,
         weight: 0.5,
+        weightUnit: 'kg',
         image: undefined,
     });
     const [createImageFile, setCreateImageFile] = useState<File | null>(null);
@@ -145,6 +146,7 @@ const ProductsRecipesPage = () => {
             price: 0,
             shelfLifeDays: 1,
             weight: 0.5,
+            weightUnit: 'kg',
             image: undefined,
         });
         setCreateImageFile(null);
@@ -168,6 +170,7 @@ const ProductsRecipesPage = () => {
                 price: Number(createForm.price) || 0,
                 shelfLifeDays: Number(createForm.shelfLifeDays) || 1,
                 weight: createForm.weight != null ? Number(createForm.weight) || 0.5 : 0.5,
+                weightUnit: createForm.weightUnit || 'kg',
                 image: imageUrl,
             };
             await productApi.create(payload);

@@ -23,7 +23,12 @@ const container = {
 
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } };
 
-type TripStatusFilter = 'All' | 'Planning' | 'Transferred_To_Kitchen' | 'Ready_For_Shipping' | 'In_Transit' | 'Completed';
+type TripStatusFilter =
+  | 'All'
+  | 'Planning'
+  | 'Waiting_For_Loading'
+  | 'In_Transit'
+  | 'Completed';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -83,17 +88,10 @@ export default function KitchenTripsPage() {
         </Badge>
       );
     }
-    if (s === 'Transferred_To_Kitchen') {
+    if (s === 'Waiting_For_Loading') {
       return (
         <Badge className="bg-amber-500/15 text-amber-700 border border-amber-300 text-xs">
-          Đã chuyển cho bếp
-        </Badge>
-      );
-    }
-    if (s === 'Ready_For_Shipping' || s === 'ReadyForShipping' || s === 'Ready for shipping') {
-      return (
-        <Badge className="bg-emerald-500/10 text-emerald-700 border border-emerald-300 text-xs">
-          Bếp đã chuẩn bị xong – sẵn sàng giao
+          Đang chờ bốc hàng
         </Badge>
       );
     }
@@ -120,10 +118,8 @@ export default function KitchenTripsPage() {
 
   const normalizeTripStatus = (rawStatus: string): TripStatusFilter => {
     const status = (rawStatus || '').trim();
-    if (status === 'Planning' || status === 'Pending') return 'Planning';
-    if (status === 'Transferred_To_Kitchen') return 'Transferred_To_Kitchen';
-    if (status === 'Ready_For_Shipping' || status === 'ReadyForShipping' || status === 'Ready for shipping')
-      return 'Ready_For_Shipping';
+    if (status === 'Planning') return 'Planning';
+    if (status === 'Waiting_For_Loading') return 'Waiting_For_Loading';
     if (status === 'In_Transit' || status === 'In Transit') return 'In_Transit';
     if (status === 'Completed') return 'Completed';
     return 'All';
@@ -236,11 +232,8 @@ export default function KitchenTripsPage() {
               <TabsTrigger value="Planning" className="text-[11px]">
                 Lập kế hoạch
               </TabsTrigger>
-              <TabsTrigger value="Transferred_To_Kitchen" className="text-[11px]">
-                Chuyển bếp
-              </TabsTrigger>
-              <TabsTrigger value="Ready_For_Shipping" className="text-[11px]">
-                Sẵn sàng
+              <TabsTrigger value="Waiting_For_Loading" className="text-[11px]">
+                Chờ bốc hàng
               </TabsTrigger>
               <TabsTrigger value="In_Transit" className="text-[11px]">
                 Đang giao

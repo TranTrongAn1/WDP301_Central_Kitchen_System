@@ -7,11 +7,7 @@ export type OrderStatus =
 
 export type TripStatus =
   | 'Planning'
-  | 'Pending'
-  | 'Transferred_To_Kitchen'
-  | 'ReadyForShipping'
-  | 'Ready_For_Shipping'
-  | 'Ready for shipping'
+  | 'Waiting_For_Loading'
   | 'In_Transit'
   | 'Completed'
   | 'Cancelled';

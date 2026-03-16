@@ -1,5 +1,5 @@
 import apiClient from './Client';
-import type { DeliveryTrip } from '@/shared/types/logistics';
+import type { DeliveryTrip, TripStatus } from '@/shared/types/logistics';
 
 export interface LogisticsApiResponse<T> {
   success: boolean;
@@ -69,6 +69,16 @@ const DeliveryTripApi = {
   removeOrdersFromDeliveryTrip: async (tripId: string, orderIds: string[]) => {
     const res = await apiClient.patch(`/logistics/trips/${tripId}/remove-orders`, { orderIds });
     return res as unknown as LogisticsApiResponse<RemoveOrdersResponseData>;
+  },
+
+  updateTripStatus: async (
+    tripId: string,
+    status: TripStatus
+  ): Promise<LogisticsApiResponse<DeliveryTrip>> => {
+    const res = await apiClient.patch(`/logistics/trips/${tripId}/status`, {
+      status,
+    });
+    return res as unknown as LogisticsApiResponse<DeliveryTrip>;
   },
 
   startShipping: async (tripId: string) => {
