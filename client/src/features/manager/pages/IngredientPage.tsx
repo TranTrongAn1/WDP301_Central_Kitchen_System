@@ -76,7 +76,7 @@ export default function IngredientPage() {
         setIngredients(ingredientsData);
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to fetch ingredients';
+      const errorMessage = error.response?.data?.message || 'Không thể tải danh sách nguyên liệu';
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -92,7 +92,7 @@ export default function IngredientPage() {
         setBatches(Array.isArray(batchData) ? batchData : []);
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to fetch batches';
+      const errorMessage = error.response?.data?.message || 'Không thể tải danh sách lô nguyên liệu';
       toast.error(errorMessage);
     } finally {
       setIsBatchesLoading(false);
@@ -172,16 +172,16 @@ export default function IngredientPage() {
     try {
       if (editingIngredient) {
         await ingredientApi.update(editingIngredient._id, data);
-        toast.success('Ingredient updated successfully');
+        toast.success('Cập nhật nguyên liệu thành công');
       } else {
         await ingredientApi.create(data);
-        toast.success('Ingredient created successfully');
+        toast.success('Tạo nguyên liệu thành công');
       }
       setIsIngredientFormOpen(false);
       setEditingIngredient(null);
       fetchIngredients();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'An error occurred';
+      const errorMessage = error.response?.data?.message || 'Đã có lỗi xảy ra';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -191,19 +191,19 @@ export default function IngredientPage() {
   const handleBatchSubmit = async (data: { batchCode: string; expiryDate: string; initialQuantity: number; price: number; supplierId: string }) => {
     if (!selectedIngredient) return;
     if (isManagerReadOnly) {
-      toast.error('Manager không được phép thêm batch nguyên liệu.');
+      toast.error('Manager không được phép thêm lô nguyên liệu.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       await ingredientApi.addBatch(selectedIngredient._id, data);
-      toast.success('Batch added successfully');
+      toast.success('Thêm lô nguyên liệu thành công');
       setIsBatchFormOpen(false);
       fetchIngredients();
       fetchBatches(selectedIngredient._id);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'An error occurred';
+      const errorMessage = error.response?.data?.message || 'Đã có lỗi xảy ra';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -215,13 +215,13 @@ export default function IngredientPage() {
       toast.error('Manager không được phép xóa nguyên liệu.');
       return;
     }
-    if (window.confirm('Are you sure you want to delete this ingredient?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa nguyên liệu này?')) {
       try {
         await ingredientApi.delete(id);
-        toast.success('Ingredient deleted successfully');
+        toast.success('Xóa nguyên liệu thành công');
         fetchIngredients();
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 'An error occurred';
+        const errorMessage = error.response?.data?.message || 'Đã có lỗi xảy ra';
         toast.error(errorMessage);
       }
     }
@@ -268,12 +268,12 @@ export default function IngredientPage() {
     const isBelowThreshold = ingredient.totalQuantity < ingredient.warningThreshold;
 
     if (isBelowThreshold && ingredient.totalQuantity === 0) {
-      return { variant: 'destructive' as const, label: 'Out of Stock', color: 'bg-red-500', bgClass: 'bg-red-500/10 text-red-500 border-red-500/30' };
+      return { variant: 'destructive' as const, label: 'Hết hàng', color: 'bg-red-500', bgClass: 'bg-red-500/10 text-red-500 border-red-500/30' };
     }
     if (isBelowThreshold) {
-      return { variant: 'warning' as const, label: 'Low Stock', color: 'bg-yellow-500', bgClass: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30' };
+      return { variant: 'warning' as const, label: 'Gần hết hàng', color: 'bg-yellow-500', bgClass: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30' };
     }
-    return { variant: 'success' as const, label: 'In Stock', color: 'bg-green-500', bgClass: 'bg-green-500/10 text-green-500 border-green-500/30' };
+    return { variant: 'success' as const, label: 'Còn hàng', color: 'bg-green-500', bgClass: 'bg-green-500/10 text-green-500 border-green-500/30' };
   };
 
   const CountdownRing = ({ daysLeft, maxDays = 30 }: { daysLeft: number; maxDays?: number }) => {
@@ -332,16 +332,16 @@ export default function IngredientPage() {
           disabled={isManagerReadOnly}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Ingredient
+          Thêm nguyên liệu
         </Button>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Ingredients', value: ingredients.length, icon: Package, color: 'text-primary', gradient: 'from-primary/5 to-primary/10' },
-          { label: 'Low Stock', value: lowStockCount, icon: AlertTriangle, color: 'text-yellow-500', gradient: 'from-yellow-500/5 to-yellow-500/10' },
-          { label: 'Out of Stock', value: outOfStockCount, icon: Boxes, color: 'text-red-500', gradient: 'from-red-500/5 to-red-500/10' },
-          { label: 'Expiring Soon', value: expiringSoonCount, icon: Clock, color: 'text-orange-500', gradient: 'from-orange-500/5 to-orange-500/10' },
+          {[
+          { label: 'Tổng số nguyên liệu', value: ingredients.length, icon: Package, color: 'text-primary', gradient: 'from-primary/5 to-primary/10' },
+          { label: 'Gần hết hàng', value: lowStockCount, icon: AlertTriangle, color: 'text-yellow-500', gradient: 'from-yellow-500/5 to-yellow-500/10' },
+          { label: 'Hết hàng', value: outOfStockCount, icon: Boxes, color: 'text-red-500', gradient: 'from-red-500/5 to-red-500/10' },
+          { label: 'Sắp hết hạn', value: expiringSoonCount, icon: Clock, color: 'text-orange-500', gradient: 'from-orange-500/5 to-orange-500/10' },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -366,7 +366,7 @@ export default function IngredientPage() {
         ))}
       </div>
 
-      <Tabs
+          <Tabs
         value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value);
@@ -380,13 +380,13 @@ export default function IngredientPage() {
         className="space-y-4"
       >
         <TabsList className="bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="ingredients" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="ingredients" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <Package className="w-4 h-4 mr-2" />
-            Ingredients
+            Nguyên liệu
           </TabsTrigger>
           <TabsTrigger value="batches" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <Boxes className="w-4 h-4 mr-2" />
-            Batches
+            Lô nguyên liệu
           </TabsTrigger>
         </TabsList>
 
@@ -396,7 +396,7 @@ export default function IngredientPage() {
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search ingredients..."
+                  placeholder="Tìm kiếm nguyên liệu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 rounded-xl"
@@ -412,18 +412,18 @@ export default function IngredientPage() {
                   <TableRow className="hover:bg-transparent border-b border-border/50">
                     <TableHead className="w-12"></TableHead>
                     <TableHead className="w-12"></TableHead>
-                    <TableHead>Ingredient Name</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Cost Price</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Tên nguyên liệu</TableHead>
+                    <TableHead>Đơn vị</TableHead>
+                    <TableHead>Giá vốn</TableHead>
+                    <TableHead>Số lượng</TableHead>
+                    <TableHead>Trạng thái</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                         <div className="flex items-center justify-center">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
@@ -431,8 +431,8 @@ export default function IngredientPage() {
                     </TableRow>
                   ) : filteredIngredients.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No ingredients found
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        Không tìm thấy nguyên liệu nào
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -487,14 +487,14 @@ export default function IngredientPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="rounded-xl">
                                   <DropdownMenuItem onClick={() => handleViewBatches(ingredient)} className="cursor-pointer rounded-lg">
-                                    📋 View Batches
+                                  📋 Xem lô
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => handleAddBatch(ingredient)}
                                     className="cursor-pointer rounded-lg"
                                     disabled={isManagerReadOnly}
-                                  >
-                                    ➕ Add Batch
+                                    >
+                                    ➕ Thêm lô
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => handleEditIngredient(ingredient)}
@@ -507,8 +507,8 @@ export default function IngredientPage() {
                                     onClick={() => handleDeleteIngredient(ingredient._id)}
                                     className="cursor-pointer rounded-lg text-destructive"
                                     disabled={isManagerReadOnly}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                    >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Xóa
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -537,7 +537,7 @@ export default function IngredientPage() {
                                         </div>
                                         <div>
                                           <h3 className="font-bold text-lg">{ingredient.ingredientName}</h3>
-                                          <p className="text-sm text-muted-foreground">Ingredient details and batch information</p>
+                                          <p className="text-sm text-muted-foreground">Chi tiết nguyên liệu và thông tin lô</p>
                                         </div>
                                       </div>
 
@@ -549,7 +549,7 @@ export default function IngredientPage() {
                                               <Package className="w-5 h-5 text-primary" />
                                             </div>
                                             <div>
-                                              <p className="text-xs text-muted-foreground">Total Quantity</p>
+                                              <p className="text-xs text-muted-foreground">Tổng số lượng</p>
                                               <p className="font-bold">{ingredient.totalQuantity} {ingredient.unit}</p>
                                             </div>
                                           </div>
@@ -560,7 +560,7 @@ export default function IngredientPage() {
                                               <span className="text-lg">💰</span>
                                             </div>
                                             <div>
-                                              <p className="text-xs text-muted-foreground">Cost Price</p>
+                                              <p className="text-xs text-muted-foreground">Giá vốn</p>
                                               <p className="font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(ingredient.costPrice)}</p>
                                             </div>
                                           </div>
@@ -571,7 +571,7 @@ export default function IngredientPage() {
                                               <AlertTriangle className="w-5 h-5 text-yellow-500" />
                                             </div>
                                             <div>
-                                              <p className="text-xs text-muted-foreground">Warning At</p>
+                                              <p className="text-xs text-muted-foreground">Cảnh báo khi dưới</p>
                                               <p className="font-bold">{ingredient.warningThreshold} {ingredient.unit}</p>
                                             </div>
                                           </div>
@@ -582,8 +582,8 @@ export default function IngredientPage() {
                                               <Boxes className="w-5 h-5 text-blue-500" />
                                             </div>
                                             <div>
-                                              <p className="text-xs text-muted-foreground">Batches</p>
-                                              <p className="font-bold">{batches.length} active</p>
+                                              <p className="text-xs text-muted-foreground">Số lô</p>
+                                              <p className="font-bold">{batches.length} đang hoạt động</p>
                                             </div>
                                           </div>
                                         </motion.div>
@@ -591,7 +591,7 @@ export default function IngredientPage() {
 
                                       {batches.length > 0 && (
                                         <div>
-                                          <h4 className="font-semibold mb-3">Recent Batches</h4>
+                                          <h4 className="font-semibold mb-3">Các lô gần đây</h4>
                                           <div className="grid grid-cols-3 gap-3">
                                             {batches.slice(0, 3).map((batch) => {
                                               const daysLeft = Math.ceil((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
@@ -606,11 +606,11 @@ export default function IngredientPage() {
                                                     <CountdownRing daysLeft={daysLeft} />
                                                   </div>
                                                   <div className="flex justify-between text-sm">
-                                                    <span className="text-muted-foreground">Qty:</span>
+                                                    <span className="text-muted-foreground">SL:</span>
                                                     <span className="font-mono">{batch.currentQuantity}</span>
                                                   </div>
                                                   <div className="flex justify-between text-sm">
-                                                    <span className="text-muted-foreground">Exp:</span>
+                                                    <span className="text-muted-foreground">Hạn:</span>
                                                     <span className="font-mono text-xs">{new Date(batch.expiryDate).toLocaleDateString('vi-VN')}</span>
                                                   </div>
                                                 </motion.div>
@@ -692,11 +692,11 @@ export default function IngredientPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Batches for: {selectedIngredient.ingredientName}</h3>
-                  <p className="text-sm text-muted-foreground">Total Quantity: {selectedIngredient.totalQuantity} {selectedIngredient.unit}</p>
+                  <h3 className="text-lg font-semibold">Các lô của: {selectedIngredient.ingredientName}</h3>
+                  <p className="text-sm text-muted-foreground">Tổng số lượng: {selectedIngredient.totalQuantity} {selectedIngredient.unit}</p>
                 </div>
                 <Button onClick={() => { setIsBatchFormOpen(true); }} disabled={isManagerReadOnly}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Batch
+                  <Plus className="w-4 h-4 mr-2" /> Thêm lô
                 </Button>
               </div>
 
@@ -705,18 +705,18 @@ export default function IngredientPage() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-border/50">
                       <TableHead className="w-12"></TableHead>
-                      <TableHead>Batch Code</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Expiry Date</TableHead>
-                      <TableHead>Days Left</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Mã lô</TableHead>
+                      <TableHead>Nhà cung cấp</TableHead>
+                      <TableHead>Số lượng</TableHead>
+                      <TableHead>Giá</TableHead>
+                      <TableHead>Hạn sử dụng</TableHead>
+                      <TableHead>Số ngày còn lại</TableHead>
+                      <TableHead>Trạng thái</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isBatchesLoading ? (
-                      <TableRow>
+                        <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex items-center justify-center">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -724,19 +724,19 @@ export default function IngredientPage() {
                         </TableCell>
                       </TableRow>
                     ) : batches.length === 0 ? (
-                      <TableRow>
+                        <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          No batches found for this ingredient
+                          Không có lô nào cho nguyên liệu này
                         </TableCell>
                       </TableRow>
                     ) : (
                       batches.map((batch) => {
                         const daysLeft = Math.ceil((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                        const statusConfig = daysLeft <= 1
-                          ? { variant: 'destructive' as const, label: 'Critical' }
+                          const statusConfig = daysLeft <= 1
+                          ? { variant: 'destructive' as const, label: 'Nguy cấp' }
                           : daysLeft <= 3
-                            ? { variant: 'warning' as const, label: 'Expiring Soon' }
-                            : { variant: 'success' as const, label: 'Fresh' };
+                            ? { variant: 'warning' as const, label: 'Sắp hết hạn' }
+                            : { variant: 'success' as const, label: 'Còn tươi' };
 
                         return (
                           <TableRow key={batch._id} className={cn("group transition-colors hover:bg-muted/30", daysLeft <= 3 && "bg-red-50/50 dark:bg-red-500/5")}>
@@ -775,9 +775,9 @@ export default function IngredientPage() {
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <Boxes className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Select an ingredient to view its batches</p>
-            </div>
+            <Boxes className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Chọn một nguyên liệu để xem các lô của nó</p>
+          </div>
           )}
         </TabsContent>
       </Tabs>
@@ -786,10 +786,10 @@ export default function IngredientPage() {
       <Dialog open={isIngredientFormOpen} onOpenChange={setIsIngredientFormOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{editingIngredient ? 'Edit Ingredient' : 'Add New Ingredient'}</DialogTitle>
-            <DialogDescription>
-              {editingIngredient ? 'Update ingredient information' : 'Create a new ingredient'}
-            </DialogDescription>
+            <DialogTitle>{editingIngredient ? 'Chỉnh sửa nguyên liệu' : 'Thêm nguyên liệu mới'}</DialogTitle>
+          <DialogDescription>
+            {editingIngredient ? 'Cập nhật thông tin nguyên liệu' : 'Tạo một nguyên liệu mới'}
+          </DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
@@ -802,25 +802,25 @@ export default function IngredientPage() {
             });
           }} className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="ingredientName">Ingredient Name</Label>
+              <Label htmlFor="ingredientName">Tên nguyên liệu</Label>
               <Input id="ingredientName" name="ingredientName" defaultValue={editingIngredient?.ingredientName} placeholder="e.g., Bột mì" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Input id="unit" name="unit" defaultValue={editingIngredient?.unit} placeholder="e.g., kg, g, cái" required />
+              <Label htmlFor="unit">Đơn vị</Label>
+              <Input id="unit" name="unit" defaultValue={editingIngredient?.unit} placeholder="VD: kg, g, cái" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="costPrice">Cost Price (VND)</Label>
+              <Label htmlFor="costPrice">Giá vốn (VND)</Label>
               <Input id="costPrice" name="costPrice" type="number" defaultValue={editingIngredient?.costPrice} placeholder="0" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="warningThreshold">Warning Threshold</Label>
+              <Label htmlFor="warningThreshold">Ngưỡng cảnh báo</Label>
               <Input id="warningThreshold" name="warningThreshold" type="number" defaultValue={editingIngredient?.warningThreshold || 10} placeholder="10" />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsIngredientFormOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setIsIngredientFormOpen(false)}>Hủy</Button>
               <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
-                {isSubmitting ? 'Saving...' : editingIngredient ? 'Update' : 'Create'}
+                {isSubmitting ? 'Đang lưu...' : editingIngredient ? 'Cập nhật' : 'Tạo mới'}
               </Button>
             </div>
           </form>
@@ -830,8 +830,8 @@ export default function IngredientPage() {
       <Dialog open={isBatchFormOpen} onOpenChange={setIsBatchFormOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New Batch</DialogTitle>
-            <DialogDescription>Add a new batch for {selectedIngredient?.ingredientName}</DialogDescription>
+            <DialogTitle>Thêm lô mới</DialogTitle>
+            <DialogDescription>Thêm một lô mới cho {selectedIngredient?.ingredientName}</DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
@@ -845,14 +845,14 @@ export default function IngredientPage() {
             });
           }} className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="batchCode">Batch Code</Label>
-              <Input id="batchCode" name="batchCode" placeholder="e.g., LOT001" required />
+              <Label htmlFor="batchCode">Mã lô</Label>
+              <Input id="batchCode" name="batchCode" placeholder="VD: LOT001" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="supplierId">Supplier</Label>
+              <Label htmlFor="supplierId">Nhà cung cấp</Label>
               <Select name="supplierId" required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select supplier" />
+                  <SelectValue placeholder="Chọn nhà cung cấp" />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.filter(s => s.status === 'Active').map((supplier) => (
@@ -862,21 +862,21 @@ export default function IngredientPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="initialQuantity">Quantity ({selectedIngredient?.unit})</Label>
+              <Label htmlFor="initialQuantity">Số lượng ({selectedIngredient?.unit})</Label>
               <Input id="initialQuantity" name="initialQuantity" type="number" placeholder="0" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">Price (VND)</Label>
+              <Label htmlFor="price">Giá (VND)</Label>
               <Input id="price" name="price" type="number" placeholder="0" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="expiryDate">Expiry Date</Label>
+              <Label htmlFor="expiryDate">Hạn sử dụng</Label>
               <Input id="expiryDate" name="expiryDate" type="date" min={new Date().toISOString().split('T')[0]} required />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsBatchFormOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setIsBatchFormOpen(false)}>Hủy</Button>
               <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-primary to-orange-500 hover:opacity-90">
-                {isSubmitting ? 'Adding...' : 'Add Batch'}
+                {isSubmitting ? 'Đang thêm...' : 'Thêm lô'}
               </Button>
             </div>
           </form>

@@ -23,38 +23,7 @@ export const Header = () => {
           </Link>
 
           {}
-          <div className="hidden md:flex items-center gap-8">
-            <Link
-              to="#"
-              className={`text-sm font-medium transition-colors duration-200 hover:text-primary ${
-                darkMode
-                  ? 'text-muted-foreground hover:text-white'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Menu
-            </Link>
-            <Link
-              to="#"
-              className={`text-sm font-medium transition-colors duration-200 hover:text-primary ${
-                darkMode
-                  ? 'text-muted-foreground hover:text-white'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Locations
-            </Link>
-            <Link
-              to="#"
-              className={`text-sm font-medium transition-colors duration-200 hover:text-primary ${
-                darkMode
-                  ? 'text-muted-foreground hover:text-white'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Our Story
-            </Link>
-          </div>
+          <div className="hidden md:flex items-center gap-8" />
 
           {}
           <div className="flex items-center gap-3">
@@ -73,15 +42,16 @@ export const Header = () => {
               </span>
             </button>
 
+            {/* Nút đăng nhập sẽ ẩn nếu đã đăng nhập (xử lý ở HomeLayout bằng redirect) */}
             <Link
-              to="/login"
+              to="/auth/callback"
               className={`hidden md:flex items-center justify-center h-10 px-6 rounded-full font-semibold text-sm transition-all duration-300 ${
                 darkMode
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
             >
-              Login
+              Đăng nhập
             </Link>
 
             <button
@@ -109,44 +79,14 @@ export const Header = () => {
           >
             <div className="flex flex-col gap-4">
               <Link
-                to="#"
-                className={`text-sm font-medium transition-colors ${
-                  darkMode
-                    ? 'text-muted-foreground hover:text-white'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Menu
-              </Link>
-              <Link
-                to="#"
-                className={`text-sm font-medium transition-colors ${
-                  darkMode
-                    ? 'text-muted-foreground hover:text-white'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Locations
-              </Link>
-              <Link
-                to="#"
-                className={`text-sm font-medium transition-colors ${
-                  darkMode
-                    ? 'text-muted-foreground hover:text-white'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Our Story
-              </Link>
-              <Link
-                to="/login"
+                to="/auth/callback"
                 className={`flex items-center justify-center h-10 px-6 rounded-full font-semibold text-sm transition-all duration-300 ${
                   darkMode
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
                 }`}
               >
-                Login
+                Đăng nhập
               </Link>
             </div>
           </div>

@@ -20,7 +20,7 @@ import {
 import { ErrorState } from '../components/ui/ErrorState';
 import { productionPlanApi } from '@/api/ProductionPlanApi';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
-import { ingredientApi, type IngredientBatch } from '@/api/IngredientApi';
+import { inventoryApi, type IngredientBatch } from '@/api/InventoryApi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/shared/zustand/authStore';
 
@@ -47,6 +47,7 @@ const ProductionPlanDetailPage = () => {
     const [actualQuantity, setActualQuantity] = useState<number>(0);
     const [actionLoading, setActionLoading] = useState(false);
     const [ingredientBatches, setIngredientBatches] = useState<IngredientBatch[]>([]);
+    const [batchesLoading, setBatchesLoading] = useState(false);
     const [usedIngredients, setUsedIngredients] = useState<{ ingredientBatchId: string; quantityUsed: number; note?: string }[]>([
         { ingredientBatchId: '', quantityUsed: 0, note: '' },
     ]);
@@ -57,18 +58,22 @@ const ProductionPlanDetailPage = () => {
             setLoading(true);
             setError(null);
             const response = await productionPlanApi.getById(id);
-            const data = (response as any)?.data || response;
-            setPlan(data);
-        } catch (err) {
+            const raw = response as unknown;
+            const data =
+                raw && typeof raw === 'object' && 'data' in (raw as { data?: ProductionPlan })
+                    ? (raw as { data?: ProductionPlan }).data
+                    : (raw as ProductionPlan | null);
+            if (data) setPlan(data);
+        } catch (err: unknown) {
             console.error('Error fetching production plan:', err);
-            setError('Failed to load production plan details');
+            setError('Không thể tải chi tiết kế hoạch sản xuất');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchPlan();
+        void fetchPlan();
     }, [id]);
 
     const getStatusBadge = (status: string) => {
@@ -92,7 +97,7 @@ const ProductionPlanDetailPage = () => {
     const getProductInfo = (detail: ProductionPlanDetail) => {
         if (!detail.productId || typeof detail.productId === 'string') {
             return {
-                name: 'Unknown Product',
+                name: 'Sản phẩm (đã bị xoá hoặc không còn tồn tại)',
                 sku: typeof detail.productId === 'string' ? detail.productId : '',
                 price: 0,
                 shelfLifeDays: 0,
@@ -105,7 +110,7 @@ const ProductionPlanDetailPage = () => {
             shelfLifeDays?: number;
         };
         return {
-            name: product.name || 'Unknown Product',
+            name: product.name || 'Sản phẩm (đã bị xoá)',
             sku: product.sku || '',
             price: product.price ?? 0,
             shelfLifeDays: product.shelfLifeDays ?? 0,
@@ -121,26 +126,21 @@ const ProductionPlanDetailPage = () => {
     };
 
     const loadIngredientBatches = async () => {
-        // Backend chỉ cần ingredientBatchId, nên FE có thể cho Kitchen chọn từ toàn bộ batches active của từng nguyên liệu.
-        // Ở đây, để đơn giản, lấy tất cả batches của tất cả nguyên liệu (theo IngredientPage pattern).
+        setBatchesLoading(true);
         try {
-            const res = await ingredientApi.getAll();
-            const ingredients = ((res as any)?.data ?? []) as { _id: string }[];
-            const allBatches: IngredientBatch[] = [];
-            for (const ing of ingredients) {
-                try {
-                    const batchRes = await ingredientApi.getBatches(ing._id);
-                    const data = (batchRes as any)?.data ?? [];
-                    if (Array.isArray(data)) {
-                        allBatches.push(...data.filter((b: IngredientBatch) => b.isActive));
-                    }
-                } catch {
-                    // bỏ qua lỗi từng nguyên liệu
-                }
-            }
-            setIngredientBatches(allBatches);
-        } catch {
+            // Lấy toàn bộ batch nguyên liệu active một lần để dropdown nhanh hơn
+            const res = await inventoryApi.getAllIngredientBatches();
+            const raw = res as unknown;
+            const body =
+                raw && typeof raw === 'object' && 'data' in (raw as { data?: IngredientBatch[] })
+                    ? (raw as { data?: IngredientBatch[] }).data
+                    : (raw as IngredientBatch[] | null) ?? [];
+            const list: IngredientBatch[] = Array.isArray(body) ? body : [];
+            setIngredientBatches(list.filter((b) => b.isActive));
+        } catch (err: unknown) {
             setIngredientBatches([]);
+        } finally {
+            setBatchesLoading(false);
         }
     };
 
@@ -174,11 +174,12 @@ const ProductionPlanDetailPage = () => {
             setIsCompleteModalOpen(false);
             setSelectedDetail(null);
             fetchPlan();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error completing item:', err);
+            const e = err as { response?: { data?: { message?: string } }; message?: string };
             const rawMessage =
-                err?.response?.data?.message ||
-                err?.message ||
+                e?.response?.data?.message ||
+                e?.message ||
                 'Failed to complete production item';
             toast.error(rawMessage);
         } finally {
@@ -193,11 +194,12 @@ const ProductionPlanDetailPage = () => {
             await productionPlanApi.delete(id);
             toast.success('Đã xoá production plan.');
             navigate(listPath);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error deleting plan:', err);
+            const e = err as { response?: { data?: { message?: string } }; message?: string };
             const msg =
-                err?.response?.data?.message ||
-                err?.message ||
+                e?.response?.data?.message ||
+                e?.message ||
                 'Failed to delete production plan';
             toast.error(msg);
         } finally {
@@ -212,11 +214,12 @@ const ProductionPlanDetailPage = () => {
             await productionPlanApi.updateStatus(id, { status: newStatus });
             toast.success('Đã cập nhật trạng thái kế hoạch.');
             fetchPlan();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error updating status:', err);
+            const e = err as { response?: { data?: { message?: string } }; message?: string };
             const msg =
-                err?.response?.data?.message ||
-                err?.message ||
+                e?.response?.data?.message ||
+                e?.message ||
                 'Failed to update status';
             toast.error(msg);
         } finally {
@@ -228,7 +231,7 @@ const ProductionPlanDetailPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading plan details...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải chi tiết kế hoạch...</span>
             </div>
         );
     }
@@ -238,13 +241,13 @@ const ProductionPlanDetailPage = () => {
             <div className="space-y-6">
                 <Button variant="outline" onClick={() => navigate(listPath)}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Plans
+                    Quay lại danh sách kế hoạch
                 </Button>
                 <Card>
                     <CardContent className="p-6">
                         <ErrorState
-                            title="Failed to Load Plan"
-                            message={error || 'Plan not found'}
+                            title="Không thể tải chi tiết kế hoạch"
+                            message={error || 'Không tìm thấy kế hoạch sản xuất'}
                             onRetry={fetchPlan}
                         />
                     </CardContent>
@@ -271,16 +274,16 @@ const ProductionPlanDetailPage = () => {
                 <div className="flex items-center gap-4">
                     <Button variant="outline" onClick={() => navigate(listPath)}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
+                        Quay lại
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold">{plan.planCode}</h1>
                         <p className="text-muted-foreground">
-                            {new Date(plan.planDate).toLocaleDateString('en-US', {
+                            {new Date(plan.planDate).toLocaleDateString('vi-VN', {
                                 weekday: 'long',
                                 year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
+                                month: '2-digit',
+                                day: '2-digit'
                             })}
                         </p>
                     </div>
@@ -288,23 +291,23 @@ const ProductionPlanDetailPage = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     {getStatusBadge(plan.status)}
                     {plan.status === 'Planned' && (
-                        <Button onClick={() => handleUpdateStatus('In_Progress')} size="sm">
+                            <Button onClick={() => handleUpdateStatus('In_Progress')} size="sm">
                             <Play className="w-4 h-4 mr-1" />
-                            Start
+                            Bắt đầu thực hiện
                         </Button>
                     )}
                     {(plan.status === 'In_Progress' || plan.status === 'InProgress') && (
                         <>
-                            <Button
+                                <Button
                                 size="sm"
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={() => handleUpdateStatus('Completed')}
                                 disabled={actionLoading}
                             >
                                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                                Complete Plan
+                                Hoàn thành kế hoạch
                             </Button>
-                            <Button
+                                <Button
                                 size="sm"
                                 variant="outline"
                                 className="text-red-500 border-red-200 hover:bg-red-50"
@@ -312,7 +315,7 @@ const ProductionPlanDetailPage = () => {
                                 disabled={actionLoading}
                             >
                                 <X className="w-4 h-4 mr-1" />
-                                Cancel Plan
+                                Hủy kế hoạch
                             </Button>
                         </>
                     )}
@@ -333,7 +336,7 @@ const ProductionPlanDetailPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Production Items</CardTitle>
+                            <CardTitle>Các dòng sản xuất</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
@@ -360,20 +363,20 @@ const ProductionPlanDetailPage = () => {
                                                     <div>
                                                         <h4 className="font-semibold">{product.name}</h4>
                                                         <p className="text-sm text-muted-foreground">
-                                                            SKU: {product.sku} • Shelf Life: {product.shelfLifeDays} days
+                                                            SKU: {product.sku} • Hạn sử dụng: {product.shelfLifeDays} ngày
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {getStatusBadge(detail.status)}
                                                     {!isCompleted && canComplete && (
-                                                        <Button
+                                                            <Button
                                                             size="sm"
                                                             onClick={() => openCompleteModal(detail)}
                                                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                                                         >
                                                             <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                            Complete
+                                                            Hoàn tất mẻ
                                                         </Button>
                                                     )}
                                                 </div>
@@ -431,13 +434,13 @@ const ProductionPlanDetailPage = () => {
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Tổng sản lượng kế hoạch</span>
                                 <span className="font-semibold">
-                                    {plan.details?.reduce((sum, d) => sum + d.plannedQuantity, 0) || 0} units
+                                    {plan.details?.reduce((sum, d) => sum + d.plannedQuantity, 0) || 0} đơn vị
                                 </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Tổng sản lượng thực tế</span>
                                 <span className="font-semibold text-orange-500">
-                                    {plan.details?.reduce((sum, d) => sum + d.actualQuantity, 0) || 0} units
+                                    {plan.details?.reduce((sum, d) => sum + d.actualQuantity, 0) || 0} đơn vị
                                 </span>
                             </div>
                             <div className="pt-2 border-t">
@@ -493,14 +496,14 @@ const ProductionPlanDetailPage = () => {
                 footer={
                     <>
                         <Button variant="outline" onClick={() => setIsCompleteModalOpen(false)}>
-                            Cancel
+                            Hủy
                         </Button>
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
                             onClick={handleCompleteItem}
                             disabled={actionLoading || actualQuantity <= 0}
                         >
-                            {actionLoading ? 'Processing...' : 'Complete & Create Batch'}
+                            {actionLoading ? 'Đang xử lý...' : 'Hoàn tất & tạo lô'}
                         </Button>
                     </>
                 }
@@ -510,7 +513,7 @@ const ProductionPlanDetailPage = () => {
                         <div className="p-3 rounded-lg bg-muted/50">
                             <p className="font-medium">{getProductInfo(selectedDetail).name}</p>
                             <p className="text-sm text-muted-foreground">
-                                Planned: {selectedDetail.plannedQuantity} units
+                                Kế hoạch: {selectedDetail.plannedQuantity} đơn vị
                             </p>
                         </div>
                     )}
@@ -583,10 +586,20 @@ const ProductionPlanDetailPage = () => {
                                                     );
                                                 }}
                                             >
-                                                <SelectTrigger className="h-9 text-xs">
-                                                    <SelectValue placeholder="Chọn batch nguyên liệu" />
+                                            <SelectTrigger className="h-9 text-xs">
+                                                    <SelectValue placeholder={batchesLoading ? 'Đang tải batch...' : 'Chọn batch nguyên liệu'} />
                                                 </SelectTrigger>
                                                 <SelectContent position="popper" side="bottom" align="start" className="max-h-64">
+                                                    {batchesLoading && ingredientBatches.length === 0 && (
+                                                        <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                                                            Đang tải danh sách batch nguyên liệu...
+                                                        </div>
+                                                    )}
+                                                    {!batchesLoading && ingredientBatches.length === 0 && (
+                                                        <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                                                            Không có batch nguyên liệu khả dụng.
+                                                        </div>
+                                                    )}
                                                     {ingredientBatches.map((b) => (
                                                         <SelectItem key={b._id} value={b._id}>
                                                             <div className="flex flex-col text-[11px]">

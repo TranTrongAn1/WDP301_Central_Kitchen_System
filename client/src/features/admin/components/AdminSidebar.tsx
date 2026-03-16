@@ -3,21 +3,21 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 import { AppLogo } from '@/shared/components/AppLogo';
 
 const MENU_ITEMS = [
-  { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: 'storefront', label: 'Stores', path: '/admin/stores' },
-  { icon: 'manage_accounts', label: 'Accounts', path: '/admin/account' },
-  { icon: 'group', label: 'Users', path: '/admin/users' },
-  { icon: 'inventory_2', label: 'Inventory & Batches', path: '/admin/inventory' },
-  { icon: 'restaurant_menu', label: 'Products & Recipes', path: '/admin/products' },
-  { icon: 'category', label: 'Categories', path: '/admin/categories' },
-  { icon: 'science', label: 'Ingredients', path: '/admin/ingredients' },
-  { icon: 'local_shipping', label: 'Suppliers', path: '/admin/suppliers' },
-  { icon: 'directions_car', label: 'Vehicle Types', path: '/admin/vehicle-types' },
+  { icon: 'dashboard', label: 'Tổng quan', path: '/admin/dashboard' },
+  { icon: 'storefront', label: 'Cửa hàng', path: '/admin/stores' },
+  { icon: 'manage_accounts', label: 'Tài khoản', path: '/admin/account' },
+  { icon: 'group', label: 'Người dùng', path: '/admin/users' },
+  { icon: 'inventory_2', label: 'Kho & Lô hàng', path: '/admin/inventory' },
+  { icon: 'restaurant_menu', label: 'Sản phẩm & Công thức', path: '/admin/products' },
+  { icon: 'category', label: 'Danh mục', path: '/admin/categories' },
+  { icon: 'science', label: 'Nguyên liệu', path: '/admin/ingredients' },
+  { icon: 'local_shipping', label: 'Nhà cung cấp', path: '/admin/suppliers' },
+  { icon: 'directions_car', label: 'Loại xe', path: '/admin/vehicle-types' },
   // Luồng Transfer cũ đã bỏ, ẩn khỏi menu Admin
   // { icon: 'swap_horiz', label: 'Transfers', path: '/admin/transfers' },
-  { icon: 'account_balance_wallet', label: 'Payment & Wallet', path: '/admin/payment' },
-  { icon: 'rate_review', label: 'Feedback', path: '/admin/feedback' },
-  { icon: 'settings', label: 'System Settings', path: '/admin/settings' },
+  { icon: 'account_balance_wallet', label: 'Thanh toán & Ví', path: '/admin/payment' },
+  { icon: 'rate_review', label: 'Phản hồi', path: '/admin/feedback' },
+  { icon: 'settings', label: 'Cài đặt hệ thống', path: '/admin/settings' },
 ];
 
 export const AdminSidebar = () => {

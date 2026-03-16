@@ -198,7 +198,7 @@ const CreateStoreOrderPage = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-border/40 mb-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Store Order
+              ĐƠN HÀNG CỬA HÀNG
             </p>
             <p className="mt-1 text-sm font-semibold">
               Tạo đơn hàng nội bộ

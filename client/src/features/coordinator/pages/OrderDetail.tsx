@@ -335,7 +335,7 @@ const OrderDetail = () => {
                 <p className="font-bold text-lg text-foreground">
                   {typeof order.storeId === 'object' && order.storeId?.storeName
                     ? order.storeId.storeName
-                    : 'Store Unknown'}
+                    : 'Cửa hàng không xác định'}
                 </p>
                 <p className="text-sm mt-1 text-muted-foreground">
                   Mã:{' '}

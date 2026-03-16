@@ -145,6 +145,22 @@ const ReportsAnalyticsPage = () => {
         return map[status] || 'bg-gray-100 text-gray-700';
     };
 
+    const getOrderStatusLabel = (status: string) => {
+        const normalized = (status || '').trim();
+        const map: Record<string, string> = {
+            Pending: 'Chờ trung tâm duyệt',
+            Approved: 'Đã duyệt',
+            Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
+            Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
+            In_Transit: 'Đang giao đến cửa hàng',
+            'In Transit': 'Đang giao đến cửa hàng',
+            Received: 'Cửa hàng đã nhận',
+            Cancelled: 'Đã hủy',
+            Shipped: 'Đã giao',
+        };
+        return map[normalized] ?? map[normalized.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
+    };
+
     if (loading) {
         return (
             <div className="flex h-[50vh] items-center justify-center text-muted-foreground text-sm">
@@ -317,7 +333,7 @@ const ReportsAnalyticsPage = () => {
                                             <td className="px-3 py-2 text-right font-medium">{formatCurrency(order.totalAmount)}</td>
                                             <td className="px-3 py-2 text-center">
                                                 <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold', statusBadge(order.status))}>
-                                                    {order.status}
+                                                    {getOrderStatusLabel(order.status as string)}
                                                 </span>
                                             </td>
                                             <td className="px-3 py-2">{formatDate(order.createdAt)}</td>

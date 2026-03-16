@@ -51,7 +51,7 @@ const ProductionPlansPage = () => {
             setPlans(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching production plans:', err);
-            setError('Could not connect to the server. Please check your connection and try again.');
+            setError('Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.');
         } finally {
             setLoading(false);
         }
@@ -98,7 +98,7 @@ const ProductionPlansPage = () => {
             return (
                 <Badge className="bg-green-500 text-white">
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Completed
+                    Đã hoàn thành
                 </Badge>
             );
         }
@@ -106,7 +106,7 @@ const ProductionPlansPage = () => {
             return (
                 <Badge className="bg-orange-500 text-white">
                     <Clock className="w-3 h-3 mr-1" />
-                    In Progress
+                    Đang thực hiện
                 </Badge>
             );
         }
@@ -114,14 +114,14 @@ const ProductionPlansPage = () => {
             return (
                 <Badge variant="destructive">
                     <AlertCircle className="w-3 h-3 mr-1" />
-                    Cancelled
+                    Đã huỷ
                 </Badge>
             );
         }
         return (
-            <Badge variant="secondary">
+                <Badge variant="secondary">
                 <AlertCircle className="w-3 h-3 mr-1" />
-                Planned
+                Đã lên kế hoạch
             </Badge>
         );
     };
@@ -138,8 +138,10 @@ const ProductionPlansPage = () => {
     };
 
     const getProductName = (detail: ProductionPlanDetail) => {
-        if (typeof detail.productId === 'string') return 'Product';
-        return detail.productId?.name || 'Unknown Product';
+        if (!detail.productId || typeof detail.productId === 'string') {
+            return 'Sản phẩm (đã bị xoá hoặc không còn tồn tại)';
+        }
+        return detail.productId.name || 'Sản phẩm (đã bị xoá)';
     };
 
     const getProductSku = (detail: ProductionPlanDetail) => {
@@ -193,7 +195,7 @@ const ProductionPlansPage = () => {
             const message =
                 error?.response?.data?.message ||
                 error?.message ||
-                'Failed to create production plan. Please check order statuses and kitchen capacity.';
+                'Tạo kế hoạch sản xuất không thành công. Vui lòng kiểm tra trạng thái đơn hàng và năng lực bếp.';
             toast.error(message);
         } finally {
             setCreateLoading(false);
@@ -243,7 +245,7 @@ const ProductionPlansPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading production plans...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải kế hoạch sản xuất...</span>
             </div>
         );
     }
@@ -258,7 +260,7 @@ const ProductionPlansPage = () => {
                 <Card>
                     <CardContent className="p-6">
                         <ErrorState
-                            title="Unable to Load Production Plans"
+                            title="Không thể tải danh sách kế hoạch sản xuất"
                             message={error}
                             onRetry={fetchPlans}
                         />
@@ -311,9 +313,9 @@ const ProductionPlansPage = () => {
                 <div className="space-y-4 mt-4">
                     <EmptyState
                         icon={Package}
-                        title="No Production Plans"
-                        message={`No production plans found for ${date?.toLocaleDateString() || 'selected date'}`}
-                        actionLabel={canCreatePlan ? "Create New Plan" : undefined}
+                        title="Chưa có kế hoạch sản xuất"
+                        message={`Không tìm thấy kế hoạch sản xuất cho ngày ${date?.toLocaleDateString('vi-VN') || 'đã chọn'}`}
+                        actionLabel={canCreatePlan ? "Tạo kế hoạch mới" : undefined}
                         onAction={canCreatePlan ? openCreateModal : undefined}
                     />
                 </div>
@@ -346,7 +348,7 @@ const ProductionPlansPage = () => {
                                     onClick={(e) => viewPlan(plan._id, e)}
                                 >
                                     <Eye className="w-4 h-4 mr-1" />
-                                    View
+                                    Xem chi tiết
                                 </Button>
                             </div>
                         </div>
@@ -359,21 +361,21 @@ const ProductionPlansPage = () => {
                                         <span className="text-muted-foreground ml-2">({getProductSku(detail)})</span>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span>{detail.actualQuantity} / {detail.plannedQuantity} units</span>
+                                        <span>{detail.actualQuantity} / {detail.plannedQuantity} đơn vị</span>
                                         {getStatusBadge(detail.status)}
                                     </div>
                                 </div>
                             ))}
                             {plan.details && plan.details.length > 2 && (
                                 <p className="text-sm text-muted-foreground text-center">
-                                    +{plan.details.length - 2} more items
+                                    +{plan.details.length - 2} dòng sản phẩm nữa
                                 </p>
                             )}
                         </div>
 
                         <div className="mt-3">
                             <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Completion</span>
+                                <span className="text-muted-foreground">Tiến độ</span>
                                 <span className="font-medium">{getCompletionPercentage(plan)}%</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -474,7 +476,7 @@ const ProductionPlansPage = () => {
                         variant="outline"
                     >
                         <Package className="w-4 h-4 mr-2" />
-                        View Batches
+                        Xem lô sản xuất
                     </Button>
                     <Button
                         className="bg-gradient-to-r from-orange-600 to-amber-600"
@@ -482,7 +484,7 @@ const ProductionPlansPage = () => {
                         disabled={!canCreatePlan}
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        New Plan
+                        Kế hoạch mới
                     </Button>
                 </div>
             </div>
@@ -490,15 +492,15 @@ const ProductionPlansPage = () => {
             <div className="grid lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Today's Schedule</CardTitle>
+                        <CardTitle>Lịch sản xuất hôm nay</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="all">All</TabsTrigger>
-                                <TabsTrigger value="pending">Planned</TabsTrigger>
-                                <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                                <TabsTrigger value="completed">Completed</TabsTrigger>
+                                <TabsTrigger value="all">Tất cả</TabsTrigger>
+                                <TabsTrigger value="pending">Đã lên kế hoạch</TabsTrigger>
+                                <TabsTrigger value="in-progress">Đang thực hiện</TabsTrigger>
+                                <TabsTrigger value="completed">Hoàn thành</TabsTrigger>
                             </TabsList>
                             <TabsContent value="all">
                                 {renderPlanList(filterPlans('all'))}
@@ -519,7 +521,7 @@ const ProductionPlansPage = () => {
                 <div className="space-y-6">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle>Calendar</CardTitle>
+                            <CardTitle>Lịch</CardTitle>
                         </CardHeader>
                         <CardContent className="p-2 sm:p-4">
                             <Calendar
@@ -531,21 +533,21 @@ const ProductionPlansPage = () => {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                        <Card>
                         <CardHeader>
-                            <CardTitle>Production Stats</CardTitle>
+                            <CardTitle>Thống kê sản xuất</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
                                 <div className="flex justify-between mb-2">
-                                    <span className="text-sm text-muted-foreground">Today's Plans</span>
-                                    <span className="font-medium">{stats.total} plans</span>
+                                    <span className="text-sm text-muted-foreground">Số kế hoạch hôm nay</span>
+                                    <span className="font-medium">{stats.total} kế hoạch</span>
                                 </div>
                             </div>
                             <div>
                                 <div className="flex justify-between mb-2">
-                                    <span className="text-sm text-muted-foreground">Today's Target</span>
-                                    <span className="font-medium text-orange-500">{stats.totalUnits} units</span>
+                                    <span className="text-sm text-muted-foreground">Sản lượng dự kiến hôm nay</span>
+                                    <span className="font-medium text-orange-500">{stats.totalUnits} đơn vị</span>
                                 </div>
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                                     <div
@@ -556,13 +558,13 @@ const ProductionPlansPage = () => {
                             </div>
                             <div>
                                 <div className="flex justify-between mb-2">
-                                    <span className="text-sm text-muted-foreground">Completed</span>
+                                    <span className="text-sm text-muted-foreground">Đã hoàn thành</span>
                                     <span className="font-medium text-green-600">{stats.completed} / {stats.total}</span>
                                 </div>
                             </div>
                             <div>
                                 <div className="flex justify-between mb-2">
-                                    <span className="text-sm text-muted-foreground">In Progress</span>
+                                    <span className="text-sm text-muted-foreground">Đang thực hiện</span>
                                     <span className="font-medium text-orange-500">{stats.inProgress}</span>
                                 </div>
                             </div>
@@ -575,13 +577,13 @@ const ProductionPlansPage = () => {
             <Modal
                 isOpen={isCreateModalOpen}
                 onClose={closeCreateModal}
-                title="Create Production Plan"
-                description="Schedule a new production plan"
+                title="Tạo kế hoạch sản xuất"
+                description="Lên lịch một kế hoạch sản xuất mới từ các đơn đã duyệt"
                 size="lg"
                 footer={
                     <>
                         <Button variant="outline" onClick={closeCreateModal}>
-                            Cancel
+                            Huỷ
                         </Button>
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
@@ -594,30 +596,30 @@ const ProductionPlansPage = () => {
                                 selectedOrderIds.length === 0
                             }
                         >
-                            {createLoading ? 'Creating...' : 'Create Plan'}
+                            {createLoading ? 'Đang tạo...' : 'Tạo kế hoạch'}
                         </Button>
                     </>
                 }
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium mb-1 block">Plan Name *</label>
+                        <label className="text-sm font-medium mb-1 block">Tên kế hoạch *</label>
                         <Input
-                            placeholder="e.g. Morning Production Plan"
+                            placeholder="VD: Kế hoạch sản xuất ca sáng"
                             value={planName}
                             onChange={(e) => setPlanName(e.target.value)}
                         />
                     </div>
                     <div>
-                        <label className="text-sm font-medium mb-1 block">Plan Code (auto-generated)</label>
+                        <label className="text-sm font-medium mb-1 block">Mã kế hoạch (tự sinh)</label>
                         <Input
-                            placeholder="e.g. PLAN-20260202-001"
+                            placeholder="VD: PLAN-20260202-001"
                             disabled
                             value={planCode}
                         />
                     </div>
                     <div>
-                        <label className="text-sm font-medium mb-1 block">Plan Date</label>
+                        <label className="text-sm font-medium mb-1 block">Ngày sản xuất</label>
                         <Input
                             type="date"
                             value={planDate}
@@ -625,17 +627,17 @@ const ProductionPlansPage = () => {
                         />
                     </div>
                     <div>
-                        <label className="text-sm font-medium mb-1 block">Note (Optional)</label>
+                        <label className="text-sm font-medium mb-1 block">Ghi chú (không bắt buộc)</label>
                         <textarea
                             className="flex min-h-[80px] w-full rounded-xl border border-input bg-white/60 dark:bg-white/5 px-4 py-2 text-base"
-                            placeholder="Add notes about this production plan..."
+                            placeholder="Thêm ghi chú cho kế hoạch sản xuất (nếu cần)..."
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
                         />
                     </div>
 
                     <div className="border-t pt-4 space-y-3">
-                        <h4 className="font-medium mb-1">Approved Orders to Include</h4>
+                        <h4 className="font-medium mb-1">Đơn đã duyệt để đưa vào kế hoạch</h4>
                         <p className="text-xs text-muted-foreground">
                             Chọn các đơn hàng <strong>đã duyệt</strong> để đưa vào kế hoạch sản xuất
                             {maxProductsPerPlan ? ` (tối đa khoảng ${maxProductsPerPlan} sản phẩm cho 1 kế hoạch).` : '.'}
@@ -643,7 +645,7 @@ const ProductionPlansPage = () => {
 
                         {approvedOrders.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-4">
-                                Không có đơn Approved nào. Hãy duyệt đơn trước khi tạo Production Plan.
+                                Không có đơn đã duyệt nào. Hãy duyệt đơn trước khi tạo kế hoạch sản xuất.
                             </p>
                         ) : (
                             <div className="max-h-64 overflow-y-auto space-y-2 border rounded-xl p-2 bg-muted/40">
@@ -665,15 +667,15 @@ const ProductionPlansPage = () => {
                                                 </span>
                                                 <span className="text-[11px] text-muted-foreground">
                                                     {(typeof order.storeId === 'object' && order.storeId?.storeName) ||
-                                                        'Store'}
+                                                        'Cửa hàng'}
                                                 </span>
                                             </div>
                                             <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                                                 <span>
-                                                    Items: {order.items?.length ?? 0}
+                                                    Số dòng sản phẩm: {order.items?.length ?? 0}
                                                 </span>
                                                 <span>
-                                                    Total:{' '}
+                                                    Tổng tiền:{' '}
                                                     {new Intl.NumberFormat('vi-VN', {
                                                         style: 'currency',
                                                         currency: 'VND',

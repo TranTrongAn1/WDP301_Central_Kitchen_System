@@ -12,21 +12,21 @@ export const Footer = () => {
               <AppLogo />
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Baking happiness since 2010. We bring the warmth of the oven
-              directly to your heart.
+              Gắn kết niềm vui qua từng mẻ bánh từ năm 2010. Hương vị ấm áp từ lò nướng
+              đến thẳng trái tim bạn.
             </p>
           </div>
 
           {}
           <div>
-            <h4 className="font-bold text-foreground mb-4">Explore</h4>
+            <h4 className="font-bold text-foreground mb-4">Khám phá</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Menu
+                  Thực đơn
                 </Link>
               </li>
               <li>
@@ -34,7 +34,7 @@ export const Footer = () => {
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Locations
+                  Hệ thống cửa hàng
                 </Link>
               </li>
               <li>
@@ -42,7 +42,7 @@ export const Footer = () => {
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Catering
+                  Dịch vụ đặt tiệc
                 </Link>
               </li>
               <li>
@@ -50,7 +50,7 @@ export const Footer = () => {
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Gift Cards
+                  Thẻ quà tặng
                 </Link>
               </li>
             </ul>
@@ -58,14 +58,14 @@ export const Footer = () => {
 
           {}
           <div>
-            <h4 className="font-bold text-foreground mb-4">Company</h4>
+            <h4 className="font-bold text-foreground mb-4">Về chúng tôi</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  About Us
+                  Giới thiệu
                 </Link>
               </li>
               <li>
@@ -73,7 +73,7 @@ export const Footer = () => {
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Careers
+                  Tuyển dụng
                 </Link>
               </li>
               <li>
@@ -81,7 +81,7 @@ export const Footer = () => {
                   to="/login"
                   className="hover:text-primary transition-colors"
                 >
-                  Login
+                  Đăng nhập
                 </Link>
               </li>
               <li>
@@ -89,7 +89,7 @@ export const Footer = () => {
                   to="#"
                   className="hover:text-primary transition-colors"
                 >
-                  Privacy Policy
+                  Chính sách bảo mật
                 </Link>
               </li>
             </ul>
@@ -97,7 +97,7 @@ export const Footer = () => {
 
           {}
           <div>
-            <h4 className="font-bold text-foreground mb-4">Stay Connected</h4>
+            <h4 className="font-bold text-foreground mb-4">Kết nối với Kendo</h4>
             <div className="flex gap-4 mb-4">
               <a
                 href="#"
@@ -142,20 +142,20 @@ export const Footer = () => {
         {}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted-foreground text-center md:text-left">
-            © 2024 Kendo Bakery Inc. All rights reserved.
+            © 2024 Kendo Bakery Inc. Mọi quyền được bảo lưu.
           </p>
           <div className="flex gap-6">
             <Link
               to="#"
               className="text-xs text-muted-foreground hover:text-primary transition-colors"
             >
-              Privacy
+              Bảo mật
             </Link>
             <Link
               to="#"
               className="text-xs text-muted-foreground hover:text-primary transition-colors"
             >
-              Terms
+              Điều khoản
             </Link>
             <Link
               to="#"

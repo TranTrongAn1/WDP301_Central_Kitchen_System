@@ -97,7 +97,7 @@ const ProductDetailPage = () => {
             }
         } catch (err) {
             console.error('Error fetching product:', err);
-            setError('Failed to load product details');
+            setError('Không thể tải chi tiết sản phẩm');
         } finally {
             setLoading(false);
         }
@@ -161,10 +161,10 @@ const ProductDetailPage = () => {
     const getCategoryDisplayName = () => {
         // Use fetched category name first, then fallback
         if (categoryName) return categoryName;
-        if (!product?.categoryId) return 'Uncategorized';
+        if (!product?.categoryId) return 'Chưa phân loại';
         if (typeof product.categoryId === 'string') return product.categoryId;
         const cat = product.categoryId;
-        return (cat as any).name || (cat as any).categoryName || 'Uncategorized';
+        return (cat as any).name || (cat as any).categoryName || 'Chưa phân loại';
     };
 
     const getIngredientName = (ingredient: any) => {
@@ -179,18 +179,18 @@ const ProductDetailPage = () => {
 
         // If ingredientId is just an ID string, use the ingredientMap
         if (typeof ingredient.ingredientId === 'string') {
-            return ingredientMap[ingredient.ingredientId] || `Ingredient (${ingredient.ingredientId.substring(0, 8)}...)`;
+            return ingredientMap[ingredient.ingredientId] || `Nguyên liệu (${ingredient.ingredientId.substring(0, 8)}...)`;
         }
 
         // If ingredientId is an object without name, try to find in map using _id
         if (typeof ingredient.ingredientId === 'object') {
             const ingId = ingredient.ingredientId?._id;
             if (ingId) {
-                return ingredientMap[ingId] || `Ingredient (${ingId.substring(0, 8)}...)`;
+                return ingredientMap[ingId] || `Nguyên liệu (${ingId.substring(0, 8)}...)`;
             }
         }
 
-        return 'Unknown';
+        return 'Không xác định';
     };
 
     const getIngredientUnit = (ingredient: any) => {
@@ -204,15 +204,15 @@ const ProductDetailPage = () => {
     };
 
     const getChildProductName = (bundle: any) => {
-        if (typeof bundle.childProductId === 'string') return 'Unknown Product';
-        return bundle.childProductId?.name || 'Unknown';
+        if (typeof bundle.childProductId === 'string') return 'Sản phẩm không xác định';
+        return bundle.childProductId?.name || 'Không xác định';
     };
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading product...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải sản phẩm...</span>
             </div>
         );
     }
@@ -222,13 +222,13 @@ const ProductDetailPage = () => {
             <div className="space-y-6">
                 <Button variant="outline" onClick={() => navigate(productsBasePath)}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Products
+                    Quay lại danh sách sản phẩm
                 </Button>
                 <Card>
                     <CardContent className="p-6">
                         <ErrorState
-                            title="Failed to Load Product"
-                            message={error || 'Product not found'}
+                            title="Không thể tải sản phẩm"
+                            message={error || 'Không tìm thấy sản phẩm'}
                             onRetry={fetchProduct}
                         />
                     </CardContent>
@@ -249,7 +249,7 @@ const ProductDetailPage = () => {
                 <div className="flex items-center gap-4">
                     <Button variant="outline" onClick={() => navigate(productsBasePath)}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
+                        Quay lại
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold">{product.name}</h1>
@@ -259,7 +259,7 @@ const ProductDetailPage = () => {
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" disabled={isManagerReadOnly} onClick={openEdit}>
                         <Edit className="w-4 h-4 mr-1" />
-                        Edit
+                        Sửa
                     </Button>
                     <Button
                         variant="outline"
@@ -277,9 +277,9 @@ const ProductDetailPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2">
                                 <Package className="w-5 h-5" />
-                                Product Information
+                                Thông tin sản phẩm
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -299,7 +299,7 @@ const ProductDetailPage = () => {
                                             <Tag className="w-4 h-4 text-orange-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-muted-foreground">Category</p>
+                                            <p className="text-sm text-muted-foreground">Danh mục</p>
                                             <p className="font-semibold">{getCategoryDisplayName()}</p>
                                         </div>
                                     </div>
@@ -308,7 +308,7 @@ const ProductDetailPage = () => {
                                             <DollarSign className="w-4 h-4 text-green-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-muted-foreground">Price</p>
+                                            <p className="text-sm text-muted-foreground">Giá bán</p>
                                             <p className="font-semibold text-green-600">{product.price?.toLocaleString()}đ</p>
                                         </div>
                                     </div>
@@ -317,8 +317,8 @@ const ProductDetailPage = () => {
                                             <Clock className="w-4 h-4 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-muted-foreground">Shelf Life</p>
-                                            <p className="font-semibold">{product.shelfLifeDays} days</p>
+                                            <p className="text-sm text-muted-foreground">Hạn sử dụng</p>
+                                            <p className="font-semibold">{product.shelfLifeDays} ngày</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -326,8 +326,8 @@ const ProductDetailPage = () => {
                                             <Package className="w-4 h-4 text-emerald-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-muted-foreground">Weight</p>
-                                            <p className="font-semibold">{product.weight ?? 0.5} kg / unit</p>
+                                            <p className="text-sm text-muted-foreground">Khối lượng</p>
+                                            <p className="font-semibold">{product.weight ?? 0.5} kg / sản phẩm</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -335,8 +335,8 @@ const ProductDetailPage = () => {
                                             <Layers className="w-4 h-4 text-purple-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-muted-foreground">Type</p>
-                                            <p className="font-semibold">{isBundle ? 'Bundle/Combo' : 'Single Product'}</p>
+                                            <p className="text-sm text-muted-foreground">Loại sản phẩm</p>
+                                            <p className="font-semibold">{isBundle ? 'Gói/Combo' : 'Sản phẩm đơn lẻ'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -349,7 +349,7 @@ const ProductDetailPage = () => {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <FlaskConical className="w-5 h-5" />
-                                    Recipe ({product.recipe.length} ingredients)
+                                    Công thức ({product.recipe.length} nguyên liệu)
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -357,11 +357,11 @@ const ProductDetailPage = () => {
                                     <table className="w-full">
                                         <thead>
                                             <tr className="border-b">
-                                                <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Ingredient</th>
-                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Quantity</th>
-                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Unit</th>
-                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Unit Cost</th>
-                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Total Cost</th>
+                                                <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Nguyên liệu</th>
+                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Số lượng</th>
+                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Đơn vị</th>
+                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Giá đơn vị</th>
+                                                <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Thành tiền</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -387,7 +387,7 @@ const ProductDetailPage = () => {
                                         </tbody>
                                         <tfoot>
                                             <tr className="bg-muted/50">
-                                                <td colSpan={4} className="py-3 px-2 font-semibold">Total Recipe Cost</td>
+                                                <td colSpan={4} className="py-3 px-2 font-semibold">Tổng chi phí nguyên liệu</td>
                                                 <td className="py-3 px-2 text-right font-bold text-orange-600">{totalRecipeCost.toLocaleString()}đ</td>
                                             </tr>
                                         </tfoot>
@@ -400,9 +400,9 @@ const ProductDetailPage = () => {
                     {isBundle && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                                    <CardTitle className="flex items-center gap-2">
                                     <Layers className="w-5 h-5" />
-                                    Bundle Items ({product.bundleItems?.length} products)
+                                    Sản phẩm trong combo ({product.bundleItems?.length} sản phẩm)
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -437,28 +437,28 @@ const ProductDetailPage = () => {
 
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Summary</CardTitle>
+                            <CardHeader>
+                            <CardTitle>Tổng quan</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Selling Price</span>
+                                <span className="text-muted-foreground">Giá bán</span>
                                 <span className="font-bold text-green-600">{product.price?.toLocaleString()}đ</span>
                             </div>
                             {!isBundle && (
                                 <>
                                     <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Recipe Cost</span>
+                                        <span className="text-muted-foreground">Chi phí nguyên liệu</span>
                                         <span className="font-semibold">{totalRecipeCost.toLocaleString()}đ</span>
                                     </div>
                                     <div className="flex justify-between pt-2 border-t">
-                                        <span className="text-muted-foreground">Profit Margin</span>
+                                        <span className="text-muted-foreground">Lợi nhuận</span>
                                         <span className="font-bold text-orange-500">
                                             {(product.price - totalRecipeCost).toLocaleString()}đ
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Margin %</span>
+                                        <span className="text-muted-foreground">Tỷ suất lợi nhuận</span>
                                         <span className="font-bold">
                                             {product.price > 0 ? Math.round(((product.price - totalRecipeCost) / product.price) * 100) : 0}%
                                         </span>
@@ -469,20 +469,20 @@ const ProductDetailPage = () => {
                     </Card>
 
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Metadata</CardTitle>
+                            <CardHeader>
+                            <CardTitle>Thông tin hệ thống</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Created</span>
+                                <span className="text-muted-foreground">Ngày tạo</span>
                                 <span>{new Date(product.createdAt).toLocaleDateString()}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Last Updated</span>
+                                <span className="text-muted-foreground">Cập nhật lần cuối</span>
                                 <span>{new Date(product.updatedAt).toLocaleDateString()}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Product ID</span>
+                                <span className="text-muted-foreground">Mã sản phẩm</span>
                                 <span className="font-mono text-xs">{product._id}</span>
                             </div>
                         </CardContent>
@@ -494,9 +494,9 @@ const ProductDetailPage = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}
-                title="Delete Product"
-                message={`Are you sure you want to delete "${product.name}"? This action cannot be undone.`}
-                confirmLabel="Delete"
+                title="Xóa sản phẩm"
+                message={`Bạn có chắc chắn muốn xóa "${product.name}"? Hành động này không thể hoàn tác.`}
+                confirmLabel="Xóa"
                 variant="danger"
                 loading={deleteLoading}
             />

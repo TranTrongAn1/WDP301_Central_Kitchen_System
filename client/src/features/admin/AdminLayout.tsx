@@ -7,15 +7,15 @@ import { authApi } from '@/api/AuthApi';
 import { AppLogo } from '@/shared/components/AppLogo';
 
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
-    "/admin": { name: "Dashboard", desc: "Tổng quan hệ thống" },
-    "/admin/dashboard": { name: "Dashboard", desc: "Tổng quan hệ thống" },
-    "/admin/users": { name: "User Management", desc: "Quản lý người dùng & phân quyền" },
-    "/admin/stores": { name: "Store Management", desc: "Quản lý danh sách cửa hàng" },
-    "/admin/account": { name: "Accounts", desc: "Quản lý tài khoản" },
-    "/admin/feedback": { name: "Feedback", desc: "Danh sách phản hồi từ khách hàng" },
-    "/admin/suppliers": { name: "Suppliers", desc: "Quản lý nhà cung cấp" },
-    "/admin/vehicle-types": { name: "Vehicle Types", desc: "Quản lý loại xe" },
-    "/admin/settings": { name: "Settings", desc: "Cài đặt hệ thống" },
+    "/admin": { name: "Bảng điều khiển", desc: "Tổng quan hệ thống" },
+    "/admin/dashboard": { name: "Bảng điều khiển", desc: "Tổng quan hệ thống" },
+    "/admin/users": { name: "Quản lý người dùng", desc: "Quản lý người dùng & phân quyền" },
+    "/admin/stores": { name: "Quản lý cửa hàng", desc: "Quản lý danh sách cửa hàng" },
+    "/admin/account": { name: "Tài khoản", desc: "Quản lý tài khoản" },
+    "/admin/feedback": { name: "Phản hồi", desc: "Danh sách phản hồi từ khách hàng" },
+    "/admin/suppliers": { name: "Nhà cung cấp", desc: "Quản lý nhà cung cấp" },
+    "/admin/vehicle-types": { name: "Loại xe", desc: "Quản lý loại xe" },
+    "/admin/settings": { name: "Cài đặt", desc: "Cài đặt hệ thống" },
 };
 
 export const AdminLayout = () => {
@@ -32,7 +32,7 @@ export const AdminLayout = () => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    const currentPage = PAGE_TITLE[location.pathname] || { name: "Admin Portal", desc: "Quản trị viên" };
+    const currentPage = PAGE_TITLE[location.pathname] || { name: "Trang quản trị", desc: "Quản trị viên" };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

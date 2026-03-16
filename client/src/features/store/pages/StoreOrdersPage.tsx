@@ -114,7 +114,7 @@ const StoreOrdersPage = () => {
   const handleCancelOrder = async (orderId: string) => {
     try {
       const toastId = toast.loading('Đang hủy đơn hàng...');
-      await OrderApi.rejectOrder(orderId, 'Cancelled by store staff');
+      await OrderApi.rejectOrder(orderId, 'Đơn bị hủy bởi nhân viên cửa hàng');
       const data = await OrderApi.getAllOrders();
       const storeId = user?.storeId;
       const filtered = storeId
@@ -301,7 +301,7 @@ const StoreOrdersPage = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Store • Orders
+            CỬA HÀNG • ĐƠN HÀNG
           </p>
           <h1 className="mt-1 text-base font-bold text-foreground">
             Đơn hàng của cửa hàng

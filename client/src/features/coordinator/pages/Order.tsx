@@ -220,7 +220,7 @@ const Order = () => {
             className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-            Back
+            Trước
           </button>
           <div className="flex items-center gap-1">
             {getPageNumbers().map((page, index) => {
@@ -245,7 +245,7 @@ const Order = () => {
             disabled={currentPage === totalPages}
             className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
           >
-            Next
+            Sau
             <span className="material-symbols-outlined text-[18px]">chevron_right</span>
           </button>
         </div>

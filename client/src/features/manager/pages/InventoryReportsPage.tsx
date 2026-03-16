@@ -72,7 +72,7 @@ const InventoryReportsPage = () => {
             setProducts(Array.isArray(productData) ? productData : []);
         } catch (err) {
             console.error('Error fetching inventory data:', err);
-            setError('Failed to load inventory data');
+            setError('Không thể tải dữ liệu tồn kho');
         } finally {
             setLoading(false);
         }
@@ -162,7 +162,7 @@ const InventoryReportsPage = () => {
             fetchData();
         } catch (e) {
             console.error('Import stock failed', e);
-            setError('Import stock failed. Please check inputs and try again.');
+            setError('Nhập kho thất bại. Vui lòng kiểm tra lại thông tin và thử lại.');
         } finally {
             setImportLoading(false);
         }
@@ -187,9 +187,9 @@ const InventoryReportsPage = () => {
 
     const getStockLevel = (ingredient: Ingredient) => {
         const ratio = ingredient.totalQuantity / ingredient.warningThreshold;
-        if (ratio < 1) return { level: 'Low', color: 'destructive', percentage: Math.min(ratio * 100, 100) };
-        if (ratio < 2) return { level: 'Medium', color: 'warning', percentage: 50 + (ratio - 1) * 25 };
-        return { level: 'Good', color: 'success', percentage: 100 };
+        if (ratio < 1) return { level: 'Thấp', color: 'destructive', percentage: Math.min(ratio * 100, 100) };
+        if (ratio < 2) return { level: 'Trung bình', color: 'warning', percentage: 50 + (ratio - 1) * 25 };
+        return { level: 'Tốt', color: 'success', percentage: 100 };
     };
 
     const getBatchStatus = (batch: Batch) => {
@@ -198,22 +198,22 @@ const InventoryReportsPage = () => {
         const daysUntilExp = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
         if (batch.status === 'Expired' || daysUntilExp <= 0) {
-            return { status: 'Expired', variant: 'destructive' as const };
+            return { status: 'Hết hạn', variant: 'destructive' as const };
         }
         if (daysUntilExp <= 7) {
-            return { status: `Expires in ${daysUntilExp}d`, variant: 'warning' as const };
+            return { status: `Còn ${daysUntilExp} ngày`, variant: 'warning' as const };
         }
         if (batch.status === 'SoldOut') {
-            return { status: 'Sold Out', variant: 'secondary' as const };
+            return { status: 'Đã bán hết', variant: 'secondary' as const };
         }
-        return { status: 'Active', variant: 'success' as const };
+        return { status: 'Đang hoạt động', variant: 'success' as const };
     };
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading inventory...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu kho...</span>
             </div>
         );
     }
@@ -230,7 +230,7 @@ const InventoryReportsPage = () => {
                         disabled={isManagerReadOnly}
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        Import Stock
+                        Nhập kho
                     </Button>
                 </div>
             </div>
@@ -244,7 +244,7 @@ const InventoryReportsPage = () => {
                                 <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Total Ingredients</p>
+                                <p className="text-sm text-muted-foreground">Tổng số nguyên liệu</p>
                                 <p className="text-2xl font-bold">{ingredients.length}</p>
                             </div>
                         </div>
@@ -257,7 +257,7 @@ const InventoryReportsPage = () => {
                                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Low Stock Items</p>
+                                <p className="text-sm text-muted-foreground">Nguyên liệu gần hết hàng</p>
                                 <p className="text-2xl font-bold text-red-600">{lowStockCount}</p>
                             </div>
                         </div>
@@ -270,7 +270,7 @@ const InventoryReportsPage = () => {
                                 <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Active Batches</p>
+                                <p className="text-sm text-muted-foreground">Lô đang hoạt động</p>
                                 <p className="text-2xl font-bold text-green-600">{activeBatches}</p>
                             </div>
                         </div>
@@ -283,7 +283,7 @@ const InventoryReportsPage = () => {
                                 <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Expiring Soon</p>
+                                <p className="text-sm text-muted-foreground">Sắp hết hạn</p>
                                 <p className="text-2xl font-bold text-orange-600">{expiringSoon}</p>
                             </div>
                         </div>
@@ -294,28 +294,28 @@ const InventoryReportsPage = () => {
             {error && (
                 <div className="text-center py-4 text-red-500">
                     {error}
-                    <Button onClick={fetchData} variant="link" className="ml-2">Retry</Button>
+                    <Button onClick={fetchData} variant="link" className="ml-2">Thử lại</Button>
                 </div>
             )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
-                    <TabsTrigger value="materials">Raw Materials</TabsTrigger>
-                    <TabsTrigger value="ingredient-batches">Ingredient Batches</TabsTrigger>
-                    <TabsTrigger value="batches">Production Batches</TabsTrigger>
-                    <TabsTrigger value="expiring">Expiring Soon</TabsTrigger>
-                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                    <TabsTrigger value="materials">Nguyên liệu thô</TabsTrigger>
+                    <TabsTrigger value="ingredient-batches">Lô nguyên liệu</TabsTrigger>
+                    <TabsTrigger value="batches">Lô thành phẩm</TabsTrigger>
+                    <TabsTrigger value="expiring">Sắp hết hạn</TabsTrigger>
+                    <TabsTrigger value="analytics">Phân tích</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="materials" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Raw Materials Inventory</CardTitle>
+                            <CardTitle>Tồn kho nguyên liệu thô</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {ingredients.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    No ingredients found
+                                    Không tìm thấy nguyên liệu nào
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -377,7 +377,7 @@ const InventoryReportsPage = () => {
                                                 <div className="flex items-center gap-4">
                                                     <div className="flex-1">
                                                         <div className="flex justify-between text-sm mb-1">
-                                                            <span>Stock Level</span>
+                                                            <span>Mức tồn kho</span>
                                                             <span>{ing.totalQuantity} / {ing.warningThreshold} {ing.unit}</span>
                                                         </div>
                                                         <div className="h-2 bg-background rounded-full overflow-hidden">
@@ -475,7 +475,7 @@ const InventoryReportsPage = () => {
                 <TabsContent value="ingredient-batches" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>All Ingredient Batches</CardTitle>
+                            <CardTitle>Danh sách lô nguyên liệu</CardTitle>
                             <p className="text-sm text-muted-foreground">Danh sách lô nguyên liệu (từ API /ingredient-batches)</p>
                         </CardHeader>
                         <CardContent>
@@ -493,23 +493,23 @@ const InventoryReportsPage = () => {
                                     <table className="w-full text-sm text-left">
                                         <thead className="border-b">
                                             <tr>
-                                                <th className="pb-2 font-semibold">Mã lô</th>
-                                                <th className="pb-2 font-semibold">Nguyên liệu</th>
-                                                <th className="pb-2 font-semibold">Nhà cung cấp</th>
-                                                <th className="pb-2 font-semibold text-right">Số lượng</th>
-                                                <th className="pb-2 font-semibold">HSD</th>
+                                                <th className="pb-2 pr-4 font-semibold">Mã lô</th>
+                                                <th className="pb-2 pr-4 font-semibold">Nguyên liệu</th>
+                                                <th className="pb-2 pr-4 font-semibold">Nhà cung cấp</th>
+                                                <th className="pb-2 pr-4 font-semibold text-right">Số lượng</th>
+                                                <th className="pb-2 pr-4 font-semibold">HSD</th>
                                                 <th className="pb-2 font-semibold">Ngày nhập</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {ingredientBatchesList.map((b) => (
                                                 <tr key={b._id} className="border-b last:border-0">
-                                                    <td className="py-2 font-mono text-xs">{b.batchCode}</td>
-                                                    <td className="py-2">{typeof b.ingredientId === 'object' ? b.ingredientId?.ingredientName : b.ingredientId}</td>
-                                                    <td className="py-2">{typeof b.supplierId === 'object' ? b.supplierId?.name : b.supplierId}</td>
-                                                    <td className="py-2 text-right">{b.currentQuantity ?? b.initialQuantity} (đầu: {b.initialQuantity})</td>
-                                                    <td className="py-2 text-muted-foreground">{b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('vi-VN') : '—'}</td>
-                                                    <td className="py-2 text-muted-foreground">{b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('vi-VN') : '—'}</td>
+                                                    <td className="py-2 pr-4 font-mono text-xs">{b.batchCode}</td>
+                                                    <td className="py-2 pr-4">{typeof b.ingredientId === 'object' ? b.ingredientId?.ingredientName : b.ingredientId}</td>
+                                                    <td className="py-2 pr-4">{typeof b.supplierId === 'object' ? b.supplierId?.name : b.supplierId}</td>
+                                                    <td className="py-2 pr-4 text-right whitespace-nowrap">{b.currentQuantity ?? b.initialQuantity} (đầu: {b.initialQuantity})</td>
+                                                    <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">{b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('vi-VN') : '—'}</td>
+                                                    <td className="py-2 text-muted-foreground whitespace-nowrap">{b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('vi-VN') : '—'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -524,7 +524,7 @@ const InventoryReportsPage = () => {
                     <Card>
                         <CardHeader>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <CardTitle>Items Expiring Soon</CardTitle>
+                            <CardTitle>Tồn kho sắp hết hạn</CardTitle>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">Trong</span>
                                     <select
@@ -584,7 +584,7 @@ const InventoryReportsPage = () => {
                     <Card>
                         <CardHeader>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <CardTitle>Production Batches</CardTitle>
+                            <CardTitle>Lô thành phẩm</CardTitle>
                                 <div className="relative min-w-[180px]">
                                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <select
@@ -592,7 +592,7 @@ const InventoryReportsPage = () => {
                                         value={selectedProduct}
                                         onChange={(e) => setSelectedProduct(e.target.value)}
                                     >
-                                        <option value="">All Products</option>
+                                        <option value="">Tất cả sản phẩm</option>
                                         {products.map((product) => (
                                             <option key={product._id} value={product._id}>
                                                 {product.name}
@@ -605,7 +605,7 @@ const InventoryReportsPage = () => {
                         <CardContent>
                             {batches.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    No batches found
+                                    Không tìm thấy lô nào
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -669,19 +669,19 @@ const InventoryReportsPage = () => {
                                                 </div>
                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 text-sm">
                                                     <div>
-                                                        <p className="text-muted-foreground">Quantity</p>
+                                                        <p className="text-muted-foreground">Số lượng</p>
                                                         <p className="font-medium">{batch.currentQuantity} / {batch.initialQuantity}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-muted-foreground">MFG Date</p>
-                                                        <p className="font-medium">{new Date(batch.mfgDate).toLocaleDateString()}</p>
+                                                        <p className="text-muted-foreground">Ngày sản xuất</p>
+                                                        <p className="font-medium">{new Date(batch.mfgDate).toLocaleDateString('vi-VN')}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-muted-foreground">EXP Date</p>
-                                                        <p className="font-medium">{new Date(batch.expDate).toLocaleDateString()}</p>
+                                                        <p className="text-muted-foreground">Hạn sử dụng</p>
+                                                        <p className="font-medium">{new Date(batch.expDate).toLocaleDateString('vi-VN')}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-muted-foreground">Status</p>
+                                                        <p className="text-muted-foreground">Trạng thái</p>
                                                         <p className="font-medium">{batch.status}</p>
                                                     </div>
                                                     </div>
@@ -770,7 +770,7 @@ const InventoryReportsPage = () => {
                 <TabsContent value="analytics" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Stock Levels by Ingredient</CardTitle>
+                            <CardTitle>Mức tồn kho theo nguyên liệu</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="h-[300px]">
@@ -790,13 +790,13 @@ const InventoryReportsPage = () => {
                                             dataKey="quantity"
                                             fill="hsl(24, 95%, 53%)"
                                             radius={[4, 4, 0, 0]}
-                                            name="Current Stock"
+                                            name="Tồn kho hiện tại"
                                         />
                                         <Bar
                                             dataKey="threshold"
                                             fill="hsl(0, 84%, 60%)"
                                             radius={[4, 4, 0, 0]}
-                                            name="Warning Threshold"
+                                            name="Ngưỡng cảnh báo"
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -809,13 +809,13 @@ const InventoryReportsPage = () => {
             <Modal
                 isOpen={isImportOpen}
                 onClose={closeImportModal}
-                title="Import Stock"
+                title="Nhập kho nguyên liệu"
                 description="Nhập kho nguyên liệu (tạo lô nguyên liệu mới)"
                 size="lg"
                 footer={
                     <>
                         <Button variant="outline" onClick={closeImportModal} disabled={importLoading}>
-                            Cancel
+                            Hủy
                         </Button>
                         <Button
                             className="bg-gradient-to-r from-orange-600 to-amber-600"
@@ -830,7 +830,7 @@ const InventoryReportsPage = () => {
                                 importInitialQty <= 0
                             }
                         >
-                            Import
+                            Nhập kho
                         </Button>
                     </>
                 }

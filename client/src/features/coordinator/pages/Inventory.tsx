@@ -80,9 +80,9 @@ export default function CoordinatorInventoryPage() {
           <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600">
             <Boxes className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">Store Inventory</h1>
+          <h1 className="text-2xl font-bold">Kho thành phẩm tại cửa hàng</h1>
         </div>
-        <p className="text-muted-foreground text-sm">Overview of product inventory across all stores</p>
+        <p className="text-muted-foreground text-sm">Tổng quan tồn kho thành phẩm tại các cửa hàng</p>
       </motion.div>
 
       {/* Filters */}
@@ -91,7 +91,7 @@ export default function CoordinatorInventoryPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search product or batch..."
+            placeholder="Tìm kiếm sản phẩm hoặc lô hàng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -102,7 +102,7 @@ export default function CoordinatorInventoryPage() {
           onChange={(e) => setSelectedStoreId(e.target.value)}
           className="px-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
-          <option value="all">All Stores</option>
+          <option value="all">Tất cả cửa hàng</option>
           {stores.map((s) => (
             <option key={s._id} value={s._id}>
               {s.storeName || s.name || s.storeCode || s._id}
@@ -119,8 +119,8 @@ export default function CoordinatorInventoryPage() {
       ) : filteredGroups.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="text-lg font-medium">No inventory data</p>
-          <p className="text-sm">No items match your filters</p>
+          <p className="text-lg font-medium">Không có dữ liệu tồn kho</p>
+          <p className="text-sm">Không có sản phẩm nào khớp với bộ lọc hiện tại</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -139,7 +139,7 @@ export default function CoordinatorInventoryPage() {
                   <span className="text-xs text-muted-foreground">• {group.store.address}</span>
                 </div>
                 <span className="text-xs font-medium text-muted-foreground">
-                  {group.items.length} items • Total: {group.totalQuantity}
+                  {group.items.length} sản phẩm • Tổng số lượng: {group.totalQuantity}
                 </span>
               </div>
 
@@ -148,13 +148,13 @@ export default function CoordinatorInventoryPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-muted-foreground">
-                      <th className="px-5 py-2.5 font-medium">Product</th>
+                      <th className="px-5 py-2.5 font-medium">Sản phẩm</th>
                       <th className="px-3 py-2.5 font-medium">SKU</th>
-                      <th className="px-3 py-2.5 font-medium">Batch</th>
-                      <th className="px-3 py-2.5 font-medium">Qty</th>
-                      <th className="px-3 py-2.5 font-medium">MFG</th>
-                      <th className="px-3 py-2.5 font-medium">EXP</th>
-                      <th className="px-3 py-2.5 font-medium">Status</th>
+                      <th className="px-3 py-2.5 font-medium">Lô hàng</th>
+                      <th className="px-3 py-2.5 font-medium">SL tồn</th>
+                      <th className="px-3 py-2.5 font-medium">NSX</th>
+                      <th className="px-3 py-2.5 font-medium">HSD</th>
+                      <th className="px-3 py-2.5 font-medium">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -182,7 +182,7 @@ export default function CoordinatorInventoryPage() {
                                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                   : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                             )}>
-                              {expired ? 'Expired' : expiring ? 'Expiring Soon' : 'Good'}
+                              {expired ? 'Hết hạn' : expiring ? 'Sắp hết hạn' : 'Còn tốt'}
                             </span>
                           </td>
                         </tr>

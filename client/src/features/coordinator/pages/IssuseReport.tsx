@@ -67,7 +67,7 @@ export default function IssueReportPage() {
 
       setIssues(issueItems);
     } catch {
-      toast.error('Failed to load issue reports');
+      toast.error('Không thể tải danh sách sự cố');
     } finally {
       setLoading(false);
     }
@@ -116,24 +116,24 @@ export default function IssueReportPage() {
           <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-rose-600">
             <AlertTriangle className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">Issue Reports</h1>
+          <h1 className="text-2xl font-bold">Báo cáo sự cố giao nhận</h1>
         </div>
-        <p className="text-muted-foreground text-sm">Delivery discrepancies and receiving issues</p>
+        <p className="text-muted-foreground text-sm">Tổng hợp đơn hàng giao thiếu, hư hỏng, chênh lệch khi nhận</p>
       </motion.div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-2xl font-bold text-foreground">{loading ? '—' : issues.length}</p>
-          <p className="text-xs text-muted-foreground">Total Issues</p>
+          <p className="text-xs text-muted-foreground">Tổng số sự cố</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-2xl font-bold text-amber-600">{loading ? '—' : issues.filter(i => i.discrepancyReason === 'Missing').length}</p>
-          <p className="text-xs text-muted-foreground">Missing Items</p>
+          <p className="text-xs text-muted-foreground">Thiếu hàng</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-2xl font-bold text-red-600">{loading ? '—' : issues.filter(i => i.discrepancyReason === 'Damaged').length}</p>
-          <p className="text-xs text-muted-foreground">Damaged Items</p>
+          <p className="text-xs text-muted-foreground">Hư hỏng</p>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export default function IssueReportPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by order, store, product..."
+          placeholder="Tìm theo mã đơn, cửa hàng, sản phẩm..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -157,8 +157,8 @@ export default function IssueReportPage() {
       ) : filteredIssues.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="text-lg font-medium">No issues found</p>
-          <p className="text-sm">All deliveries were received without discrepancies</p>
+          <p className="text-lg font-medium">Không có sự cố nào</p>
+          <p className="text-sm">Các đơn đã nhận không phát sinh chênh lệch</p>
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -166,15 +166,15 @@ export default function IssueReportPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground bg-secondary/30">
-                  <th className="px-5 py-3 font-medium">Order</th>
-                  <th className="px-3 py-3 font-medium">Store</th>
-                  <th className="px-3 py-3 font-medium">Product</th>
-                  <th className="px-3 py-3 font-medium text-center">Approved</th>
-                  <th className="px-3 py-3 font-medium text-center">Received</th>
-                  <th className="px-3 py-3 font-medium text-center">Diff</th>
-                  <th className="px-3 py-3 font-medium">Reason</th>
-                  <th className="px-3 py-3 font-medium">Date</th>
-                  <th className="px-3 py-3 font-medium">Actions</th>
+                  <th className="px-5 py-3 font-medium">Đơn hàng</th>
+                  <th className="px-3 py-3 font-medium">Cửa hàng</th>
+                  <th className="px-3 py-3 font-medium">Sản phẩm</th>
+                  <th className="px-3 py-3 font-medium text-center">Đã duyệt</th>
+                  <th className="px-3 py-3 font-medium text-center">Đã nhận</th>
+                  <th className="px-3 py-3 font-medium text-center">Chênh lệch</th>
+                  <th className="px-3 py-3 font-medium">Lý do</th>
+                  <th className="px-3 py-3 font-medium">Ngày nhận</th>
+                  <th className="px-3 py-3 font-medium">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,7 +210,7 @@ export default function IssueReportPage() {
                         <button
                           onClick={() => handleViewOrder(issue.orderId)}
                           className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                          title="View Order"
+                          title="Xem chi tiết đơn hàng"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -234,27 +234,27 @@ export default function IssueReportPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-bold">Order Details</h3>
+              <h3 className="text-lg font-bold">Chi tiết đơn hàng</h3>
               <p className="text-sm text-muted-foreground">{selectedOrder.orderCode || selectedOrder.orderNumber}</p>
             </div>
             <div className="p-6 space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
+                <span className="text-muted-foreground">Trạng thái</span>
                 <span className="font-medium">{selectedOrder.status}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Received Date</span>
+                <span className="text-muted-foreground">Ngày nhận</span>
                 <span>{selectedOrder.receivedDate ? formatDate(selectedOrder.receivedDate) : '—'}</span>
               </div>
               <div className="border-t border-border pt-3 mt-3">
-                <p className="font-medium mb-2">Items</p>
+                <p className="font-medium mb-2">Sản phẩm trong đơn</p>
                 {selectedOrder.items?.map((it: any, idx: number) => {
                   const product = typeof it.productId === 'object' ? it.productId : null;
                   return (
                     <div key={idx} className="flex justify-between py-1.5 border-b border-border/50 last:border-0">
                       <span>{product?.name || 'Product'}</span>
                       <span className="text-xs">
-                        Req: {it.quantityRequested ?? it.quantity} / Rcv: {it.receivedQuantity ?? '—'}
+                        Yêu cầu: {it.quantityRequested ?? it.quantity} / Đã nhận: {it.receivedQuantity ?? '—'}
                         {it.discrepancyReason && (
                           <span className={cn('ml-2 px-1.5 py-0.5 rounded text-[10px]', getReasonBadge(it.discrepancyReason))}>
                             {it.discrepancyReason}
@@ -271,7 +271,7 @@ export default function IssueReportPage() {
                 onClick={() => setShowDetail(false)}
                 className="px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80"
               >
-                Close
+                Đóng
               </button>
             </div>
           </motion.div>

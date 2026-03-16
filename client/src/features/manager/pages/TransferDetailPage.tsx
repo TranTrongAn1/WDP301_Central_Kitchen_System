@@ -29,7 +29,7 @@ const TransferDetailPage = () => {
             setTransfer(data);
         } catch (err) {
             console.error('Error fetching transfer:', err);
-            setError('Failed to load transfer details');
+            setError('Không thể tải chi tiết điều chuyển');
         } finally {
             setLoading(false);
         }
@@ -42,24 +42,24 @@ const TransferDetailPage = () => {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'Pending':
-                return <Badge className="bg-yellow-500 text-white"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+                return <Badge className="bg-yellow-500 text-white"><Clock className="w-3 h-3 mr-1" />Đang chờ xử lý</Badge>;
             case 'Shipped':
             case 'InTransit':
-                return <Badge className="bg-blue-500 text-white"><Truck className="w-3 h-3 mr-1" />Shipped</Badge>;
+                return <Badge className="bg-blue-500 text-white"><Truck className="w-3 h-3 mr-1" />Đang giao</Badge>;
             case 'Received':
             case 'Completed':
-                return <Badge className="bg-green-500 text-white"><CheckCircle2 className="w-3 h-3 mr-1" />Received</Badge>;
+                return <Badge className="bg-green-500 text-white"><CheckCircle2 className="w-3 h-3 mr-1" />Đã nhận</Badge>;
             case 'Cancelled':
-                return <Badge className="bg-red-500 text-white"><XCircle className="w-3 h-3 mr-1" />Cancelled</Badge>;
+                return <Badge className="bg-red-500 text-white"><XCircle className="w-3 h-3 mr-1" />Đã hủy</Badge>;
             default:
                 return <Badge variant="outline">{status}</Badge>;
         }
     };
 
     const getStoreName = () => {
-        if (!transfer) return 'Unknown Store';
-        if (typeof transfer.toStoreId === 'string') return 'Unknown Store';
-        return transfer.toStoreId?.storeName || 'Unknown Store';
+        if (!transfer) return 'Cửa hàng không xác định';
+        if (typeof transfer.toStoreId === 'string') return 'Cửa hàng không xác định';
+        return transfer.toStoreId?.storeName || 'Cửa hàng không xác định';
     };
 
     const getStoreAddress = () => {
@@ -69,7 +69,7 @@ const TransferDetailPage = () => {
     };
 
     const formatDate = (dateString: string) => {
-        if (!dateString) return 'N/A';
+        if (!dateString) return '—';
         return new Date(dateString).toLocaleDateString('vi-VN', {
             year: 'numeric',
             month: 'long',
@@ -81,7 +81,7 @@ const TransferDetailPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading transfer...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải chi tiết điều chuyển...</span>
             </div>
         );
     }
@@ -91,13 +91,13 @@ const TransferDetailPage = () => {
             <div className="space-y-6">
                 <Button variant="outline" onClick={() => navigate('/manager/orders')}>
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Transfers
+                    Quay lại danh sách điều chuyển
                 </Button>
                 <Card>
                     <CardContent className="p-6">
                         <ErrorState
-                            title="Failed to Load Transfer"
-                            message={error || 'Transfer not found'}
+                            title="Không thể tải chi tiết điều chuyển"
+                            message={error || 'Không tìm thấy phiếu điều chuyển'}
                             onRetry={fetchTransfer}
                         />
                     </CardContent>
@@ -113,7 +113,7 @@ const TransferDetailPage = () => {
                 <div className="flex items-center gap-4">
                     <Button variant="outline" onClick={() => navigate('/manager/orders')}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
+                        Quay lại
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold">{transfer.transferCode}</h1>
@@ -128,48 +128,48 @@ const TransferDetailPage = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Transfer Information</CardTitle>
+                        <CardTitle>Thông tin điều chuyển</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Status</span>
+                            <span className="text-muted-foreground">Trạng thái</span>
                             {getStatusBadge(transfer.status)}
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Destination</span>
+                            <span className="text-muted-foreground">Cửa hàng nhận</span>
                             <span className="font-medium">{getStoreName()}</span>
                         </div>
                         {getStoreAddress() && (
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Address</span>
+                                <span className="text-muted-foreground">Địa chỉ</span>
                                 <span className="font-medium text-right max-w-[200px]">{getStoreAddress()}</span>
                             </div>
                         )}
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Items</span>
-                            <span className="font-medium">{transfer.items?.length || 0} products</span>
+                            <span className="text-muted-foreground">Số dòng sản phẩm</span>
+                            <span className="font-medium">{transfer.items?.length || 0} sản phẩm</span>
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Timeline</CardTitle>
+                        <CardTitle>Mốc thời gian</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div>
-                            <p className="text-sm text-muted-foreground">Created</p>
+                            <p className="text-sm text-muted-foreground">Ngày tạo</p>
                             <p className="font-medium">{formatDate(transfer.createdAt)}</p>
                         </div>
                         {transfer.shippedDate && (
                             <div>
-                                <p className="text-sm text-muted-foreground">Shipped</p>
+                                <p className="text-sm text-muted-foreground">Ngày xuất kho</p>
                                 <p className="font-medium">{formatDate(transfer.shippedDate)}</p>
                             </div>
                         )}
                         {transfer.receivedDate && (
                             <div>
-                                <p className="text-sm text-muted-foreground">Received</p>
+                                <p className="text-sm text-muted-foreground">Ngày cửa hàng nhận</p>
                                 <p className="font-medium">{formatDate(transfer.receivedDate)}</p>
                             </div>
                         )}
@@ -178,11 +178,11 @@ const TransferDetailPage = () => {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Summary</CardTitle>
+                        <CardTitle>Tổng quan</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div>
-                            <p className="text-sm text-muted-foreground">Total Units</p>
+                            <p className="text-sm text-muted-foreground">Tổng số đơn vị</p>
                             <p className="text-2xl font-bold text-orange-500">
                                 {transfer.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
                             </p>
@@ -194,7 +194,7 @@ const TransferDetailPage = () => {
             {/* Items List */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Transfer Items</CardTitle>
+                    <CardTitle>Danh sách sản phẩm điều chuyển</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {transfer.items && transfer.items.length > 0 ? (
@@ -202,9 +202,9 @@ const TransferDetailPage = () => {
                             {transfer.items.map((item, index) => {
                                 const batch = typeof item.batchId === 'string' ? null : item.batchId;
                                 const product = batch?.productId;
-                                const productName = product?.name || 'Unknown Product';
-                                const productSku = product?.sku || 'N/A';
-                                const batchCode = batch?.batchCode || 'Unknown Batch';
+                                const productName = product?.name || 'Sản phẩm không xác định';
+                                const productSku = product?.sku || '—';
+                                const batchCode = batch?.batchCode || 'Lô không xác định';
                                 const expDate = batch?.expDate || '';
 
                                 return (
@@ -221,19 +221,19 @@ const TransferDetailPage = () => {
                                             </div>
                                             <div>
                                                 <h4 className="font-semibold">{productName}</h4>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {productSku} • Batch: {batchCode}
+                                                    <p className="text-sm text-muted-foreground">
+                                                    {productSku} • Lô: {batchCode}
                                                 </p>
-                                                {expDate && (
+                                                    {expDate && (
                                                     <p className="text-xs text-muted-foreground">
-                                                        Expires: {formatDate(expDate)}
+                                                        HSD: {formatDate(expDate)}
                                                     </p>
-                                                )}
+                                                    )}
                                             </div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xl font-bold">{item.quantity}</p>
-                                            <p className="text-sm text-muted-foreground">units</p>
+                                            <p className="text-sm text-muted-foreground">đơn vị</p>
                                         </div>
                                     </motion.div>
                                 );
@@ -241,7 +241,7 @@ const TransferDetailPage = () => {
                         </div>
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
-                            No items in this transfer
+                            Không có sản phẩm nào trong phiếu điều chuyển này
                         </div>
                     )}
                 </CardContent>

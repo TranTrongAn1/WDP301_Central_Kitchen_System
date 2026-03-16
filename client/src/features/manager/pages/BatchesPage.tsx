@@ -42,7 +42,7 @@ const BatchesPage = () => {
             setBatches(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error fetching batches:', err);
-            setError('Failed to load batches');
+            setError('Không thể tải danh sách lô sản xuất');
         } finally {
             setLoading(false);
         }
@@ -67,24 +67,24 @@ const BatchesPage = () => {
     }, [selectedProduct]);
 
     const getStatusBadge = (status: string) => {
-        const configs: Record<string, { className: string; icon: React.ReactNode }> = {
-            Active: { className: 'bg-green-500 text-white', icon: <CheckCircle2 className="w-3 h-3 mr-1" /> },
-            SoldOut: { className: 'bg-gray-500 text-white', icon: <Package className="w-3 h-3 mr-1" /> },
-            Expired: { className: 'bg-red-500 text-white', icon: <XCircle className="w-3 h-3 mr-1" /> },
-            Recalled: { className: 'bg-orange-500 text-white', icon: <AlertTriangle className="w-3 h-3 mr-1" /> },
+        const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
+            Active: { className: 'bg-green-500 text-white', icon: <CheckCircle2 className="w-3 h-3 mr-1" />, label: 'Đang hoạt động' },
+            SoldOut: { className: 'bg-gray-500 text-white', icon: <Package className="w-3 h-3 mr-1" />, label: 'Đã bán hết' },
+            Expired: { className: 'bg-red-500 text-white', icon: <XCircle className="w-3 h-3 mr-1" />, label: 'Đã hết hạn' },
+            Recalled: { className: 'bg-orange-500 text-white', icon: <AlertTriangle className="w-3 h-3 mr-1" />, label: 'Thu hồi' },
         };
         const config = configs[status] || configs.Active;
         return (
             <Badge className={config.className}>
                 {config.icon}
-                {status}
+                {config.label}
             </Badge>
         );
     };
 
     const getProductName = (batch: Batch) => {
-        if (typeof batch.productId === 'string') return 'Unknown Product';
-        return batch.productId?.name || 'Unknown Product';
+        if (typeof batch.productId === 'string') return 'Sản phẩm không xác định';
+        return batch.productId?.name || 'Sản phẩm không xác định';
     };
 
     const getProductSku = (batch: Batch) => {
@@ -128,7 +128,7 @@ const BatchesPage = () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Loading batches...</span>
+                <span className="ml-2 text-muted-foreground">Đang tải lô sản xuất...</span>
             </div>
         );
     }
@@ -138,18 +138,22 @@ const BatchesPage = () => {
             <div className="space-y-6">
                 <Button
                     variant="outline"
-                    onClick={() =>
-                        user?.role === 'KitchenStaff'
-                            ? navigate('/kitchen/production')
-                            : navigate('/manager/production')
-                    }
+                    onClick={() => {
+                        if (user?.role === 'KitchenStaff') {
+                            navigate('/kitchen/production');
+                        } else if (user?.role === 'Coordinator') {
+                            navigate('/coordinator/production');
+                        } else {
+                            navigate('/manager/production');
+                        }
+                    }}
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Production
+                    Quay lại kế hoạch sản xuất
                 </Button>
                 <Card>
                     <CardContent className="p-6">
-                        <ErrorState title="Failed to Load Batches" message={error} onRetry={fetchBatches} />
+                        <ErrorState title="Không thể tải danh sách lô" message={error} onRetry={fetchBatches} />
                     </CardContent>
                 </Card>
             </div>
@@ -162,17 +166,21 @@ const BatchesPage = () => {
                 <div className="flex items-center gap-4">
                     <Button
                         variant="outline"
-                        onClick={() =>
-                            user?.role === 'KitchenStaff'
-                                ? navigate('/kitchen/production')
-                                : navigate('/manager/production')
-                        }
+                        onClick={() => {
+                            if (user?.role === 'KitchenStaff') {
+                                navigate('/kitchen/production');
+                            } else if (user?.role === 'Coordinator') {
+                                navigate('/coordinator/production');
+                            } else {
+                                navigate('/manager/production');
+                            }
+                        }}
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
+                        Quay lại
                     </Button>
                     <div>
-                        <p className="text-muted-foreground">Manage finished product batches</p>
+                        <p className="text-muted-foreground">Quản lý các lô sản phẩm thành phẩm</p>
                     </div>
                 </div>
             </div>
@@ -185,7 +193,7 @@ const BatchesPage = () => {
                                 <Package className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Total Batches</p>
+                                <p className="text-xs text-muted-foreground">Tổng số lô</p>
                                 <p className="text-xl font-bold">{stats.total}</p>
                             </div>
                         </div>
@@ -198,7 +206,7 @@ const BatchesPage = () => {
                                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Active</p>
+                                <p className="text-xs text-muted-foreground">Đang hoạt động</p>
                                 <p className="text-xl font-bold text-green-600">{stats.active}</p>
                             </div>
                         </div>
@@ -211,7 +219,7 @@ const BatchesPage = () => {
                                 <AlertTriangle className="w-5 h-5 text-orange-600" />
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Expiring Soon</p>
+                                <p className="text-xs text-muted-foreground">Sắp hết hạn</p>
                                 <p className="text-xl font-bold text-orange-600">{stats.expiring}</p>
                             </div>
                         </div>
@@ -224,7 +232,7 @@ const BatchesPage = () => {
                                 <Package className="w-5 h-5 text-purple-600" />
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Total Units</p>
+                                <p className="text-xs text-muted-foreground">Tổng số đơn vị</p>
                                 <p className="text-xl font-bold">{stats.totalQuantity}</p>
                             </div>
                         </div>
@@ -238,7 +246,7 @@ const BatchesPage = () => {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by batch code, product name, or SKU..."
+                                placeholder="Tìm theo mã lô, tên sản phẩm hoặc SKU..."
                                 className="pl-10"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -251,7 +259,7 @@ const BatchesPage = () => {
                                 value={selectedProduct}
                                 onChange={(e) => setSelectedProduct(e.target.value)}
                             >
-                                <option value="">All Products</option>
+                                <option value="">Tất cả sản phẩm</option>
                                 {products.map((product) => (
                                     <option key={product._id} value={product._id}>
                                         {product.name} ({product.sku})
@@ -265,16 +273,16 @@ const BatchesPage = () => {
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4 bg-transparent p-0">
                             <TabsTrigger value="all" className="text-xs">
-                                All ({stats.total})
+                                Tất cả ({stats.total})
                             </TabsTrigger>
                             <TabsTrigger value="Active" className="text-xs">
-                                Active ({stats.active})
+                                Đang hoạt động ({stats.active})
                             </TabsTrigger>
                             <TabsTrigger value="expiring" className="text-xs">
-                                Expiring ({stats.expiring})
+                                Sắp hết hạn ({stats.expiring})
                             </TabsTrigger>
                             <TabsTrigger value="SoldOut" className="text-xs">
-                                Sold Out
+                                Hết hàng
                             </TabsTrigger>
                         </TabsList>
 
@@ -319,8 +327,8 @@ const BatchesPage = () => {
                                     {tabBatches.length === 0 ? (
                                         <EmptyState
                                             icon={Package}
-                                            title="No Batches Found"
-                                            message={searchQuery ? 'Try a different search term' : 'No batches in this category'}
+                                            title="Không tìm thấy lô nào"
+                                            message={searchQuery ? 'Hãy thử từ khoá khác' : 'Không có lô trong nhóm này'}
                                         />
                                     ) : (
                                         <div className="space-y-3 mt-4">
@@ -362,13 +370,13 @@ const BatchesPage = () => {
                                                             {isExpiringSoon && !isExpired && (
                                                                 <Badge className="bg-orange-500 text-white">
                                                                     <Clock className="w-3 h-3 mr-1" />
-                                                                    {daysUntilExpiry}d left
+                                                                    Còn {daysUntilExpiry} ngày
                                                                 </Badge>
                                                             )}
                                                             {isExpired && (
                                                                 <Badge className="bg-red-500 text-white">
                                                                     <XCircle className="w-3 h-3 mr-1" />
-                                                                    Expired
+                                                                    Đã hết hạn
                                                                 </Badge>
                                                             )}
                                                         </div>
@@ -376,19 +384,19 @@ const BatchesPage = () => {
 
                                                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
                                                         <div>
-                                                            <p className="text-muted-foreground">Initial</p>
+                                                            <p className="text-muted-foreground">Số lượng ban đầu</p>
                                                             <p className="font-semibold">{batch.initialQuantity}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-muted-foreground">Current</p>
+                                                            <p className="text-muted-foreground">Số lượng hiện tại</p>
                                                             <p className="font-semibold text-primary">{batch.currentQuantity}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-muted-foreground">MFG Date</p>
+                                                            <p className="text-muted-foreground">Ngày sản xuất</p>
                                                             <p className="font-semibold">{new Date(batch.mfgDate).toLocaleDateString()}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-muted-foreground">EXP Date</p>
+                                                            <p className="text-muted-foreground">Hạn sử dụng</p>
                                                             <p className={`font-semibold ${isExpired ? 'text-red-500' : isExpiringSoon ? 'text-orange-500' : ''}`}>
                                                                 {new Date(batch.expDate).toLocaleDateString()}
                                                             </p>
@@ -415,13 +423,15 @@ const BatchesPage = () => {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() =>
-                                                                    navigate(
-                                                                        user?.role === 'KitchenStaff'
-                                                                            ? `/kitchen/production/batches/${batch._id}`
-                                                                            : `/manager/production/batches/${batch._id}`
-                                                                    )
-                                                                }
+                                                                onClick={() => {
+                                                                    if (user?.role === 'KitchenStaff') {
+                                                                        navigate(`/kitchen/production/batches/${batch._id}`);
+                                                                    } else if (user?.role === 'Coordinator') {
+                                                                        navigate(`/coordinator/production/batches/${batch._id}`);
+                                                                    } else {
+                                                                        navigate(`/manager/production/batches/${batch._id}`);
+                                                                    }
+                                                                }}
                                                                 title="View Details"
                                                             >
                                                                 <Eye className="w-4 h-4" />

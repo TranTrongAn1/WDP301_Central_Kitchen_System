@@ -13,8 +13,8 @@ import { useThemeStore } from '@/shared/zustand/themeStore';
 import { AppLogo } from '@/shared/components/AppLogo';
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
+  username: z.string().min(1, 'Vui lòng nhập tên đăng nhập'),
+  password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -46,12 +46,12 @@ const LoginForm = () => {
         const { user, token } = response;
         setAuth(user, token);
 
-        toast.success(response.message || 'Login successful!', { id: toastId });
+        toast.success(response.message || 'Đăng nhập thành công!', { id: toastId });
 
         const redirectRoute = getRedirectRoute();
         navigate(redirectRoute, { replace: true });
       } else {
-        toast.error(response.message || 'Login failed', { id: toastId });
+        toast.error(response.message || 'Đăng nhập thất bại', { id: toastId });
       }
     } catch (error: any) {
       const status = error.response?.status;
@@ -103,11 +103,13 @@ const LoginForm = () => {
         <form className="flex flex-col gap-5" onSubmit={handleSubmit(onSubmit)}>
           {/* Form inputs */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="username">Username</label>
+            <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="username">
+              Tên đăng nhập
+            </label>
             <input
               id="username"
               className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-12 px-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.username ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'}`}
-              placeholder="Enter your username"
+              placeholder="Nhập tên đăng nhập"
               type="text"
               {...register('username')}
               disabled={isLoading}
@@ -116,12 +118,14 @@ const LoginForm = () => {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="password">Password</label>
+            <label className="text-foreground text-sm font-medium leading-normal pl-1" htmlFor="password">
+              Mật khẩu
+            </label>
             <div className="relative flex w-full items-center">
               <input
                 id="password"
                 className={`flex w-full rounded-lg border bg-white/60 dark:bg-white/5 backdrop-blur-sm h-12 pl-4 pr-12 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 shadow-sm ${errors.password ? 'border-red-500 focus:ring-red-500/50' : 'border-border focus:border-primary'}`}
-                placeholder="Enter your password"
+                placeholder="Nhập mật khẩu"
                 type={showPassword ? 'text' : 'password'}
                 {...register('password')}
                 disabled={isLoading}
@@ -139,7 +143,9 @@ const LoginForm = () => {
           </div>
 
           <div className="flex justify-end">
-            <a className="text-primary text-sm font-medium hover:text-orange-600 transition-colors hover:underline cursor-pointer" href="#">Forgot Password?</a>
+            <a className="text-primary text-sm font-medium hover:text-orange-600 transition-colors hover:underline cursor-pointer" href="#">
+              Quên mật khẩu?
+            </a>
           </div>
 
           <button
@@ -153,11 +159,11 @@ const LoginForm = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Signing in...
+                Đang đăng nhập...
               </span>
             ) : (
               <>
-                <span>Sign In</span>
+                <span>Đăng nhập</span>
                 <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
               </>
             )}
@@ -165,8 +171,10 @@ const LoginForm = () => {
         </form>
 
         <div className="flex items-center justify-center gap-2 pt-2">
-          <p className="text-muted-foreground text-sm">Not a staff member?</p>
-          <a className="text-foreground text-sm font-semibold hover:text-primary transition-colors cursor-pointer" href="#">Contact Admin</a>
+          <p className="text-muted-foreground text-sm">Chưa có tài khoản nội bộ?</p>
+          <a className="text-foreground text-sm font-semibold hover:text-primary transition-colors cursor-pointer" href="#">
+            Liên hệ quản trị viên
+          </a>
         </div>
       </div>
     </div>

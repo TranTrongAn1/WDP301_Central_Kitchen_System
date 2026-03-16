@@ -8,22 +8,21 @@ export const HeroSection = () => {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
           <div className="flex flex-col items-start text-left space-y-8">
             <h1 className="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight">
-              <span className="text-foreground">Freshly Baked</span>
+              <span className="text-foreground">Bánh mới ra lò,</span>
               <br />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-amber-500">
-                Happiness.
+                niềm vui mỗi ngày.
               </span>
             </h1>
 
             <p className="text-lg text-muted-foreground max-w-lg leading-relaxed font-light">
-              Experience the art of premium baking with Kendo. Where traditional
-              craftsmanship meets modern taste, delivered fresh to your hands
-              every single day.
+              Trải nghiệm nghệ thuật làm bánh chuẩn Kendo: quy trình chuẩn hoá
+              hiện đại, hương vị đồng nhất, được giao tươi mới tới tay bạn mỗi ngày.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-4">
               <button className="flex items-center gap-2 h-14 px-8 rounded-full bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1 transition-all duration-300">
-                <span>Order Now</span>
+                <span>Đặt hàng ngay</span>
                 <span className="material-symbols-outlined text-[20px]">
                   arrow_forward
                 </span>
@@ -32,7 +31,7 @@ export const HeroSection = () => {
                 <span className="material-symbols-outlined text-[20px] text-muted-foreground">
                   play_circle
                 </span>
-                <span>Watch Video</span>
+                <span>Xem video giới thiệu</span>
               </button>
             </div>
           </div>
@@ -62,10 +61,10 @@ export const HeroSection = () => {
                 />
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">
-                    Bestseller
+                    Bán chạy nhất
                   </p>
                   <p className="text-sm font-bold text-foreground">
-                    Golden Croissant
+                    Croissant bơ vàng
                   </p>
                 </div>
                 <span className="ml-2 text-primary font-bold text-sm">
@@ -84,10 +83,10 @@ export const HeroSection = () => {
                 </span>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">
-                    Ingredients
+                    Nguyên liệu
                   </p>
                   <p className="text-sm font-bold text-foreground">
-                    100% Organic
+                    100% hữu cơ
                   </p>
                 </div>
               </div>
