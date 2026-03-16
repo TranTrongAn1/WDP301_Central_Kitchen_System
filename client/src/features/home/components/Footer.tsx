@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AppLogo } from '@/shared/components/AppLogo';
 
 export const Footer = () => {
   return (
@@ -8,12 +9,7 @@ export const Footer = () => {
           {}
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-primary text-2xl">
-                bakery_dining
-              </span>
-              <h3 className="text-lg font-bold text-foreground">
-                Kendo<span className="text-primary">Bakery</span>
-              </h3>
+              <AppLogo />
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Baking happiness since 2010. We bring the warmth of the oven

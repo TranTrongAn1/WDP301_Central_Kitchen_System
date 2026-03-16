@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const {
   createPaymentLink,
+  createDepositLink,
   handlePayOSWebhook,
   depositToWallet,
   payWithWallet,
   getWalletBalance,
+  getDepositRequests,
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -15,6 +17,13 @@ const { protect, authorize } = require('../middleware/authMiddleware');
  * @access  Private (requires authentication)
  */
 router.post('/create-link', protect, createPaymentLink);
+
+/**
+ * @route   POST /api/payments/deposit-link
+ * @desc    Create PayOS payment link for wallet top-up
+ * @access  Private (requires authentication)
+ */
+router.post('/deposit-link', protect, createDepositLink);
 
 /**
  * @route   POST /api/payments/webhook
@@ -43,5 +52,7 @@ router.post('/pay-with-wallet', protect, payWithWallet);
  * @access  Private (Store staff/Admin)
  */
 router.get('/wallet/:storeId', protect, getWalletBalance);
+
+router.get('/deposit-requests', protect, getDepositRequests);
 
 module.exports = router;

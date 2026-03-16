@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { AppLogo } from '@/shared/components/AppLogo';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,33 +19,7 @@ export const Header = () => {
         <div className="flex justify-between items-center h-20">
           {}
           <Link to="/" className="flex items-center gap-3 cursor-pointer group">
-            <div
-              className={`p-2.5 rounded-xl transition-all duration-300 ${
-                darkMode
-                  ? 'bg-primary/20 group-hover:bg-primary/30'
-                  : 'bg-primary/10 group-hover:bg-primary/20'
-              }`}
-            >
-              <span className="material-symbols-outlined text-primary text-[28px]">
-                bakery_dining
-              </span>
-            </div>
-            <div>
-              <h1
-                className={`text-xl font-bold tracking-tight ${
-                  darkMode ? 'text-foreground' : 'text-foreground'
-                }`}
-              >
-                Kendo<span className="text-primary">Bakery</span>
-              </h1>
-              <p
-                className={`text-[10px] uppercase tracking-[0.2em] font-semibold ${
-                  darkMode ? 'text-muted-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                Premium Bakes
-              </p>
-            </div>
+            <AppLogo />
           </Link>
 
           {}

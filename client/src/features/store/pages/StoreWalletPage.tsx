@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ArrowUpRight, ArrowDownRight, Loader2, RefreshCw } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownRight, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { paymentApi } from '@/api/PaymentApi';
 import type { WalletInfo } from '@/api/PaymentApi';
 import { useAuthStore } from '@/shared/zustand/authStore';
@@ -57,25 +57,32 @@ export default function StoreWalletPage() {
         try {
             const storeId = (user as any)?.storeId?._id || (user as any)?.storeId || '';
             const before = wallet?.balance ?? 0;
-            const res = await paymentApi.deposit({ storeId, amount });
-            // apiClient đã trả response.data; wallet mới (nếu BE trả) thường nằm ở res.data
-            const maybeWallet = (res as any)?.data;
-            if (maybeWallet && typeof maybeWallet.balance === 'number') {
-                setWallet(maybeWallet as WalletInfo);
+
+            // Tạo PayOS checkout link cho nạp ví
+            const res = await paymentApi.createDepositLink({ storeId, amount });
+            const url =
+                (res as any)?.data?.checkoutUrl ??
+                (res as any)?.data?.checkout_url ??
+                (res as any)?.checkoutUrl;
+            if (!url) {
+                toast.error('Không thể tạo link thanh toán PayOS');
+                return;
             }
+
+            window.open(url, '_blank', 'noopener,noreferrer');
             setShowDeposit(false);
             setDepositAmount('');
-            // Nếu chưa thấy cập nhật ngay, poll thêm vài lần (trường hợp BE cập nhật async)
+
+            // Poll ví sau khi mở PayOS, cho đến khi số dư thay đổi hoặc timeout
             const changed = await pollWalletUntilChanged(storeId, before);
             if (changed) {
                 toast.success('Nạp ví thành công');
             } else {
-                toast.success('Đã gửi yêu cầu nạp tiền (đang chờ hệ thống xác nhận)');
-                // vẫn refetch lần nữa để đồng bộ UI
+                toast.success('Đã tạo yêu cầu nạp tiền, vui lòng hoàn tất thanh toán trên PayOS. Số dư sẽ được cập nhật sau ít phút.');
                 await fetchWallet();
             }
         } catch {
-            toast.error('Không thể tạo yêu cầu nạp tiền');
+            toast.error('Không thể tạo link thanh toán PayOS');
         } finally {
             setDepositing(false);
         }
@@ -182,7 +189,14 @@ export default function StoreWalletPage() {
                                         'px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium transition-colors hover:bg-primary/90 disabled:opacity-50',
                                     )}
                                 >
-                                    {depositing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Nạp'}
+                                    {depositing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1">
+                                            Mở PayOS
+                                            <ExternalLink className="h-3 w-3" />
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                             <div className="flex gap-2 mt-3">

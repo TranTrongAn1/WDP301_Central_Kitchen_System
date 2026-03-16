@@ -6,6 +6,7 @@ import { useAuthStore } from "@/shared/zustand/authStore";
 import { authApi } from "@/api/AuthApi";
 import { useThemeStore } from "@/shared/zustand/themeStore";
 import { cn } from "@/shared/lib/utils";
+import { AppLogo } from "@/shared/components/AppLogo";
 import {
   Sun,
   Moon,
@@ -134,13 +135,16 @@ export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex flex-col">
-          <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tight text-foreground">
-            {pageName?.name}
-          </h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
-            {pageName?.title}
-          </p>
+        <div className="flex items-center gap-4">
+          <AppLogo className="hidden sm:flex" />
+          <div className="flex flex-col">
+            <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tight text-foreground">
+              {pageName?.name}
+            </h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
+              {pageName?.title}
+            </p>
+          </div>
         </div>
       </div>
 

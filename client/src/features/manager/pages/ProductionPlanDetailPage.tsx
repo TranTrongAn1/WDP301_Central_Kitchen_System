@@ -90,10 +90,26 @@ const ProductionPlanDetailPage = () => {
     };
 
     const getProductInfo = (detail: ProductionPlanDetail) => {
-        if (typeof detail.productId === 'string') {
-            return { name: 'Unknown Product', sku: detail.productId, price: 0, shelfLifeDays: 0 };
+        if (!detail.productId || typeof detail.productId === 'string') {
+            return {
+                name: 'Unknown Product',
+                sku: typeof detail.productId === 'string' ? detail.productId : '',
+                price: 0,
+                shelfLifeDays: 0,
+            };
         }
-        return detail.productId;
+        const product = detail.productId as {
+            name?: string;
+            sku?: string;
+            price?: number;
+            shelfLifeDays?: number;
+        };
+        return {
+            name: product.name || 'Unknown Product',
+            sku: product.sku || '',
+            price: product.price ?? 0,
+            shelfLifeDays: product.shelfLifeDays ?? 0,
+        };
     };
 
     const openCompleteModal = (detail: ProductionPlanDetail) => {
@@ -131,8 +147,8 @@ const ProductionPlanDetailPage = () => {
     const handleCompleteItem = async () => {
         if (!id || !selectedDetail) return;
 
-        const productId = typeof selectedDetail.productId === 'string'
-            ? selectedDetail.productId
+        const productId = !selectedDetail.productId || typeof selectedDetail.productId === 'string'
+            ? (selectedDetail.productId as string)
             : selectedDetail.productId._id;
 
         const payloadUsed = usedIngredients
@@ -499,7 +515,7 @@ const ProductionPlanDetailPage = () => {
                         </div>
                     )}
                     <div className="grid gap-6 md:grid-cols-[1fr,1.6fr]">
-                        <div className="space-y-3">
+                            <div className="space-y-3">
                             <label className="text-sm font-medium block">
                                 Số lượng thành phẩm thực tế
                                 <span className="block text-[11px] font-normal text-muted-foreground">
@@ -570,37 +586,52 @@ const ProductionPlanDetailPage = () => {
                                                 <SelectTrigger className="h-9 text-xs">
                                                     <SelectValue placeholder="Chọn batch nguyên liệu" />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent position="popper" side="bottom" align="start" className="max-h-64">
                                                     {ingredientBatches.map((b) => (
                                                         <SelectItem key={b._id} value={b._id}>
                                                             <div className="flex flex-col text-[11px]">
                                                                 <span className="font-medium">
-                                                                    {b.ingredientId.ingredientName}
+                                                                    {typeof b.ingredientId === 'string'
+                                                                        ? b.ingredientId
+                                                                        : b.ingredientId.ingredientName}
                                                                 </span>
                                                                 <span className="text-muted-foreground">
                                                                     Batch {b.batchCode} • {b.currentQuantity}{' '}
-                                                                    {b.ingredientId.unit}
+                                                                    {typeof b.ingredientId === 'string'
+                                                                        ? ''
+                                                                        : b.ingredientId.unit}
                                                                 </span>
                                                             </div>
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                className="h-9 text-xs"
-                                                value={row.quantityUsed}
-                                                onChange={(e) => {
-                                                    const value = Number(e.target.value) || 0;
-                                                    setUsedIngredients((prev) =>
-                                                        prev.map((u, i) =>
-                                                            i === index ? { ...u, quantityUsed: value } : u
-                                                        )
-                                                    );
-                                                }}
-                                                placeholder="Số lượng sử dụng (theo đơn vị của batch)"
-                                            />
+                                            <div className="flex items-center gap-1">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    className="h-9 text-xs"
+                                                    value={row.quantityUsed}
+                                                    onChange={(e) => {
+                                                        const value = Number(e.target.value) || 0;
+                                                        setUsedIngredients((prev) =>
+                                                            prev.map((u, i) =>
+                                                                i === index ? { ...u, quantityUsed: value } : u
+                                                            )
+                                                        );
+                                                    }}
+                                                    placeholder="Số lượng sử dụng"
+                                                />
+                                                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                                    {(() => {
+                                                        const batch = ingredientBatches.find((b) => b._id === row.ingredientBatchId);
+                                                        if (!batch) return '';
+                                                        return typeof batch.ingredientId === 'string'
+                                                            ? ''
+                                                            : batch.ingredientId.unit || '';
+                                                    })()}
+                                                </span>
+                                            </div>
                                         </div>
                                         <Input
                                             type="text"

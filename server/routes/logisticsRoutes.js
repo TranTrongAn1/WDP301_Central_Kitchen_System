@@ -92,10 +92,10 @@ router.patch(
   removeOrdersFromTrip
 );
 
-// Start shipping process (Coordinator, Manager, Admin)
+// Start shipping process (KitchenStaff, Manager, Admin)
 router.post(
   '/trips/:id/start-shipping',
-  authorize('Coordinator', 'Manager', 'Admin'),
+  authorize('KitchenStaff', 'Manager', 'Admin'),
   startShipping
 );
 

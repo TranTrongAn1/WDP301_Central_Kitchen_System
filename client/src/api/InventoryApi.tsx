@@ -146,7 +146,7 @@ export const ingredientApi = {
 
 export const inventoryApi = {
     getByStore: (storeId: string, params?: { productId?: string; lowStock?: boolean }) =>
-        apiClient.get<StoreInventoryResponse>(`/inventory/store/${storeId}`, { params }),
+        apiClient.get<StoreInventoryResponse>(`/inventory/store/${encodeURIComponent(storeId)}`, { params }),
 
     getAll: () =>
         apiClient.get<AllInventoryResponse>('/inventory/all'),

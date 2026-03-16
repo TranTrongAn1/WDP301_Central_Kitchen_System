@@ -3,13 +3,14 @@ import apiClient from './Client';
 export interface WalletTransaction {
   _id: string;
   amount: number;
-  type: 'Deposit' | 'Payment' | 'Adjustment';
+  type: 'Deposit' | 'Withdrawal' | 'Refund' | 'Payment';
   description?: string;
   orderId?: string;
   createdAt: string;
 }
 
 export interface WalletInfo {
+  id: string;
   storeId: string;
   balance: number;
   status: 'Active' | 'Locked';
@@ -24,15 +25,18 @@ export interface DepositRequest {
 }
 
 export interface PayWithWalletRequest {
-  storeId: string;
   invoiceId: string;
-  amount: number;
 }
 
 export interface CreatePayOSLinkRequest {
   invoiceId: string;
-  returnUrl: string;
-  cancelUrl: string;
+  returnUrl?: string;
+  cancelUrl?: string;
+}
+
+export interface CreateDepositLinkRequest {
+  storeId: string;
+  amount: number;
 }
 
 export interface ApiResponse<T> {
@@ -58,6 +62,7 @@ export const paymentApi = {
     if (!wallet || typeof wallet.balance !== 'number') return null;
 
     return {
+      id: wallet.id,
       storeId: wallet.storeId,
       balance: wallet.balance,
       status: wallet.status,
@@ -66,16 +71,28 @@ export const paymentApi = {
     };
   },
 
+  /** Admin top-up ví store: POST /api/payment/deposit */
   deposit: (payload: DepositRequest) =>
-    apiClient.post<ApiResponse<WalletInfo>>(`${BASE}/deposit`, payload),
+    apiClient.post<ApiResponse<{ wallet: WalletInfo; transaction: WalletTransaction }>>(
+      `${BASE}/deposit`,
+      payload
+    ),
 
+  /** Thanh toán invoice bằng ví: POST /api/payment/pay-with-wallet */
   payWithWallet: (payload: PayWithWalletRequest) =>
     apiClient.post<ApiResponse<unknown>>(`${BASE}/pay-with-wallet`, payload),
 
+  /** Tạo PayOS link cho invoice: POST /api/payment/create-link */
   createPayOSLink: (payload: CreatePayOSLinkRequest) =>
-    apiClient.post<ApiResponse<{ checkoutUrl: string }>>(
+    apiClient.post<ApiResponse<{ checkoutUrl: string; qrCode?: string }>>(
       `${BASE}/create-link`,
       payload
     ),
+
+  /** Tạo PayOS link nạp ví: POST /api/payment/deposit-link */
+  createDepositLink: (payload: CreateDepositLinkRequest) =>
+    apiClient.post<
+      ApiResponse<{ checkoutUrl: string; qrCode: string; amount: number; storeId: string }>
+    >(`${BASE}/deposit-link`, payload),
 };
 

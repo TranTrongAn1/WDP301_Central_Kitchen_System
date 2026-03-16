@@ -33,6 +33,7 @@ const ProductionPlansPage = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
     const [planCode, setPlanCode] = useState('');
+    const [planName, setPlanName] = useState('');
     const [planDate, setPlanDate] = useState('');
     const [note, setNote] = useState('');
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -178,7 +179,7 @@ const ProductionPlansPage = () => {
             const payload: CreateProductionPlanRequest = {
                 planCode,
                 planDate: planDate ? new Date(planDate).toISOString() : new Date().toISOString(),
-                note,
+                note: planName ? `[${planName}] ${note}`.trim() : note,
                 orderIds: selectedOrderIds,
             };
             await productionPlanApi.create(payload);
@@ -201,6 +202,7 @@ const ProductionPlansPage = () => {
 
     const resetCreateForm = () => {
         setPlanCode('');
+        setPlanName('');
         setPlanDate('');
         setNote('');
         setSelectedOrderIds([]);
@@ -213,6 +215,14 @@ const ProductionPlansPage = () => {
 
     const openCreateModal = () => {
         setIsCreateModalOpen(true);
+        if (!planCode) {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const suffix = String(Math.floor(Math.random() * 900) + 100);
+            setPlanCode(`PLAN-${y}${m}${d}-${suffix}`);
+        }
     };
 
     const viewPlan = (planId: string, e: React.MouseEvent) => {
@@ -580,6 +590,7 @@ const ProductionPlansPage = () => {
                                 createLoading ||
                                 !canCreatePlan ||
                                 !planCode ||
+                                !planName ||
                                 selectedOrderIds.length === 0
                             }
                         >
@@ -590,11 +601,19 @@ const ProductionPlansPage = () => {
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium mb-1 block">Plan Code *</label>
+                        <label className="text-sm font-medium mb-1 block">Plan Name *</label>
+                        <Input
+                            placeholder="e.g. Morning Production Plan"
+                            value={planName}
+                            onChange={(e) => setPlanName(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1 block">Plan Code (auto-generated)</label>
                         <Input
                             placeholder="e.g. PLAN-20260202-001"
+                            disabled
                             value={planCode}
-                            onChange={(e) => setPlanCode(e.target.value)}
                         />
                     </div>
                     <div>
@@ -618,9 +637,8 @@ const ProductionPlansPage = () => {
                     <div className="border-t pt-4 space-y-3">
                         <h4 className="font-medium mb-1">Approved Orders to Include</h4>
                         <p className="text-xs text-muted-foreground">
-                            Chọn các đơn hàng đang ở trạng thái <strong>Approved</strong> để gom vào kế hoạch sản xuất.
-                            Backend sẽ tự gộp số lượng theo sản phẩm và áp dụng giới hạn năng lực bếp
-                            {maxProductsPerPlan ? ` (tối đa khoảng ${maxProductsPerPlan} sản phẩm cho 1 plan).` : '.'}
+                            Chọn các đơn hàng <strong>đã duyệt</strong> để đưa vào kế hoạch sản xuất
+                            {maxProductsPerPlan ? ` (tối đa khoảng ${maxProductsPerPlan} sản phẩm cho 1 kế hoạch).` : '.'}
                         </p>
 
                         {approvedOrders.length === 0 ? (
