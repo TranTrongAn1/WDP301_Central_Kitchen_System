@@ -242,12 +242,15 @@ const handlePayOSWebhook = async (req, res) => {
     const invoice = await Invoice.findOne({ payosOrderCode: numericOrderCode });
     if (invoice) {
       if (invoice.paymentStatus !== 'Paid') {
-        invoice.paymentStatus = 'Paid';
-        invoice.paidAmount = amount || invoice.totalAmount;
-        invoice.paymentDate = new Date();
-        invoice.paymentMethod = 'PayOS';
-        await invoice.save();
-        console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
+        try {
+          invoice.paymentStatus = 'Paid';
+          invoice.paidAmount = amount || invoice.totalAmount;
+          invoice.paymentDate = new Date();
+          await invoice.save();
+          console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
+        } catch (error) {
+          console.error('❌ Error saving Invoice:', error.message);
+        }
       }
       return res.json({ success: true });
     }
