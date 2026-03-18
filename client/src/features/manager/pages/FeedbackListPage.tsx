@@ -12,12 +12,9 @@ import {
   TableRow,
 } from '../components/ui/Table';
 import { feedbackApi, type Feedback } from '@/api/FeedbackApi';
-import { useAuthStore } from '@/shared/zustand/authStore';
 
 export default function FeedbackListPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'Admin';
 
   const [list, setList] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,8 +53,9 @@ export default function FeedbackListPage() {
       ? (fb.createdBy as any).fullName || (fb.createdBy as any).email || '—'
       : '—';
 
-  const ordersPath = isAdmin ? '/admin/orders' : '/coordinator/orders';
-  const orderDetailPath = isAdmin ? '/admin/orders' : '/coordinator/orders';
+  // App hiện không có route `/admin/orders`, Admin/Manager đều xem đơn qua module Coordinator.
+  const ordersPath = '/coordinator/orders';
+  const orderDetailPath = '/coordinator/orders';
 
   if (loading) {
     return (

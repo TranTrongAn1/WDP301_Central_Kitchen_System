@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
+import { invoiceApi, type Invoice } from '@/api/InvoiceApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { StarRating } from '@/shared/components/StarRating';
 import toast from 'react-hot-toast';
@@ -10,6 +11,7 @@ const OrderDetail = () => {
   const navigate = useNavigate();
 
   const [order, setOrder] = useState<OrderType | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,8 @@ const OrderDetail = () => {
         setLoading(true);
         const orderData = await OrderApi.getOrderById(id);
         setOrder(orderData);
+        const inv = await invoiceApi.getFirstByOrderId(id).catch(() => null);
+        setInvoice(inv);
       } catch (err) {
         console.error(err);
         setError('Không thể tải dữ liệu đối chiếu.');
@@ -162,6 +166,16 @@ const OrderDetail = () => {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
+  const getInvoiceShippingFee = (
+    inv: Invoice | null,
+    orderAmount: number
+  ): number | null => {
+    // Backend gộp shipping vào invoice.subtotal: subtotal = totalAmount(order) + shippingCost
+    if (!inv || typeof inv.subtotal !== 'number') return null;
+    const shipping = inv.subtotal - orderAmount;
+    return shipping >= 0 ? shipping : 0;
+  };
+
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('vi-VN', {
       day: '2-digit', month: '2-digit', year: 'numeric',
@@ -222,6 +236,22 @@ const OrderDetail = () => {
       <button onClick={() => navigate(-1)} className="text-blue-500 hover:underline">Quay lại</button>
     </div>
   );
+
+  const orderAmount = order.totalAmount ?? 0;
+  const shippingFee = getInvoiceShippingFee(invoice, orderAmount);
+  const invoiceTotal =
+    typeof invoice?.totalAmount === 'number'
+      ? invoice.totalAmount
+      : typeof invoice?.total === 'number'
+        ? invoice.total
+        : typeof invoice?.subtotal === 'number'
+          ? invoice.subtotal
+          : null;
+  const totalPayable = invoiceTotal ?? (shippingFee != null ? orderAmount + shippingFee : orderAmount);
+  const taxAmount =
+    invoiceTotal != null && shippingFee != null
+      ? Math.max(invoiceTotal - (orderAmount + shippingFee), 0)
+      : null;
 
   return (
     <div className="min-h-screen p-6 animate-in fade-in duration-300">
@@ -372,12 +402,20 @@ const OrderDetail = () => {
             </h3>
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tạm tính:</span>
-                <span className="text-foreground">{formatCurrency(order.totalAmount)}</span>
+                <span className="text-muted-foreground">Tiền hàng:</span>
+                <span className="text-foreground">{formatCurrency(orderAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Phí vận chuyển:</span>
-                <span className="text-foreground">{formatCurrency(0)}</span>
+                <span className="text-foreground">
+                  {shippingFee == null ? '—' : formatCurrency(shippingFee)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Thuế (ước tính):</span>
+                <span className="text-foreground">
+                  {taxAmount == null ? '—' : formatCurrency(taxAmount)}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Hình thức thanh toán:</span>
@@ -392,9 +430,9 @@ const OrderDetail = () => {
             <div className="h-px w-full my-4 border-dashed bg-border"></div>
 
             <div className="flex justify-between items-end">
-              <span className="font-bold text-foreground">Tổng cộng:</span>
+              <span className="font-bold text-foreground">Tổng thanh toán (gồm thuế nếu có):</span>
               <span className="text-2xl font-bold text-amber-500">
-                {formatCurrency(order.totalAmount)}
+                {formatCurrency(totalPayable)}
               </span>
             </div>
 
