@@ -82,6 +82,10 @@ const productSchema = new mongoose.Schema(
         },
       },
     ],
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -103,6 +107,7 @@ productSchema.pre('save', function () {
 // Index for faster queries (sku already has unique index)
 productSchema.index({ categoryId: 1 });
 productSchema.index({ name: 1 });
+productSchema.index({ isActive: 1 });
 
 const Product = mongoose.model('Product', productSchema);
 

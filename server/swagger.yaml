@@ -1087,8 +1087,35 @@ paths:
                   type: string
                 recipe:
                   type: array
+                  description: 'Array of ingredients (for manufactured products)'
+                  items:
+                    type: object
+                    properties:
+                      ingredientId:
+                        type: string
+                      quantity:
+                        type: number
+                        description: 'Quantity per 1 unit of product'
+                  example:
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a2'
+                      quantity: 0.05
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a3'
+                      quantity: 1
                 bundleItems:
                   type: array
+                  description: 'Array of child products (for bundle/combo products)'
+                  items:
+                    type: object
+                    properties:
+                      childProductId:
+                        type: string
+                      quantity:
+                        type: number
+                  example:
+                    - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
+                      quantity: 2
+                isActive:
+                  type: boolean
       responses:
         '200':
           description: Product updated successfully
@@ -1097,8 +1124,8 @@ paths:
     delete:
       tags:
         - Products
-      summary: Delete product
-      description: Cannot delete if product is used in production plans or bundles
+      summary: Soft delete product (deactivate)
+      description: Soft delete a product by setting isActive to false. Cannot deactivate if product is used in production plans or bundles.
       security:
         - BearerAuth: []
       parameters:
@@ -1109,7 +1136,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Product deleted successfully
+          description: Product deactivated successfully
         '400':
           description: Cannot delete - product is in use
         '404':
@@ -1788,6 +1815,11 @@ paths:
             type: string
             enum: [Awaiting_Payment, Payment_Failed, Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
           description: 'Filter orders by their current status (e.g., Received)'
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: 'Filter orders by store ID'
       responses:
         '200':
           description: Successfully retrieved orders
@@ -4747,6 +4779,9 @@ components:
           example:
             - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
               quantity: 2
+        isActive:
+          type: boolean
+          default: true
         createdAt:
           type: string
           format: date-time
