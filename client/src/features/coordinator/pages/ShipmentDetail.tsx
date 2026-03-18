@@ -4,6 +4,7 @@ import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
 import { productApi, type Product } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
+import { systemSettingApi } from '@/api/SystemSettingApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import {
@@ -40,6 +41,7 @@ const ShipmentDetail = () => {
     const [loadingAvailable, setLoadingAvailable] = useState(false);
     const [ingredientSummary, setIngredientSummary] = useState<{ name: string; unit: string; totalQty: number }[]>([]);
     const [totalWeightKg, setTotalWeightKg] = useState(0);
+    const [shippingCostBase, setShippingCostBase] = useState<number>(0);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -78,6 +80,44 @@ const ShipmentDetail = () => {
         fetchDetail();
     }, [id, refreshTrigger]);
 
+    useEffect(() => {
+        // Shipping fee hiện tại là base fee cố định từ System Setting (BE gộp vào invoice.subtotal).
+        let cancelled = false;
+        systemSettingApi
+            .getByKey('SHIPPING_COST_BASE')
+            .then((res) => {
+                if (cancelled) return;
+                const value = res?.data?.value;
+                const num = typeof value === 'string' ? Number.parseFloat(value) : Number.NaN;
+                setShippingCostBase(Number.isFinite(num) ? num : 0);
+            })
+            .catch(() => {
+                if (!cancelled) setShippingCostBase(0);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+
+    const getErrorMessage = (error: unknown, fallback: string) => {
+        if (!error || typeof error !== 'object') return fallback;
+        const e = error as { message?: unknown; response?: unknown };
+        const msg = typeof e.message === 'string' ? e.message : undefined;
+        const response = e.response as { data?: unknown } | undefined;
+        const data = response?.data as { message?: unknown } | undefined;
+        const apiMsg = typeof data?.message === 'string' ? data.message : undefined;
+        return apiMsg || msg || fallback;
+    };
+
+    const unwrapArrayData = <T,>(res: unknown): T[] => {
+        if (Array.isArray(res)) return res as T[];
+        if (res && typeof res === 'object' && 'data' in res) {
+            const data = (res as { data?: unknown }).data;
+            if (Array.isArray(data)) return data as T[];
+        }
+        return [];
+    };
 
     useEffect(() => {
         if (tripOrders.length === 0) {
@@ -92,8 +132,8 @@ const ShipmentDetail = () => {
                     productApi.getAll(),
                     ingredientApi.getAll(),
                 ]);
-                const products: Product[] = (productsRes as any)?.data ?? (Array.isArray(productsRes) ? productsRes : []);
-                const ingredients: Ingredient[] = (ingredientsRes as any)?.data ?? (Array.isArray(ingredientsRes) ? ingredientsRes : []);
+                const products: Product[] = unwrapArrayData<Product>(productsRes);
+                const ingredients: Ingredient[] = unwrapArrayData<Ingredient>(ingredientsRes);
                 const ingMap: Record<string, { name: string; unit: string; totalQty: number }> = {};
                 let totalWeight = 0;
                 const normalizeWeightToKg = (weight?: number, unit?: string): number => {
@@ -107,18 +147,30 @@ const ShipmentDetail = () => {
                 for (const order of tripOrders) {
                     if (!order.items) continue;
                     for (const item of order.items) {
-                        const pid = typeof item.productId === 'object' ? (item.productId as any)?._id : item.productId;
+                        const productObj =
+                            typeof item.productId === 'object' && item.productId
+                                ? (item.productId as { _id?: string })
+                                : undefined;
+                        const pid = productObj?._id ?? item.productId;
                         const product = products.find((p: Product) => p._id === pid);
-                        const qty = item.quantity ?? (item as any).approvedQuantity ?? 0;
+                        const qty =
+                            (item as { quantity?: number; approvedQuantity?: number }).quantity ??
+                            (item as { approvedQuantity?: number }).approvedQuantity ??
+                            0;
 
                         // Cộng khối lượng (dùng weight + weightUnit từ product, mặc định 0.5kg nếu thiếu)
                         const rawWeight = (product as Product | undefined)?.weight ?? 0.5;
-                        const unit = (product as any)?.weightUnit ?? 'kg';
+                        const unit = (product as { weightUnit?: string } | undefined)?.weightUnit ?? 'kg';
                         const weightPerUnitKg = normalizeWeightToKg(rawWeight, unit);
                         totalWeight += weightPerUnitKg * qty;
                         if (!product?.recipe) continue;
                         for (const rec of product.recipe) {
-                            const ingId = typeof rec.ingredientId === 'object' ? (rec.ingredientId as any)?._id : rec.ingredientId;
+                            const ingObj =
+                                typeof rec.ingredientId === 'object' && rec.ingredientId
+                                    ? (rec.ingredientId as { _id?: string })
+                                    : undefined;
+                            const ingIdRaw = ingObj?._id ?? rec.ingredientId;
+                            const ingId = typeof ingIdRaw === 'string' ? ingIdRaw : String(ingIdRaw ?? '');
                             const need = (rec.quantity ?? 0) * qty;
                             const ing = ingredients.find((i: Ingredient) => i._id === ingId);
                             if (!ingMap[ingId]) {
@@ -214,12 +266,8 @@ const ShipmentDetail = () => {
             await DeliveryTripApi.startShipping(id);
             toast.success('Chuyến hàng đã bắt đầu giao (In Transit).');
             setRefreshTrigger((prev) => prev + 1);
-        } catch (error: any) {
-            const message =
-                error?.response?.data?.message ||
-                error?.message ||
-                'Không thể bắt đầu giao hàng.';
-            toast.error(message);
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Không thể bắt đầu giao hàng.'));
         } finally {
             setIsStartingShipping(false);
             setConfirmAction(null);
@@ -239,12 +287,12 @@ const ShipmentDetail = () => {
             } else {
                 toast.error('Lỗi khi gỡ đơn hàng!', { id: toastId });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            const message =
-                error?.response?.data?.message ||
-                'Đã xảy ra lỗi khi gỡ đơn. Nếu chuyến không còn ở trạng thái Planning, hệ thống không cho phép gỡ đơn.';
-            toast.error(message);
+            toast.error(getErrorMessage(
+                error,
+                'Đã xảy ra lỗi khi gỡ đơn. Nếu chuyến không còn ở trạng thái Planning, hệ thống không cho phép gỡ đơn.'
+            ));
         } finally {
             setConfirmAction(null);
         }
@@ -316,9 +364,11 @@ const ShipmentDetail = () => {
 
     const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-    const vehicleType = (trip ? (trip as any).vehicleType : undefined) as
-        | { name?: string; capacity?: number; unit?: 'kg' | 'ton' | 'box' }
-        | undefined;
+    const vehicleType = (
+        trip && typeof trip === 'object' && 'vehicleType' in trip
+            ? (trip as { vehicleType?: unknown }).vehicleType
+            : undefined
+    ) as { name?: string; capacity?: number; unit?: 'kg' | 'ton' | 'box' } | undefined;
 
     const getVehicleCapacityText = () => {
         if (!vehicleType || !vehicleType.capacity || !vehicleType.unit) return 'Chưa gán';
@@ -329,15 +379,59 @@ const ShipmentDetail = () => {
         return `${capacity} ${unit}`;
     };
 
-    const totalItems = useMemo(() => {
+    const totalUnits = useMemo(() => {
         return tripOrders.reduce((sum, order) => {
             if (!order.items || order.items.length === 0) return sum;
-            const orderQty = order.items.reduce((s, item: any) => {
-                const qty = item.quantity ?? item.approvedQuantity ?? 0;
+            const orderQty = order.items.reduce((s, item) => {
+                const qty = (item as { quantity?: number; approvedQuantity?: number }).quantity ??
+                    (item as { approvedQuantity?: number }).approvedQuantity ??
+                    0;
                 return s + qty;
             }, 0);
             return sum + orderQty;
         }, 0);
+    }, [tripOrders]);
+
+    const totalLineItems = useMemo(() => {
+        return tripOrders.reduce((sum, order) => sum + (order.items?.length ?? 0), 0);
+    }, [tripOrders]);
+
+    const storeGroups = useMemo(() => {
+        type Group = {
+            storeKey: string;
+            storeName: string;
+            storeCode?: string;
+            address?: string;
+            orders: typeof tripOrders;
+        };
+
+        const map = new Map<string, Group>();
+
+        tripOrders.forEach((o) => {
+            const storeObj =
+                typeof o.storeId === 'object' && o.storeId
+                    ? (o.storeId as { _id?: string; storeName?: string; storeCode?: string; address?: string })
+                    : undefined;
+            const storeIdKey =
+                storeObj?._id ??
+                (typeof o.storeId === 'string' ? o.storeId : undefined) ??
+                storeObj?.storeCode ??
+                storeObj?.storeName ??
+                o._id;
+
+            const key = String(storeIdKey);
+            const current = map.get(key) ?? {
+                storeKey: key,
+                storeName: storeObj?.storeName ?? (typeof o.storeId === 'string' ? o.storeId.slice(-6).toUpperCase() : 'N/A'),
+                storeCode: storeObj?.storeCode,
+                address: storeObj?.address,
+                orders: [],
+            };
+            current.orders = [...current.orders, o];
+            map.set(key, current);
+        });
+
+        return Array.from(map.values());
     }, [tripOrders]);
 
     const productionPlanSummary = useMemo(() => {
@@ -356,14 +450,24 @@ const ShipmentDetail = () => {
             return weight;
         };
 
-        (trip.orders as any[]).forEach((o) => {
-            const items = Array.isArray(o.items) ? o.items : [];
-            items.forEach((item: any) => {
-                const qty = item.quantity ?? item.approvedQuantity ?? 0;
-                const rawWeight = item.productId?.weight ?? 0;
-                const unit = item.productId?.weightUnit ?? 'kg';
+        (trip.orders as unknown[]).forEach((o) => {
+            const items = (o && typeof o === 'object' && 'items' in o && Array.isArray((o as { items?: unknown }).items))
+                ? ((o as { items: unknown[] }).items)
+                : [];
+
+            items.forEach((item) => {
+                const typed = item as {
+                    quantity?: number;
+                    approvedQuantity?: number;
+                    productId?: { weight?: number; weightUnit?: string };
+                    batchId?: { batchCode?: string; productionPlanId?: { planCode?: string; planDate?: string } };
+                };
+
+                const qty = typed.quantity ?? typed.approvedQuantity ?? 0;
+                const rawWeight = typed.productId?.weight ?? 0;
+                const unit = typed.productId?.weightUnit ?? 'kg';
                 const weightPerUnit = normalizeWeightToKg(rawWeight, unit);
-                const batch = item.batchId;
+                const batch = typed.batchId;
                 const productionPlan = batch?.productionPlanId;
                 const planCode: string =
                     productionPlan?.planCode ??
@@ -387,8 +491,8 @@ const ShipmentDetail = () => {
     const getWeightTextClass = () => {
         if (!vehicleType || !vehicleType.capacity || !vehicleType.unit) return '';
         if (vehicleType.unit === 'box') {
-            if (!totalItems) return '';
-            const ratio = totalItems / vehicleType.capacity;
+            if (!totalUnits) return '';
+            const ratio = totalUnits / vehicleType.capacity;
             if (ratio > 1) return 'text-red-600';
             if (ratio > 0.8) return 'text-amber-600';
             return 'text-emerald-600';
@@ -510,12 +614,8 @@ const ShipmentDetail = () => {
                                             'Đã chuyển chuyến sang trạng thái chờ bốc hàng.'
                                     );
                                     setRefreshTrigger((prev) => prev + 1);
-                                } catch (error: any) {
-                                    const message =
-                                        error?.response?.data?.message ||
-                                        error?.message ||
-                                        'Không thể cập nhật trạng thái chuyến.';
-                                    toast.error(message);
+                                } catch (error: unknown) {
+                                    toast.error(getErrorMessage(error, 'Không thể cập nhật trạng thái chuyến.'));
                                 }
                             }}
                             className="bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-amber-700"
@@ -543,7 +643,7 @@ const ShipmentDetail = () => {
                     </div>
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tổng điểm giao</p>
-                        <p className="text-2xl font-bold text-card-foreground">{tripOrders.length} Cửa hàng</p>
+                        <p className="text-2xl font-bold text-card-foreground">{storeGroups.length} Cửa hàng</p>
                     </div>
                 </div>
                 <div className="p-6 rounded-xl border border-border bg-card flex items-center gap-4">
@@ -551,10 +651,31 @@ const ShipmentDetail = () => {
                         <DollarSign className="w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tổng giá trị hàng</p>
-                        <p className="text-2xl font-bold text-card-foreground">
-                            {formatCurrency(tripOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0))}
-                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Giá trị & phí vận chuyển (ước tính)</p>
+                        {(() => {
+                            const goodsTotal = tripOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+                            const shippingTotal = (shippingCostBase || 0) * tripOrders.length;
+                            const grandTotal = goodsTotal + shippingTotal;
+                            return (
+                                <>
+                                    <p className="text-2xl font-bold text-card-foreground">
+                                        {formatCurrency(goodsTotal)}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Phí vận chuyển (base, chưa gồm thuế):{' '}
+                                        <span className="font-semibold">
+                                            {formatCurrency(shippingTotal)}
+                                        </span>
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Tổng thanh toán (ước tính, chưa gồm thuế):{' '}
+                                        <span className="font-semibold text-primary">
+                                            {formatCurrency(grandTotal)}
+                                        </span>
+                                    </p>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
                 <div className="p-6 rounded-xl border border-border bg-card flex items-center gap-4">
@@ -566,15 +687,27 @@ const ShipmentDetail = () => {
                             Khối lượng vs Sức chở
                         </p>
                         <p className={`text-sm font-bold ${getWeightTextClass()}`}>
-                            {totalWeightKg.toFixed(2)} kg
+                            Khối lượng hàng: {totalWeightKg.toFixed(2)} kg
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                            Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span>
-                            {totalItems > 0 && (
+                            Sức chở xe:{' '}
+                            <span className="font-semibold">{getVehicleCapacityText()}</span>
+                            {getVehicleCapacityText() === 'Chưa gán' && (
                                 <>
-                                    {' '}• Tổng số lượng: <span className="font-semibold">{totalItems}</span>
+                                    {' '}•{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/coordinator/shipments')}
+                                        className="font-semibold text-primary hover:underline"
+                                    >
+                                        Gán xe
+                                    </button>
                                 </>
                             )}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                            Tổng số lượng (sản phẩm): <span className="font-semibold">{totalUnits}</span>
+                            {' '}• Số dòng SP: <span className="font-semibold">{totalLineItems}</span>
                         </p>
                     </div>
                 </div>
@@ -610,16 +743,33 @@ const ShipmentDetail = () => {
                     </p>
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-muted-foreground text-xs">Loại xe</span>
-                        <span className="text-xs font-semibold text-card-foreground">
-                            {(trip as any).vehicleType?.name || 'Chưa gán'}
-                        </span>
+                            <span className="text-xs font-semibold text-card-foreground">
+                                {vehicleType?.name || 'Chưa gán'}
+                            </span>
                     </div>
+                        {!vehicleType?.name && (
+                            <div className="flex items-center justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/coordinator/shipments')}
+                                    className="text-[11px] font-semibold text-primary hover:underline"
+                                >
+                                    Gán xe tại Danh sách chuyến
+                                </button>
+                            </div>
+                        )}
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-muted-foreground text-xs">Dự kiến giao</span>
                         <span className="text-xs text-card-foreground">
-                            {(trip as any).plannedShipDate
-                                ? new Date((trip as any).plannedShipDate as string).toLocaleString('vi-VN')
-                                : 'Chưa đặt'}
+                            {(() => {
+                                const plannedShipDate =
+                                    trip && typeof trip === 'object' && 'plannedShipDate' in trip
+                                        ? (trip as { plannedShipDate?: unknown }).plannedShipDate
+                                        : undefined;
+                                return typeof plannedShipDate === 'string'
+                                    ? new Date(plannedShipDate).toLocaleString('vi-VN')
+                                    : 'Chưa đặt';
+                            })()}
                         </span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
@@ -681,13 +831,13 @@ const ShipmentDetail = () => {
             )}
 
             <h2 className="text-lg font-semibold text-card-foreground mb-6 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-primary" /> Danh sách điểm giao ({tripOrders.length})
+                <Truck className="w-5 h-5 text-primary" /> Danh sách cửa hàng giao ({storeGroups.length})
             </h2>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {tripOrders.map((order, index) => (
+                {storeGroups.map((group, index) => (
                     <div
-                        key={order._id}
+                        key={group.storeKey}
                         className="rounded-xl p-6 border border-border bg-card flex flex-col md:flex-row gap-6 transition-all hover:shadow-md hover:border-primary/20"
                     >
                         <div className="hidden md:flex flex-col items-center justify-center w-16 h-16 rounded-xl font-bold text-xl bg-secondary text-muted-foreground">
@@ -696,96 +846,85 @@ const ShipmentDetail = () => {
                         <div className="flex-1 space-y-4">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Mã đơn hàng</p>
-                                    <p className="text-lg font-semibold text-card-foreground">
-                                        {order.orderCode || order._id.slice(-6).toUpperCase()}
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cửa hàng</p>
+                                    <p className="text-lg font-semibold text-card-foreground truncate">
+                                        {group.storeName}
                                     </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getOrderStatusStyle(order.status)}`}>
-                                        {getOrderStatusLabel(order.status)}
-                                    </span>
-                                    {trip.status === 'Planning' && user?.role !== 'KitchenStaff' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setConfirmAction({ type: 'removeOrder', orderId: order._id })}
-                                            className="p-1.5 rounded-xl transition-colors bg-secondary text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                            title="Gỡ khỏi chuyến xe"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                    {group.address && (
+                                        <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                                            {group.address}
+                                        </p>
                                     )}
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Số đơn</p>
+                                    <p className="text-lg font-semibold text-card-foreground">
+                                        {group.orders.length}
+                                    </p>
                                 </div>
                             </div>
                             <div className="h-px w-full bg-border" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-muted-foreground">
-                                        <MapPin className="w-3 h-3" /> Cửa hàng
-                                    </p>
-                                    <p className="text-sm font-medium truncate mt-1 text-card-foreground">
-                                        {typeof order.storeId === 'object' && order.storeId?.storeName
-                                            ? order.storeId.storeName
-                                            : typeof order.storeId === 'string'
-                                                ? order.storeId.slice(-6).toUpperCase()
-                                                : 'N/A'}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                                        {typeof order.storeId === 'object' && (order.storeId as any)?.address
-                                            ? (order.storeId as any).address
-                                            : ''}
-                                    </p>
-                                </div>
-                                <div className="text-right space-y-1">
-                                    <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Giá trị</p>
-                                        <p className="text-sm font-bold text-primary mt-1">
-                                            {formatCurrency(order.totalAmount || 0)}
-                                        </p>
+                            <div className="space-y-3">
+                                {group.orders.map((order) => (
+                                    <div key={order._id} className="rounded-lg border border-border/60 bg-background/60 p-3 text-xs">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Mã đơn</p>
+                                                <p className="font-mono text-[13px] font-semibold text-card-foreground truncate">
+                                                    {order.orderCode || order._id.slice(-6).toUpperCase()}
+                                                </p>
+                                                {(order.recipientName || order.recipientPhone) && (
+                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                        {order.recipientName || '—'} {order.recipientPhone ? `• ${order.recipientPhone}` : ''}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="text-right shrink-0 space-y-1">
+                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${getOrderStatusStyle(order.status)}`}>
+                                                    {getOrderStatusLabel(order.status)}
+                                                </span>
+                                                <p className="text-[11px] font-bold text-primary">
+                                                    {formatCurrency(order.totalAmount || 0)}
+                                                </p>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Ship (base, chưa gồm thuế): {formatCurrency(shippingCostBase || 0)}
+                                                </p>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Tổng ước tính (chưa gồm thuế):{' '}
+                                                    <span className="font-semibold">
+                                                        {formatCurrency((order.totalAmount || 0) + (shippingCostBase || 0))}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {order.notes && (
+                                            <div className="mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
+                                                <span className="font-semibold">Ghi chú: </span>
+                                                <span>{order.notes}</span>
+                                            </div>
+                                        )}
+
+                                        {trip.status === 'Planning' && user?.role !== 'KitchenStaff' && (
+                                            <div className="mt-2 flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmAction({ type: 'removeOrder', orderId: order._id })}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    title="Gỡ khỏi chuyến xe"
+                                                >
+                                                    <Trash2 className="w-4 h-4" /> Gỡ đơn
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                            Người nhận
-                                        </p>
-                                        <p className="text-xs font-medium text-card-foreground">
-                                            {order.recipientName || '—'}
-                                        </p>
-                                        <p className="text-[11px] text-muted-foreground">
-                                            {order.recipientPhone || ''}
-                                        </p>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
-                            {order.notes && (
-                                <div className="mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
-                                    <span className="font-semibold">Ghi chú đơn hàng: </span>
-                                    <span>{order.notes}</span>
-                                </div>
-                            )}
-                            {order.items && order.items.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-border">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Sản phẩm trong đơn</p>
-                                    <ul className="space-y-1.5 text-xs">
-                                        {order.items.map((item: any, idx: number) => {
-                                            const name = typeof item.productId === 'object' && item.productId?.name
-                                                ? item.productId.name
-                                                : `Sản phẩm #${idx + 1}`;
-                                            const qty = item.quantity ?? item.approvedQuantity ?? 0;
-                                            return (
-                                                <li key={idx} className="flex justify-between gap-2">
-                                                    <span className="text-card-foreground truncate">{name}</span>
-                                                    <span className="font-semibold text-primary shrink-0">× {qty}</span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            )}
                         </div>
                     </div>
                 ))}
 
-                {tripOrders.length === 0 && (
+                {storeGroups.length === 0 && (
                     <div className="col-span-full py-16 text-center rounded-2xl border-2 border-dashed border-border bg-card/50">
                         <p className="text-sm font-medium text-muted-foreground">
                             Không có đơn hàng nào trong chuyến xe này.

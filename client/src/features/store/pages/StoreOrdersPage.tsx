@@ -5,6 +5,7 @@ import { useAuthStore } from '@/shared/zustand/authStore';
 import { OrderApi, type Order, type ReceiveOrderPayload } from '@/api/OrderApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { StarRating } from '@/shared/components/StarRating';
+import { systemSettingApi } from '@/api/SystemSettingApi';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -33,6 +34,7 @@ const StoreOrdersPage = () => {
   >([]);
   const [isReceiving, setIsReceiving] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [shippingCostBase, setShippingCostBase] = useState<number>(0);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -57,6 +59,25 @@ const StoreOrdersPage = () => {
 
     fetchOrders();
   }, [user?.storeId]);
+
+  useEffect(() => {
+    // Lấy phí ship base (SHIPPING_COST_BASE) một lần cho toàn bộ danh sách đơn
+    let cancelled = false;
+    systemSettingApi
+      .getByKey('SHIPPING_COST_BASE')
+      .then((res) => {
+        if (cancelled) return;
+        const raw = res?.data?.value;
+        const num = typeof raw === 'string' ? Number.parseFloat(raw) : Number.NaN;
+        setShippingCostBase(Number.isFinite(num) ? num : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setShippingCostBase(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', {
@@ -383,7 +404,8 @@ const StoreOrdersPage = () => {
                       Số mặt hàng: {order.items?.length ?? 0}
                     </span>
                     <span>
-                      Tổng tiền: {formatCurrency(order.totalAmount ?? 0)}
+                      Tổng thanh toán (ước tính):{' '}
+                      {formatCurrency((order.totalAmount ?? 0) + (shippingCostBase || 0))}
                     </span>
                   </div>
                 </div>

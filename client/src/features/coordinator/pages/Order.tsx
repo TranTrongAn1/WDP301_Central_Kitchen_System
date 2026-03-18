@@ -18,15 +18,15 @@ const Order = () => {
   // State Pagination & Filter
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState<string>('All'); // State lưu trạng thái lọc
+  const [filterDate, setFilterDate] = useState<string>(''); // YYYY-MM-DD (lọc theo ngày giao)
+  const [sortOrder, setSortOrder] = useState<'Newest' | 'Oldest'>('Newest');
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
         const data = await OrderApi.getAllOrders();
-        // Sort mới nhất lên đầu
-        const sortedData = data.sort((a: OrderType, b: OrderType) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setOrders(Array.isArray(sortedData) ? sortedData : []);
+        setOrders(Array.isArray(data) ? data : []);
       } catch (err) {
         setError('Không thể tải danh sách đơn hàng');
       } finally {
@@ -37,14 +37,22 @@ const Order = () => {
   }, []);
 
   // --- LOGIC LỌC (FILTER) ---
-  const filteredOrders = filterStatus === 'All' 
-    ? orders 
-    : orders.filter(order => order.status === filterStatus);
+  const filteredOrders = orders
+    .filter((order) => (filterStatus === 'All' ? true : order.status === filterStatus))
+    .filter((order) => {
+      if (!filterDate) return true;
+      const d = (order.requestedDeliveryDate || '').slice(0, 10);
+      return d === filterDate;
+    })
+    .sort((a: OrderType, b: OrderType) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return sortOrder === 'Newest' ? diff : -diff;
+    });
 
   // Khi thay đổi bộ lọc, tự động reset về trang 1
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterStatus]);
+  }, [filterStatus, filterDate, sortOrder]);
 
   // --- LOGIC PHÂN TRANG (Dùng danh sách ĐÃ LỌC) ---
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
@@ -80,6 +88,8 @@ const Order = () => {
     const s = (status || '').trim();
     switch (s) {
       case 'Pending': return 'bg-amber-500/10 text-amber-600 border-amber-200';
+      case 'Awaiting_Payment': return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
+      case 'Payment_Failed': return 'bg-rose-500/10 text-rose-600 border-rose-200';
       case 'Approved': return 'bg-blue-500/10 text-blue-600 border-blue-200';
       case 'Transferred_To_Kitchen': return 'bg-indigo-500/10 text-indigo-600 border-indigo-200';
       case 'Ready_For_Shipping': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
@@ -95,6 +105,8 @@ const Order = () => {
     const s = (status || '').trim();
     const map: Record<string, string> = {
       Pending: 'Chờ trung tâm duyệt',
+      Awaiting_Payment: 'Chờ thanh toán',
+      Payment_Failed: 'Thanh toán thất bại',
       Approved: 'Đã duyệt',
       Transferred_To_Kitchen: 'Đã chuyển sang bếp chuẩn bị',
       Ready_For_Shipping: 'Trung tâm đã chuẩn bị xong – đang chờ giao',
@@ -123,24 +135,66 @@ const Order = () => {
         <span className="text-sm text-muted-foreground">
           {filteredOrders.length} đơn hàng
         </span>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Trạng thái:</span>
-          <div className="relative">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className={cn(
-                "h-10 min-w-[200px] pl-4 pr-10 py-2 rounded-xl border border-border bg-card text-card-foreground text-sm font-medium transition-colors cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary hover:bg-secondary"
-              )}
-            >
-              <option value="All">Tất cả trạng thái</option>
-              <option value="Pending">Chờ duyệt (Pending)</option>
-              <option value="Approved">Đã duyệt (Approved)</option>
-              <option value="In_Transit">Đang giao (In_Transit)</option>
-              <option value="Received">Đã nhận (Received)</option>
-              <option value="Cancelled">Đã hủy (Cancelled)</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">Trạng thái:</span>
+            <div className="relative">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className={cn(
+                  "h-10 min-w-[200px] pl-4 pr-10 py-2 rounded-xl border border-border bg-card text-card-foreground text-sm font-medium transition-colors cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary hover:bg-secondary"
+                )}
+              >
+                <option value="All">Tất cả trạng thái</option>
+                <option value="Pending">Chờ duyệt (Pending)</option>
+                <option value="Awaiting_Payment">Chờ thanh toán (Awaiting_Payment)</option>
+                <option value="Payment_Failed">Thanh toán lỗi (Payment_Failed)</option>
+                <option value="Approved">Đã duyệt (Approved)</option>
+                <option value="Transferred_To_Kitchen">Đã chuyển bếp (Transferred_To_Kitchen)</option>
+                <option value="Ready_For_Shipping">Sẵn sàng giao (Ready_For_Shipping)</option>
+                <option value="In_Transit">Đang giao (In_Transit)</option>
+                <option value="Received">Đã nhận (Received)</option>
+                <option value="Cancelled">Đã hủy (Cancelled)</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">Ngày giao:</span>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-card px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {filterDate && (
+              <button
+                type="button"
+                onClick={() => setFilterDate('')}
+                className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary"
+              >
+                Xóa ngày
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">Sắp xếp:</span>
+            <div className="relative">
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder((e.target.value as 'Newest' | 'Oldest') || 'Newest')}
+                className={cn(
+                  "h-10 min-w-[160px] pl-4 pr-10 py-2 rounded-xl border border-border bg-card text-card-foreground text-sm font-medium transition-colors cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary hover:bg-secondary"
+                )}
+              >
+                <option value="Newest">Mới nhất</option>
+                <option value="Oldest">Cũ nhất</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>

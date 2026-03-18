@@ -148,6 +148,7 @@ const CreateStoreOrderPage = () => {
         const orderCode = (res.data.order as any)?.orderCode;
         const invoiceNumber = (res.data.invoice as any)?.invoiceNumber;
         const walletPayment = res.data.walletPayment;
+        const invoice = (res.data as any)?.invoice;
 
         let successMessage =
           res.message ||
@@ -157,8 +158,36 @@ const CreateStoreOrderPage = () => {
           successMessage += `\nMã hóa đơn: ${invoiceNumber}`;
         }
 
+        const orderAmount = (res.data.order as any)?.totalAmount;
+        if (typeof orderAmount === 'number') {
+          successMessage += `\nTổng tiền hàng: ${orderAmount.toLocaleString('vi-VN')} VND`;
+        }
+
+        const invoiceShippingFee = (() => {
+          // Backend gộp shipping vào invoice.subtotal: subtotal = totalAmount(order) + shippingCost
+          if (!invoice || typeof invoice !== 'object') return null;
+          const inv = invoice as { subtotal?: unknown };
+          if (typeof inv.subtotal !== 'number') return null;
+          if (typeof orderAmount !== 'number') return null;
+          const shipping = inv.subtotal - orderAmount;
+          return shipping >= 0 ? shipping : 0;
+        })();
+
+        if (typeof invoiceShippingFee === 'number') {
+          successMessage += `\nPhí vận chuyển: ${invoiceShippingFee.toLocaleString('vi-VN')} VND`;
+        }
+
         if (walletPayment && typeof walletPayment.amountPaid === 'number') {
           successMessage += `\nĐã trừ ví cửa hàng: ${walletPayment.amountPaid.toLocaleString('vi-VN')} VND`;
+          if (typeof orderAmount === 'number') {
+            const base = typeof invoiceShippingFee === 'number' ? orderAmount + invoiceShippingFee : orderAmount;
+            const extra = walletPayment.amountPaid - base;
+            if (extra > 0) {
+              successMessage += `\n(Chênh lệch ${extra.toLocaleString('vi-VN')} VND có thể là thuế hoặc phụ phí khác theo hóa đơn)`;
+            } else {
+              successMessage += `\n(Số tiền đã trừ có thể đã bao gồm thuế và các phụ phí khác theo hóa đơn)`;
+            }
+          }
         }
 
         toast.success(successMessage, { id: toastId });
@@ -451,9 +480,14 @@ const CreateStoreOrderPage = () => {
           </div>
 
           <div className="space-y-1 text-right">
-            <p className="text-[11px] text-muted-foreground">Tổng ước tính</p>
+            <p className="text-[11px] text-muted-foreground">
+              Tổng tiền hàng (ước tính)
+            </p>
             <p className="text-base font-bold text-primary">
               {formatCurrency(estimatedTotal)}
+            </p>
+            <p className="text-[10px] text-muted-foreground max-w-[240px] text-right">
+              Số tiền trừ ví (nếu chọn ví) sẽ theo hóa đơn và có thể bao gồm phí vận chuyển/phụ phí.
             </p>
           </div>
         </div>

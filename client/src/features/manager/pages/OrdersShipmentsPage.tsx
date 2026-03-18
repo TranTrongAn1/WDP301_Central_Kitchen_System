@@ -40,6 +40,7 @@ const OrdersShipmentsPage = () => {
   const [maxOrdersPerTrip, setMaxOrdersPerTrip] = useState<number | null>(null);
   const [rejectConfirmOrderId, setRejectConfirmOrderId] = useState<string | null>(null);
   const [createTripConfirmOpen, setCreateTripConfirmOpen] = useState(false);
+  const [shippingCostBase, setShippingCostBase] = useState<number>(0);
 
   const fetchAll = async () => {
     try {
@@ -84,6 +85,25 @@ const OrdersShipmentsPage = () => {
       }
     };
     void fetchLimits();
+  }, []);
+
+  useEffect(() => {
+    // Lấy phí ship base để hiển thị tổng thanh toán ước tính ngay trên card đơn hàng
+    let cancelled = false;
+    systemSettingApi
+      .getByKey('SHIPPING_COST_BASE')
+      .then((res) => {
+        if (cancelled) return;
+        const raw = res?.data?.value;
+        const num = typeof raw === 'string' ? Number.parseFloat(raw) : Number.NaN;
+        setShippingCostBase(Number.isFinite(num) ? num : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setShippingCostBase(0);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleApprove = async (orderId: string) => {
@@ -438,10 +458,10 @@ const OrdersShipmentsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
                             <span className="text-[11px] text-muted-foreground">
-                              Tổng giá trị
+                              Tổng thanh toán (ước tính)
                             </span>
                             <span className="text-base font-bold text-primary">
-                              {formatCurrency(order.totalAmount)}
+                              {formatCurrency((order.totalAmount as number || 0) + (shippingCostBase || 0))}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
