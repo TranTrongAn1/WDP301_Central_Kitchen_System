@@ -50,37 +50,56 @@ export const AccountManagement = () => {
     }
     return 'No Role';
     };
-    // FETCH DATA
-    const fetchData = async () => {
-        try {
-            setIsLoading(true);
-            const [usersData, rolesData, storesData] = await Promise.all([
-                userApi.getAllUsers(),
-                userApi.getAllRoles(),
-                storeApi.getAllStores()
-            ]);
 
-            // Filter out Admin users
-            const filteredUsers = Array.isArray(usersData)
-                ? usersData.filter((user: any) => user.roleId?.roleName !== 'Admin')
-                : [];
-            setUsers(filteredUsers);
-            // Filter out Admin roles from dropdown
-            const rawRoles = Array.isArray(rolesData) ? rolesData : [];
-            const selectableRoles = rawRoles.filter(role => role.roleName !== 'Admin');
-            setRoles(selectableRoles);
+const fetchData = async () => {
+    try {
+        setIsLoading(true);
+        const [usersData, rolesData, storesData] = await Promise.all([
+            userApi.getAllUsers(),
+            userApi.getAllRoles(),
+            storeApi.getAllStores()
+        ]);
 
-            setStores(Array.isArray(storesData) ? storesData : []);
+        const allUsers = Array.isArray(usersData) ? usersData : [];
+        
+        // Lọc Admin ra để hiển thị table
+        const filteredUsers = allUsers.filter((user) => user.roleId?.roleName !== 'Admin');
+        setUsers(filteredUsers);
 
-            if (selectableRoles.length > 0) {
-                setNewUser(prev => ({ ...prev, roleId: selectableRoles[0]._id }));
-            }
-        } catch (error) {
-            console.error("Failed to fetch data", error);
-        } finally {
-            setIsLoading(false);
+        // --- SỬA TẠI ĐÂY: Chỉ tính những user ĐANG HOẠT ĐỘNG ---
+        const activeManager = allUsers.find(u => 
+            u.roleId?.roleName === 'Manager' && u.isActive === true
+        );
+        const activeCoordinator = allUsers.find(u => 
+            u.roleId?.roleName === 'Coordinator' && u.isActive === true
+        );
+
+        const rawRoles = Array.isArray(rolesData) ? rolesData : [];
+        const selectableRoles = rawRoles.filter(role => {
+            if (role.roleName === 'Admin') return false;
+            
+            // Nếu đã có Manager đang hoạt động -> ẩn khỏi dropdown
+            if (role.roleName === 'Manager' && activeManager) return false;
+            
+            // Nếu đã có Coordinator đang hoạt động -> ẩn khỏi dropdown
+            if (role.roleName === 'Coordinator' && activeCoordinator) return false;
+
+            return true;
+        });
+        // -----------------------------------------------------
+
+        setRoles(selectableRoles);
+        setStores(Array.isArray(storesData) ? storesData : []);
+
+        if (selectableRoles.length > 0) {
+            setNewUser(prev => ({ ...prev, roleId: selectableRoles[0]._id }));
         }
-    };
+    } catch (error) {
+        console.error("Failed to fetch data", error);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     useEffect(() => {
         fetchData();
@@ -447,40 +466,89 @@ export const AccountManagement = () => {
                         </div>
 
                         <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-                            {/* Form fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Họ và tên</label>
-                                    <input type="text" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.fullName} onChange={e => setNewUser({ ...newUser, fullName: e.target.value })} />
+                                    <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Họ và tên</label>
+                                    <input 
+                                        type="text" 
+                                        required 
+                                        placeholder="Nhập họ và tên"
+                                        className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                                        value={newUser.fullName} 
+                                        onChange={e => setNewUser({ ...newUser, fullName: e.target.value })} 
+                                    />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Tên đăng nhập</label>
-                                    <input type="text" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} />
+                                    <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Tên đăng nhập</label>
+                                    <input 
+                                        type="text" 
+                                        required 
+                                        placeholder="Nhập tên đăng nhập"
+                                        className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                                        value={newUser.username} 
+                                        onChange={e => setNewUser({ ...newUser, username: e.target.value })} 
+                                    />
                                 </div>
                             </div>
-                            <div><label className="block text-sm font-medium mb-1.5">Email</label><input type="email" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
-                            <div><label className="block text-sm font-medium mb-1.5">Mật khẩu</label><input type="password" required className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} /></div>
+                            
+                            <div>
+                                <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Email</label>
+                                <input 
+                                    type="email" 
+                                    required 
+                                    placeholder="ví dụ: admin@kendo.com"
+                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                                    value={newUser.email} 
+                                    onChange={e => setNewUser({ ...newUser, email: e.target.value })} 
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Mật khẩu</label>
+                                <input 
+                                    type="password" 
+                                    required 
+                                    placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
+                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                                    value={newUser.password} 
+                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })} 
+                                />
+                            </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Vai trò</label>
-                                    <select className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21]" value={newUser.roleId} onChange={handleRoleChange} required>
+                                    <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Vai trò</label>
+                                    <select 
+                                        className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${darkMode ? 'bg-[#2A2A30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                                        value={newUser.roleId} 
+                                        onChange={handleRoleChange} 
+                                        required
+                                    >
                                         <option value="" disabled>Chọn vai trò</option>
                                         {roles.map(role => (<option key={role._id} value={role._id}>{role.roleName}</option>))}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5">Cửa hàng</label>
-                                    <select className={`w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21] ${!isStoreStaffSelected() ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}`} value={newUser.storeId} onChange={e => setNewUser({ ...newUser, storeId: e.target.value })} disabled={!isStoreStaffSelected()}>
+                                    <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Cửa hàng</label>
+                                    <select 
+                                        className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                            !isStoreStaffSelected() 
+                                                ? (darkMode ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-400 border-gray-700' : 'opacity-60 cursor-not-allowed bg-gray-100 text-gray-500 border-gray-300')
+                                                : (darkMode ? 'bg-[#2A2A30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900')
+                                        }`}
+                                        value={newUser.storeId} 
+                                        onChange={e => setNewUser({ ...newUser, storeId: e.target.value })} 
+                                        disabled={!isStoreStaffSelected()}
+                                    >
                                         {!isStoreStaffSelected() ? (<option value="">Bếp trung tâm (HQ)</option>) : (<option value="">-- Chọn cửa hàng --</option>)}
                                         {stores.map(store => (<option key={store._id} value={store._id}>{store.storeName || store.name || store._id}</option>))}
                                     </select>
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Hủy</button>
-                                <button type="submit" className="px-6 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20">Tạo tài khoản</button>
+                            <div className={`pt-4 flex justify-end gap-3 border-t mt-6 ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                                <button type="button" onClick={() => setShowAddModal(false)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${darkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>Hủy</button>
+                                <button type="submit" className="px-6 py-2 rounded-lg text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20 transition-all active:scale-95">Tạo tài khoản</button>
                             </div>
                         </form>
                     </div>
