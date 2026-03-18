@@ -1087,8 +1087,33 @@ paths:
                   type: string
                 recipe:
                   type: array
+                  description: 'Array of ingredients (for manufactured products)'
+                  items:
+                    type: object
+                    properties:
+                      ingredientId:
+                        type: string
+                      quantity:
+                        type: number
+                        description: 'Quantity per 1 unit of product'
+                  example:
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a2'
+                      quantity: 0.05
+                    - ingredientId: '60d5ec49f1b2c8b1f8e4e1a3'
+                      quantity: 1
                 bundleItems:
                   type: array
+                  description: 'Array of child products (for bundle/combo products)'
+                  items:
+                    type: object
+                    properties:
+                      childProductId:
+                        type: string
+                      quantity:
+                        type: number
+                  example:
+                    - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
+                      quantity: 2
                 isActive:
                   type: boolean
       responses:

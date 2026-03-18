@@ -172,8 +172,12 @@ const updateProduct = async (req, res, next) => {
         return next(new Error('Invalid category'));
       }
     }
-    if (updateData.recipe && updateData.recipe.length > 0) {
-      for (const item of updateData.recipe) {
+    if (req.body.recipe !== undefined && !Array.isArray(req.body.recipe)) {
+      res.status(400);
+      return next(new Error('recipe must be an array'));
+    }
+    if (req.body.recipe !== undefined && Array.isArray(req.body.recipe) && req.body.recipe.length > 0) {
+      for (const item of req.body.recipe) {
         const ingredient = await Ingredient.findById(item.ingredientId);
         if (!ingredient) {
           res.status(400);
@@ -183,9 +187,13 @@ const updateProduct = async (req, res, next) => {
         }
       }
     }
-    if (updateData.bundleItems && updateData.bundleItems.length > 0) {
-      for (const item of updateData.bundleItems) {
-        if (item.childProductId === req.params.id) {
+    if (req.body.bundleItems !== undefined && !Array.isArray(req.body.bundleItems)) {
+      res.status(400);
+      return next(new Error('bundleItems must be an array'));
+    }
+    if (req.body.bundleItems !== undefined && Array.isArray(req.body.bundleItems) && req.body.bundleItems.length > 0) {
+      for (const item of req.body.bundleItems) {
+        if (String(item.childProductId) === String(req.params.id)) {
           res.status(400);
           return next(new Error('A product cannot be bundled with itself'));
         }
