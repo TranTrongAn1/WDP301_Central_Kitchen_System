@@ -1788,6 +1788,11 @@ paths:
             type: string
             enum: [Awaiting_Payment, Payment_Failed, Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
           description: 'Filter orders by their current status (e.g., Received)'
+        - in: query
+          name: storeId
+          schema:
+            type: string
+          description: 'Filter orders by store ID'
       responses:
         '200':
           description: Successfully retrieved orders

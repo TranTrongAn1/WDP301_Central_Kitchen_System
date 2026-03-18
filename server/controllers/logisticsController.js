@@ -1452,13 +1452,16 @@ const recordPayment = async (req, res, next) => {
  */
 const getOrders = async (req, res, next) => {
   try {
-    // Extract status from query parameters
-    const { status } = req.query;
+    // Extract query parameters for filtering
+    const { status, storeId } = req.query;
 
     // Build filter object
     const filter = {};
     if (status) {
       filter.status = status;
+    }
+    if (storeId) {
+      filter.storeId = storeId;
     }
 
     // Fetch orders with filter
