@@ -85,6 +85,10 @@ const DeliveryTripApi = {
     const res = await apiClient.post(`/logistics/trips/${tripId}/start-shipping`);
     return res as unknown as LogisticsApiResponse<StartShippingResponseData>;
   },
+  updateDeliveryTrip: async (tripId: string, data: { notes?: string; vehicleTypeId?: string }) => {
+    const res = await apiClient.patch(`/logistics/trips/${tripId}`, data);
+    return res as unknown as LogisticsApiResponse<ITrip>;
+  },
 };
 
 export default DeliveryTripApi;

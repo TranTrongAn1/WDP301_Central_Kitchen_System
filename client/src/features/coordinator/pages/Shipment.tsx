@@ -237,18 +237,38 @@ const Shipments = () => {
 
         try {
             setIsCreating(true);
-            if (editingTrip) {
-                const initialOrderIds = (editingTrip.orders || []).map((o) =>
-                    typeof o === 'string' ? o : (o as { _id: string })._id
-                );
-                const addedOrders = selectedOrderIds.filter(id => !initialOrderIds.includes(id));
-                const removedOrders = initialOrderIds.filter(id => !selectedOrderIds.includes(id));
+if (editingTrip) {
+        const initialOrderIds = (editingTrip.orders || []).map((o) =>
+          typeof o === 'string' ? o : (o as { _id: string })._id
+        );
+        const addedOrders = selectedOrderIds.filter(id => !initialOrderIds.includes(id));
+        const removedOrders = initialOrderIds.filter(id => !selectedOrderIds.includes(id));
 
-                if (addedOrders.length > 0) await DeliveryTripApi.addOrdersToDeliveryTrip(editingTrip._id, addedOrders);
-                if (removedOrders.length > 0) await DeliveryTripApi.removeOrdersFromDeliveryTrip(editingTrip._id, removedOrders);
-                
-                // Cập nhật loại xe và ghi chú nếu có API hỗ trợ update chung, nếu không có thể để sau
-                toast.success('Cập nhật chuyến hàng thành công!');
+        // Khởi tạo mảng chứa các request API
+        const apiPromises = [];
+
+        // 1. Cập nhật thêm/bớt đơn hàng (nếu có thay đổi)
+        if (addedOrders.length > 0) {
+          apiPromises.push(DeliveryTripApi.addOrdersToDeliveryTrip(editingTrip._id, addedOrders));
+        }
+        if (removedOrders.length > 0) {
+          apiPromises.push(DeliveryTripApi.removeOrdersFromDeliveryTrip(editingTrip._id, removedOrders));
+        }
+        
+        // 2. GỌI API THEO SWAGGER ĐỂ UPDATE XE VÀ NOTE
+        // Thêm vào Promise.all để chạy song song cho nhanh
+        apiPromises.push(
+          DeliveryTripApi.updateDeliveryTrip(editingTrip._id, {
+            notes: tripNotes,
+            // Đảm bảo gửi đúng key vehicleTypeId, nếu rỗng thì gửi undefined để backend bỏ qua
+            vehicleTypeId: selectedVehicleTypeId || undefined 
+          })
+        );
+
+        // Đợi tất cả API chạy xong
+        await Promise.all(apiPromises);
+        
+        toast.success('Cập nhật chuyến hàng thành công!');
             } else {
                 const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds, {
                     notes: tripNotes || undefined,

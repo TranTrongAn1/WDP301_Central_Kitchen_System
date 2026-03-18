@@ -200,7 +200,7 @@ const ShipmentDetail = () => {
     // Backend không có bước finalize-trip riêng; trip sẽ được chốt bằng start-shipping
     // và tự Completed khi tất cả đơn đã Received, nên không cần handler finalize ở đây.
 
-    const handleStartShipping = async () => {
+const handleStartShipping = async () => {
         if (!id) return;
         if (trip?.status !== 'Waiting_For_Loading') {
             toast.error(
@@ -209,6 +209,14 @@ const ShipmentDetail = () => {
             setConfirmAction(null);
             return;
         }
+
+        // 🚀 THÊM CHỐT CHẶN Ở ĐÂY: KHÔNG CÓ XE THÌ CẤM CHẠY
+        if (!(trip as any)?.vehicleType) {
+            toast.error('Lỗi nghiêm trọng: Chuyến hàng chưa được gán xe! Vui lòng gán xe trước khi giao.');
+            setConfirmAction(null);
+            return;
+        }
+
         try {
             setIsStartingShipping(true);
             await DeliveryTripApi.startShipping(id);
@@ -500,6 +508,13 @@ const ShipmentDetail = () => {
                             type="button"
                             onClick={async () => {
                                 if (!id) return;
+
+                                // 🚀 THÊM CHỐT CHẶN Ở ĐÂY: KHÔNG CÓ XE CẤM ĐƯA RA BÃI BỐC HÀNG
+                                if (!(trip as any)?.vehicleType) {
+                                    toast.error('Vui lòng gán phương tiện vận chuyển trước khi cho bốc hàng!');
+                                    return; 
+                                }
+
                                 try {
                                     const res = await DeliveryTripApi.updateTripStatus(
                                         id,
