@@ -1786,7 +1786,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
+            enum: [Awaiting_Payment, Payment_Failed, Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
           description: 'Filter orders by their current status (e.g., Received)'
       responses:
         '200':
@@ -4945,9 +4945,9 @@ components:
           description: 'Total order amount in VND'
         status:
           type: string
-          enum: [Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
+          enum: [Awaiting_Payment, Payment_Failed, Pending, Approved, Transferred_To_Kitchen, Ready_For_Shipping, In_Transit, Received, Cancelled]
           default: Pending
-          description: 'Current order status. Workflow: Pending -> Approved -> Transferred_To_Kitchen -> Ready_For_Shipping -> In_Transit -> Received'
+          description: 'Current order status. Workflow: Awaiting_Payment -> Pending -> Approved -> Transferred_To_Kitchen -> Ready_For_Shipping -> In_Transit -> Received'
         approvedBy:
           type: string
           description: 'User ID who approved the order'
