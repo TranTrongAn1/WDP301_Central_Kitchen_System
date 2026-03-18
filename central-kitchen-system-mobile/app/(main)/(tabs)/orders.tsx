@@ -18,11 +18,15 @@ import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order } from "@/lib/orders";
 
-const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Tất cả" },
   { value: "Pending", label: "Chờ duyệt" },
+  { value: "Awaiting_Payment", label: "Chờ thanh toán" },
+  { value: "Payment_Failed", label: "Thanh toán lỗi" },
   { value: "Approved", label: "Đã duyệt" },
-  { value: "Shipped", label: "Đã giao" },
+  { value: "Transferred_To_Kitchen", label: "Đã chuyển bếp" },
+  { value: "Ready_For_Shipping", label: "Sẵn sàng giao" },
+  { value: "In_Transit", label: "Đang giao" },
   { value: "Received", label: "Đã nhận" },
   { value: "Cancelled", label: "Đã hủy" },
 ];
@@ -46,6 +50,10 @@ function formatDateTime(iso?: string) {
   });
 }
 
+function normalizeStoreId(store: Order["storeId"]): string {
+  return typeof store === "string" ? store : store?._id ?? "";
+}
+
 export default function OrdersTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -67,10 +75,7 @@ export default function OrdersTabScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await logisticsOrdersApi.getAll(
-        { storeId: user.storeId, status: filterStatus || undefined },
-        token,
-      );
+      const res = await logisticsOrdersApi.getAll(undefined, token);
       const nextOrders = res.data ?? [];
       setOrders(nextOrders);
 
@@ -91,19 +96,32 @@ export default function OrdersTabScreen() {
     } finally {
       setLoading(false);
     }
-  }, [token, user?.storeId, filterStatus]);
+  }, [token, user?.storeId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   const todayStr = formatDateKey(new Date());
-  const filtered = filterToday
-    ? orders.filter((o) => {
-      const dateStr = o.orderDate?.slice(0, 10) ?? (o as Order & { createdAt?: string }).createdAt?.slice(0, 10) ?? "";
+  const filtered = orders.filter((o) => {
+    if (normalizeStoreId(o.storeId) !== user?.storeId) {
+      return false;
+    }
+
+    if (filterStatus && o.status !== filterStatus) {
+      return false;
+    }
+
+    if (filterToday) {
+      const dateStr =
+        o.orderDate?.slice(0, 10) ??
+        (o as Order & { createdAt?: string }).createdAt?.slice(0, 10) ??
+        "";
       return dateStr === todayStr;
-    })
-    : orders;
+    }
+
+    return true;
+  });
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 + insets.top }]}>
@@ -288,8 +306,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   status_Pending: { color: "#E65100" },
+  status_Awaiting_Payment: { color: "#EF6C00" },
+  status_Payment_Failed: { color: "#C62828" },
   status_Approved: { color: "#1565C0" },
-  status_Shipped: { color: "#2E7D32" },
+  status_Transferred_To_Kitchen: { color: "#6A1B9A" },
+  status_Ready_For_Shipping: { color: "#00695C" },
+  status_In_Transit: { color: "#00838F" },
   status_Received: { color: "#2E7D32" },
   status_Cancelled: { color: "#666" },
   time: {

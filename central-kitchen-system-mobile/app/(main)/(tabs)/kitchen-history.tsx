@@ -22,12 +22,14 @@ function formatDate(iso?: string) {
   });
 }
 
+const VISIBLE_STATUSES: TripStatus[] = ["Waiting_For_Loading", "Received", "Completed", "In_Transit"];
+
 const STATUS_OPTIONS: { value: "" | TripStatus; label: string }[] = [
   { value: "", label: "Tất cả" },
-  { value: "Planning", label: "Planning" },
-  { value: "In_Transit", label: "In Transit" },
-  { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled" },
+  { value: "Waiting_For_Loading", label: "Chờ xuất phát" },
+  { value: "In_Transit", label: "Đang vận chuyển" },
+  { value: "Received", label: "Đã nhận" },
+  { value: "Completed", label: "Hoàn thành" },
 ];
 
 function tripCode(trip: DeliveryTrip): string {
@@ -48,7 +50,7 @@ export default function KitchenHistoryScreen() {
   const { trips, isLoading, error, refetch } = useDeliveryTrips({
     status: statusFilter || undefined,
   });
-  const safeTrips = Array.isArray(trips) ? trips : [];
+  const safeTrips = (Array.isArray(trips) ? trips : []).filter((trip) => VISIBLE_STATUSES.includes(trip.status));
 
   return (
     <ScrollView

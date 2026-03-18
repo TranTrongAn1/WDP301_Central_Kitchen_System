@@ -220,9 +220,13 @@ export const productionPlansApi = {
     request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
       headers: withAuth(token),
     }),
-  updateStatus: (id: string, payload: Partial<ProductionPlan>, token?: string | null) =>
+  updateStatus: (
+    id: string,
+    payload: { status: ProductionPlan["status"] },
+    token?: string | null
+  ) =>
     request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: withAuth(token),
       body: JSON.stringify(payload),
     }),
@@ -470,7 +474,7 @@ export const ingredientRequestsApi = {
       `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests?status=${status}`,
       {
         method: "GET",
-        headers, 
+        headers,
       }
     );
 

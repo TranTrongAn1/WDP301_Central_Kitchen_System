@@ -107,7 +107,7 @@ export default function OrderDetailScreen() {
     load();
   }, [load]);
 
-  const canReceive = order?.status === "Shipped" && id && token;
+  const canReceive = order?.status === "In_Transit" && id && token;
   const showFeedbackSection = order?.status === "Received" && id && token;
   const canCreateFeedback = showFeedbackSection && !feedback && !feedbackEditMode;
   const canEditFeedback = showFeedbackSection && feedback && isFeedbackAuthor(feedback, user?.id);
@@ -747,8 +747,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   status_Pending: { color: "#E65100" },
+  status_Awaiting_Payment: { color: "#EF6C00" },
+  status_Payment_Failed: { color: "#C62828" },
   status_Approved: { color: "#1565C0" },
-  status_Shipped: { color: "#2E7D32" },
+  status_Transferred_To_Kitchen: { color: "#6A1B9A" },
+  status_Ready_For_Shipping: { color: "#00695C" },
+  status_In_Transit: { color: "#00838F" },
   status_Received: { color: "#2E7D32" },
   status_Cancelled: { color: "#666" },
   sectionTitle: {
