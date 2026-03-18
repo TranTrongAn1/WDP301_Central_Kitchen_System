@@ -1089,6 +1089,8 @@ paths:
                   type: array
                 bundleItems:
                   type: array
+                isActive:
+                  type: boolean
       responses:
         '200':
           description: Product updated successfully
@@ -1097,8 +1099,8 @@ paths:
     delete:
       tags:
         - Products
-      summary: Delete product
-      description: Cannot delete if product is used in production plans or bundles
+      summary: Soft delete product (deactivate)
+      description: Soft delete a product by setting isActive to false. Cannot deactivate if product is used in production plans or bundles.
       security:
         - BearerAuth: []
       parameters:
@@ -1109,7 +1111,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Product deleted successfully
+          description: Product deactivated successfully
         '400':
           description: Cannot delete - product is in use
         '404':
@@ -4752,6 +4754,9 @@ components:
           example:
             - childProductId: '60d5ec49f1b2c8b1f8e4e1a4'
               quantity: 2
+        isActive:
+          type: boolean
+          default: true
         createdAt:
           type: string
           format: date-time
