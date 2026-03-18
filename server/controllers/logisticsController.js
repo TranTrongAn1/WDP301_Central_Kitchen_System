@@ -162,7 +162,7 @@ const createOrder = async (req, res, next) => {
         recipientPhone,
         items: orderItems,
         totalAmount,
-        status: 'Pending',
+        status: paymentMethod === 'Wallet' ? 'Pending' : (paymentMethod === 'Bank_Transfer' ? 'Awaiting_Payment' : 'Pending'),
         notes: notes || '',
         createdBy: req.user ? req.user._id : null,
       }], { session });

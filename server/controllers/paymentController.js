@@ -1,4 +1,5 @@
 const Invoice = require('../models/Invoice');
+const Order = require('../models/Order');
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
 const DepositRequest = require('../models/DepositRequest');
@@ -64,6 +65,12 @@ const createPaymentLink = async (req, res) => {
       
       invoice.payosOrderCode = orderCode;
       await invoice.save();
+
+      const order = await Order.findById(invoice.orderId);
+      if (order && order.status === 'Payment_Failed') {
+        order.status = 'Awaiting_Payment';
+        await order.save();
+      }
 
       return res.status(200).json({
         success: true,
@@ -227,16 +234,43 @@ const handlePayOSWebhook = async (req, res) => {
     console.log('✅ Webhook verified:', webhookData);
 
     const { orderCode, code, amount } = webhookData;
+    const numericOrderCode = Number(orderCode);
 
     // Kiểm tra trạng thái thành công (code '00' hoặc success true)
     const isSuccess = code === '00' || req.body.code === '00' || webhookData.success === true;
 
     if (!isSuccess) {
       console.warn('⚠️ Payment not successful');
+
+      const invoice = await Invoice.findOne({ payosOrderCode: numericOrderCode });
+      if (invoice) {
+        try {
+          invoice.paymentStatus = 'Cancelled';
+          await invoice.save();
+
+          const order = await Order.findById(invoice.orderId);
+          if (order) {
+            order.status = 'Payment_Failed';
+            await order.save();
+          }
+        } catch (error) {
+          console.error('❌ Error updating failed invoice payment:', error.message);
+        }
+        return res.json({ success: true });
+      }
+
+      const depositRequest = await DepositRequest.findOne({ payosOrderCode: numericOrderCode });
+      if (depositRequest) {
+        try {
+          depositRequest.status = 'Failed';
+          await depositRequest.save();
+        } catch (error) {
+          console.error('❌ Error updating failed deposit request:', error.message);
+        }
+      }
+
       return res.json({ success: true });
     }
-
-    const numericOrderCode = Number(orderCode);
 
     // 1) Try Invoice payment flow first.
     const invoice = await Invoice.findOne({ payosOrderCode: numericOrderCode });
@@ -247,6 +281,13 @@ const handlePayOSWebhook = async (req, res) => {
           invoice.paidAmount = amount || invoice.totalAmount;
           invoice.paymentDate = new Date();
           await invoice.save();
+
+          const order = await Order.findById(invoice.orderId);
+          if (order) {
+            order.status = 'Pending';
+            await order.save();
+          }
+
           console.log(`✅ Invoice ${invoice.invoiceNumber} marked as Paid`);
         } catch (error) {
           console.error('❌ Error saving Invoice:', error.message);

@@ -1,6 +1,10 @@
 export type OrderStatus =
   | 'Pending'
+  | 'Awaiting_Payment'
+  | 'Payment_Failed'
   | 'Approved'
+  | 'Transferred_To_Kitchen'
+  | 'Ready_For_Shipping'
   | 'In_Transit'
   | 'Received'
   | 'Cancelled';

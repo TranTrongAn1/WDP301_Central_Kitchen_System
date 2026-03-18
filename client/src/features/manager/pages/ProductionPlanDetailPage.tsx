@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -52,7 +52,7 @@ const ProductionPlanDetailPage = () => {
         { ingredientBatchId: '', quantityUsed: 0, note: '' },
     ]);
 
-    const fetchPlan = async () => {
+    const fetchPlan = useCallback(async () => {
         if (!id) return;
         try {
             setLoading(true);
@@ -70,11 +70,11 @@ const ProductionPlanDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
         void fetchPlan();
-    }, [id]);
+    }, [fetchPlan]);
 
     const getStatusBadge = (status: string) => {
         const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
@@ -137,7 +137,7 @@ const ProductionPlanDetailPage = () => {
                     : (raw as IngredientBatch[] | null) ?? [];
             const list: IngredientBatch[] = Array.isArray(body) ? body : [];
             setIngredientBatches(list.filter((b) => b.isActive));
-        } catch (err: unknown) {
+        } catch {
             setIngredientBatches([]);
         } finally {
             setBatchesLoading(false);
@@ -267,6 +267,7 @@ const ProductionPlanDetailPage = () => {
         (plan.status === 'Planned' || plan.status === 'Cancelled') &&
         (role === 'Manager' || role === 'Admin');
     const canComplete = plan.status !== 'Completed' && plan.status !== 'Cancelled';
+    const isCoordinator = role === 'Coordinator';
 
     return (
         <div className="space-y-6">
@@ -290,13 +291,13 @@ const ProductionPlanDetailPage = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     {getStatusBadge(plan.status)}
-                    {plan.status === 'Planned' && (
-                            <Button onClick={() => handleUpdateStatus('In_Progress')} size="sm">
+                    {!isCoordinator && plan.status === 'Planned' && (
+                        <Button onClick={() => handleUpdateStatus('In_Progress')} size="sm">
                             <Play className="w-4 h-4 mr-1" />
                             Bắt đầu thực hiện
                         </Button>
                     )}
-                    {(plan.status === 'In_Progress' || plan.status === 'InProgress') && (
+                    {!isCoordinator && (plan.status === 'In_Progress' || plan.status === 'InProgress') && (
                         <>
                                 <Button
                                 size="sm"
@@ -369,7 +370,7 @@ const ProductionPlanDetailPage = () => {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {getStatusBadge(detail.status)}
-                                                    {!isCompleted && canComplete && (
+                                                    {!isCoordinator && !isCompleted && canComplete && (
                                                             <Button
                                                             size="sm"
                                                             onClick={() => openCompleteModal(detail)}

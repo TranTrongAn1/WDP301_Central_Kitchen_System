@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProductionPlans } from "@/hooks/use-production-plans";
 import type { ProductionPlan } from "@/lib/production-plans";
 
-const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Tất cả" },
   { value: "Planned", label: "Kế hoạch" },
   { value: "In_Progress", label: "Đang làm" },
@@ -38,6 +38,13 @@ function productSummary(plan: ProductionPlan): string {
     return typeof p === "object" && p?.name ? p.name : "SP";
   });
   return names.join(", ") + (details.length > 2 ? "..." : "");
+}
+
+function plannedQuantity(plan: ProductionPlan): number {
+  return (plan.details ?? []).reduce(
+    (sum, detail) => sum + (detail.plannedQuantity ?? 0),
+    0
+  );
 }
 
 export default function KitchenOrdersScreen() {
@@ -93,10 +100,9 @@ export default function KitchenOrdersScreen() {
         <Text style={styles.empty}>Chưa có đơn sản xuất.</Text>
       ) : (
         plans.map((plan) => (
-          <Pressable
+          <View
             key={plan._id}
             style={styles.card}
-            onPress={() => router.push(`/kitchen/production/${plan._id}`)}
           >
             <View style={styles.cardHeader}>
               <Text style={styles.cardCode}>{plan.planCode}</Text>
@@ -116,7 +122,30 @@ export default function KitchenOrdersScreen() {
             <Text style={styles.cardMeta}>
               Số dòng: {plan.details?.length ?? 0}
             </Text>
-          </Pressable>
+            <Text style={styles.cardMeta}>
+              Tổng số lượng cần làm: {plannedQuantity(plan)}
+            </Text>
+
+            <View style={styles.cardActions}>
+              <Pressable
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                onPress={() => router.push(`/kitchen/production/${plan._id}`)}
+              >
+                <Text style={styles.actionBtnPrimaryText}>Vào sản xuất</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionBtn, styles.actionBtnSecondary]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/kitchen/production/orders",
+                    params: { planId: plan._id },
+                  })
+                }
+              >
+                <Text style={styles.actionBtnSecondaryText}>Xem chi tiết</Text>
+              </Pressable>
+            </View>
+          </View>
         ))
       )}
     </ScrollView>
@@ -228,5 +257,35 @@ const styles = StyleSheet.create({
   cardMeta: {
     fontSize: 12,
     color: "#8C8C8C",
+    marginTop: 2,
+  },
+  cardActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  actionBtnPrimary: {
+    backgroundColor: "#D91E18",
+  },
+  actionBtnPrimaryText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  actionBtnSecondary: {
+    borderWidth: 1,
+    borderColor: "#D91E18",
+    backgroundColor: "#fff",
+  },
+  actionBtnSecondaryText: {
+    color: "#9B0F0F",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

@@ -8,6 +8,13 @@ export interface Invoice {
   invoiceNumber?: string;
   paymentStatus?: string;
   subtotal?: number;
+  /** Phí vận chuyển (tùy backend đặt tên field) */
+  shippingFee?: number;
+  deliveryFee?: number;
+  transportFee?: number;
+  /** Tổng tiền hóa đơn (nếu backend có) */
+  totalAmount?: number;
+  total?: number;
   paidAmount?: number;
 }
 

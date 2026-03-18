@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { OrderApi, type Order, type UpdateOrderPayload } from '@/api/OrderApi';
+import { invoiceApi, type Invoice } from '@/api/InvoiceApi';
 import toast from 'react-hot-toast';
 
 const StoreOrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,8 @@ const StoreOrderDetailPage = () => {
         setError(null);
         const data = await OrderApi.getOrderById(id);
         setOrder(data);
+        const inv = await invoiceApi.getFirstByOrderId(id).catch(() => null);
+        setInvoice(inv);
         setRequestedDeliveryDate(
           data.requestedDeliveryDate
             ? data.requestedDeliveryDate.slice(0, 10)
@@ -62,6 +66,16 @@ const StoreOrderDetailPage = () => {
       style: 'currency',
       currency: 'VND',
     }).format(amount);
+
+  const getInvoiceShippingFee = (
+    inv: Invoice | null,
+    orderAmount: number
+  ): number | null => {
+    // Backend gộp shipping vào invoice.subtotal: subtotal = totalAmount(order) + shippingCost
+    if (!inv || typeof inv.subtotal !== 'number') return null;
+    const shipping = inv.subtotal - orderAmount;
+    return shipping >= 0 ? shipping : 0;
+  };
 
   const handleSave = async () => {
     if (!order || !id) return;
@@ -113,6 +127,22 @@ const StoreOrderDetailPage = () => {
   }
 
   const canEdit = order.status === 'Pending';
+  const orderAmount = order.totalAmount ?? 0;
+  const shippingFee = getInvoiceShippingFee(invoice, orderAmount);
+  // Ưu tiên tổng theo hóa đơn nếu backend có trả, fallback = invoice.subtotal (đã gồm shipping)
+  const invoiceTotal =
+    typeof invoice?.totalAmount === 'number'
+      ? invoice.totalAmount
+      : typeof invoice?.total === 'number'
+        ? invoice.total
+        : typeof invoice?.subtotal === 'number'
+          ? invoice.subtotal
+          : null;
+  const totalPayable = invoiceTotal ?? (shippingFee != null ? orderAmount + shippingFee : orderAmount);
+  const taxAmount =
+    invoiceTotal != null && shippingFee != null
+      ? Math.max(invoiceTotal - (orderAmount + shippingFee), 0)
+      : null;
 
   return (
     <div className="space-y-6">
@@ -222,9 +252,27 @@ const StoreOrderDetailPage = () => {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Tổng giá trị</span>
+              <span className="text-muted-foreground">Tiền hàng</span>
               <span className="font-semibold text-primary">
                 {formatCurrency(order.totalAmount ?? 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Phí vận chuyển</span>
+              <span className="font-semibold">
+                {shippingFee == null ? '—' : formatCurrency(shippingFee)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Thuế (ước tính)</span>
+              <span className="font-semibold">
+                {taxAmount == null ? '—' : formatCurrency(taxAmount)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Tổng thanh toán (gồm thuế nếu có)</span>
+              <span className="font-semibold text-primary">
+                {formatCurrency(totalPayable)}
               </span>
             </div>
             <div className="flex items-center justify-between">
