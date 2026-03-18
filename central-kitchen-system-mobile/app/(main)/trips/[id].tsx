@@ -207,7 +207,7 @@ export default function TripDetailScreen() {
         load();
     }, [load]);
 
-    const canStartShipping = useMemo(() => trip?.status === "Planning", [trip?.status]);
+    const canStartShipping = useMemo(() => trip?.status === "Waiting_For_Loading", [trip?.status]);
 
     const handleStartShipping = () => {
         if (!id || !token || !canStartShipping) return;
@@ -352,7 +352,9 @@ const styles = StyleSheet.create({
     label: { fontSize: 12, color: "#8C8C8C", marginBottom: 4 },
     value: { fontSize: 14, fontWeight: "600", color: "#2A2A2A" },
     status_Planning: { color: "#E65100" },
+    status_Waiting_For_Loading: { color: "#FF9800" },
     status_In_Transit: { color: "#1565C0" },
+    status_Received: { color: "#4CAF50" },
     status_Completed: { color: "#2E7D32" },
     status_Cancelled: { color: "#666" },
     sectionTitle: {

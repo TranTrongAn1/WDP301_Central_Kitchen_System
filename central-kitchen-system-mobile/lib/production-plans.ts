@@ -22,6 +22,29 @@ export type ProductionPlanDetail = {
   status?: ProductionPlanDetailStatus;
 };
 
+export type ProductionPlanOrderRef =
+  | string
+  | {
+    _id?: string;
+    orderNumber?: string;
+    recipientPhone?: string;
+    address?: string;
+    storeId?:
+    | string
+    | {
+      _id?: string;
+      name?: string;
+      storeName?: string;
+      storeCode?: string;
+      address?: string;
+    };
+    items?: {
+      productId?: string | { _id?: string; name?: string };
+      quantityRequested?: number;
+      quantity?: number;
+    }[];
+  };
+
 export type UsedIngredientItem = {
   ingredientBatchId: string;
   quantityUsed: number;
@@ -41,6 +64,9 @@ export type ProductionPlan = {
   status: ProductionPlanStatus;
   note?: string;
   details?: ProductionPlanDetail[];
+  orders?: ProductionPlanOrderRef[];
+  orderIds?: ProductionPlanOrderRef[];
+  orderId?: ProductionPlanOrderRef | ProductionPlanOrderRef[];
   createdAt?: string;
   updatedAt?: string;
 };

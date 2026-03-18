@@ -12,12 +12,33 @@ export type OrderItem = {
 export type Order = {
   _id: string;
   orderNumber: string;
-  storeId: string | { _id: string; name?: string };
+  storeId:
+  | string
+  | {
+    _id: string;
+    name?: string;
+    storeName?: string;
+    storeCode?: string;
+    address?: string;
+  };
   orderDate: string;
   requestedDeliveryDate: string;
+  recipientPhone?: string;
+  recipientName?: string;
+  address?: string;
   items: OrderItem[];
   totalAmount: number;
-  status: "Pending" | "Approved" | "Shipped" | "Received" | "Cancelled";
+  status:
+  | "Pending"
+  | "Awaiting_Payment"
+  | "Payment_Failed"
+  | "Approved"
+  | "Transferred_To_Kitchen"
+  | "Ready_For_Shipping"
+  | "In_Transit"
+  | "Received"
+  | "Cancelled";
+  paymentMethod?: "Wallet" | "PayOS" | "Bank_Transfer" | "Cash" | "Other" | string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;

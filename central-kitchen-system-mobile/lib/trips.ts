@@ -1,4 +1,4 @@
-export type TripStatus = "Planning" | "In_Transit" | "Completed" | "Cancelled";
+export type TripStatus = "Planning" | "Waiting_For_Loading" | "In_Transit" | "Received" | "Completed" | "Cancelled";
 
 export type TripOrderRef =
     | string

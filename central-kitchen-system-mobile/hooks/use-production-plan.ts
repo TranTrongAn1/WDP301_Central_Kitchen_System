@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { productionPlansApi } from "@/lib/api";
-import type { ProductionPlan } from "@/lib/production-plans";
+import type { ProductionPlan, ProductionPlanStatus } from "@/lib/production-plans";
 
 export function useProductionPlan(id: string | undefined) {
   const { token } = useAuth();
@@ -33,19 +33,12 @@ export function useProductionPlan(id: string | undefined) {
   }, [fetchPlan]);
 
   const updateStatus = useCallback(
-    async (status: string) => {
-      if (!id || !token || !plan) return;
-      const payload = {
-        planCode: plan.planCode,
-        planDate: plan.planDate,
-        status,
-        note: plan.note,
-        details: plan.details,
-      };
-      await productionPlansApi.updateStatus(id, payload, token);
+    async (status: ProductionPlanStatus) => {
+      if (!id || !token) return;
+      await productionPlansApi.updateStatus(id, { status }, token);
       await fetchPlan();
     },
-    [id, token, plan, fetchPlan]
+    [id, token, fetchPlan]
   );
 
   const completeItem = useCallback(
