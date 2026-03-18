@@ -5,7 +5,7 @@ const Ingredient = require('../models/Ingredient');
 const getProducts = async (req, res, next) => {
   try {
     const { categoryId } = req.query;
-    const filter = {};
+    const filter = { isActive: true };
     if (categoryId) {
       filter.categoryId = categoryId;
     }
@@ -125,26 +125,58 @@ const createProduct = async (req, res, next) => {
 
 const updateProduct = async (req, res, next) => {
   try {
+    const {
+      name,
+      sku,
+      categoryId,
+      price,
+      shelfLifeDays,
+      weight,
+      weightUnit,
+      image,
+      recipe,
+      bundleItems,
+      isActive,
+    } = req.body;
+
+    const updateData = {
+      ...(name !== undefined && { name }),
+      ...(sku !== undefined && { sku }),
+      ...(categoryId !== undefined && { categoryId }),
+      ...(price !== undefined && { price }),
+      ...(shelfLifeDays !== undefined && { shelfLifeDays }),
+      ...(weight !== undefined && { weight }),
+      ...(weightUnit !== undefined && { weightUnit }),
+      ...(image !== undefined && { image }),
+      ...(recipe !== undefined && { recipe }),
+      ...(bundleItems !== undefined && { bundleItems }),
+      ...(isActive !== undefined && { isActive }),
+    };
+
     let product = await Product.findById(req.params.id);
     if (!product) {
       res.status(404);
       return next(new Error('Product not found'));
     }
-    if (req.body.sku && req.body.sku !== product.sku) {
-      const existingProduct = await Product.findOne({ sku: req.body.sku });
+    if (updateData.sku && updateData.sku !== product.sku) {
+      const existingProduct = await Product.findOne({ sku: updateData.sku });
       if (existingProduct) {
         res.status(400);
         return next(new Error('Product with this SKU already exists'));
       }
     }
-    if (req.body.categoryId) {
-      const category = await Category.findById(req.body.categoryId);
+    if (updateData.categoryId) {
+      const category = await Category.findById(updateData.categoryId);
       if (!category) {
         res.status(400);
         return next(new Error('Invalid category'));
       }
     }
-    if (req.body.recipe && req.body.recipe.length > 0) {
+    if (req.body.recipe !== undefined && !Array.isArray(req.body.recipe)) {
+      res.status(400);
+      return next(new Error('recipe must be an array'));
+    }
+    if (req.body.recipe !== undefined && Array.isArray(req.body.recipe) && req.body.recipe.length > 0) {
       for (const item of req.body.recipe) {
         const ingredient = await Ingredient.findById(item.ingredientId);
         if (!ingredient) {
@@ -155,9 +187,13 @@ const updateProduct = async (req, res, next) => {
         }
       }
     }
-    if (req.body.bundleItems && req.body.bundleItems.length > 0) {
+    if (req.body.bundleItems !== undefined && !Array.isArray(req.body.bundleItems)) {
+      res.status(400);
+      return next(new Error('bundleItems must be an array'));
+    }
+    if (req.body.bundleItems !== undefined && Array.isArray(req.body.bundleItems) && req.body.bundleItems.length > 0) {
       for (const item of req.body.bundleItems) {
-        if (item.childProductId === req.params.id) {
+        if (String(item.childProductId) === String(req.params.id)) {
           res.status(400);
           return next(new Error('A product cannot be bundled with itself'));
         }
@@ -170,7 +206,7 @@ const updateProduct = async (req, res, next) => {
         }
       }
     }
-    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    product = await Product.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     })
@@ -206,10 +242,11 @@ const deleteProduct = async (req, res, next) => {
         )
       );
     }
-    await product.deleteOne();
+    product.isActive = false;
+    await product.save();
     res.status(200).json({
       success: true,
-      message: 'Product deleted successfully',
+      message: 'Product deactivated successfully',
       data: {},
     });
   } catch (error) {
