@@ -75,7 +75,7 @@ export default function OrdersTabScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await logisticsOrdersApi.getAll(undefined, token);
+      const res = await logisticsOrdersApi.getAll({ storeId: user.storeId }, token);
       const nextOrders = res.data ?? [];
       setOrders(nextOrders);
 
