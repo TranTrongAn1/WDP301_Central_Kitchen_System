@@ -38,7 +38,6 @@ export function CompleteRequestDialog({
   request,
   onSuccess,
 }: CompleteRequestDialogProps) {
-  const [actualCost, setActualCost] = useState<string>('');
   const [supplierId, setSupplierId] = useState<string>('');
   const [supplierName, setSupplierName] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string>('');
@@ -114,7 +113,6 @@ const handleSubmit = async (e: React.FormEvent) => {
   };
 
   const resetForm = () => {
-    setActualCost('');
     setSupplierId('');
     setSupplierName('');
     setReceiptImage('');

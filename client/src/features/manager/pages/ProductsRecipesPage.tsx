@@ -16,7 +16,8 @@ import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { uploadProductImage } from '@/shared/lib/firebase';
 import toast from 'react-hot-toast';
-
+import { ingredientApi, type Ingredient } from '@/api/InventoryApi';
+import { Trash2 } from 'lucide-react';
 const ProductsRecipesPage = () => {
     const navigate = useNavigate();
     const { isManagerReadOnly } = useManagerReadOnly();
@@ -43,7 +44,20 @@ const ProductsRecipesPage = () => {
         image: undefined,
     });
     const [createImageFile, setCreateImageFile] = useState<File | null>(null);
+    
+    // 👇 THÊM STATE NÀY
+    const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
 
+    // 👇 THÊM HÀM NÀY
+    const fetchIngredients = async () => {
+        try {
+            const response = await ingredientApi.getAll();
+            const data = (response as any)?.data || response || [];
+            setAllIngredients(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Error fetching ingredients:', err);
+        }
+    };
     const ITEMS_PER_PAGE = 9;
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -78,6 +92,7 @@ const ProductsRecipesPage = () => {
 
     useEffect(() => {
         fetchCategories();
+        fetchIngredients();
     }, []);
 
     useEffect(() => {
@@ -137,7 +152,7 @@ const ProductsRecipesPage = () => {
     return product.categoryId?.name || 'Chưa phân loại';
     };
 
-    const openCreate = () => {
+const openCreate = () => {
         if (isManagerReadOnly) return;
         setCreateForm({
             name: '',
@@ -148,30 +163,70 @@ const ProductsRecipesPage = () => {
             weight: 0.5,
             weightUnit: 'kg',
             image: undefined,
-        });
+            recipe: [], // 👇 THÊM DÒNG NÀY VÀO
+        } as any); // Thêm "as any" nếu TypeScript báo lỗi kiểu CreateProductRequest
         setCreateImageFile(null);
         setIsCreateOpen(true);
     };
 
-    const handleCreate = async () => {
+const handleCreate = async () => {
         if (isManagerReadOnly) return;
-        if (!createForm.name.trim() || !createForm.sku.trim() || !createForm.categoryId) {
-            toast.error('Vui lòng nhập Tên, SKU và Category.');
+
+        // --- BẮT ĐẦU VALIDATION ---
+        const name = createForm.name.trim();
+        const sku = createForm.sku.trim();
+
+        if (!name || name.length < 2 || name.length > 100) {
+            toast.error('Tên sản phẩm bắt buộc phải có và từ 2 đến 100 ký tự.');
             return;
         }
+        if (!sku || sku.length < 3 || sku.length > 50) {
+            toast.error('Mã SKU bắt buộc phải có và từ 3 đến 50 ký tự.');
+            return;
+        }
+        // Validate khoảng trắng trong SKU (SKU không nên có dấu cách)
+        if (/\s/.test(sku)) {
+            toast.error('Mã SKU không được chứa khoảng trắng.');
+            return;
+        }
+        if (!createForm.categoryId) {
+            toast.error('Vui lòng chọn danh mục sản phẩm.');
+            return;
+        }
+        if (createForm.price < 0 || createForm.price > 500000000) {
+            toast.error('Giá sản phẩm không hợp lệ (Phải từ 0đ - 500.000.000đ).');
+            return;
+        }
+        if (createForm.shelfLifeDays < 1 || createForm.shelfLifeDays > 3650) {
+            toast.error('Hạn sử dụng không hợp lệ (Phải từ 1 ngày - 3650 ngày).');
+            return;
+        }
+        if ((createForm.weight ?? 0) <= 0 || (createForm.weight ?? 0) > 1000) {
+            toast.error('Khối lượng sản phẩm phải lớn hơn 0 và tối đa 1000kg.');
+            return;
+        }
+        // --- KẾT THÚC VALIDATION ---
+    
         try {
             setCreateLoading(true);
             let imageUrl: string | undefined = undefined;
             if (createImageFile) {
                 imageUrl = await uploadProductImage(createImageFile);
             }
-            const payload: CreateProductRequest = {
+            
+            // 👇 LỌC BỎ NGUYÊN LIỆU TRỐNG HOẶC SỐ LƯỢNG = 0
+            const cleanedRecipe = (createForm as any).recipe?.filter((r: any) => r.ingredientId && r.quantity > 0) || [];
+
+            const payload: any = { // Dùng any tạm nếu type chưa update
                 ...createForm,
+                name: name,
+                sku: sku.toUpperCase(),
                 price: Number(createForm.price) || 0,
                 shelfLifeDays: Number(createForm.shelfLifeDays) || 1,
                 weight: createForm.weight != null ? Number(createForm.weight) || 0.5 : 0.5,
                 weightUnit: createForm.weightUnit || 'kg',
                 image: imageUrl,
+                recipe: cleanedRecipe, // 👇 THÊM VÀO PAYLOAD Ở ĐÂY
             };
             await productApi.create(payload);
             toast.success('Đã tạo sản phẩm.');
@@ -183,7 +238,6 @@ const ProductsRecipesPage = () => {
             setCreateLoading(false);
         }
     };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
@@ -464,17 +518,19 @@ const ProductsRecipesPage = () => {
                         <div>
                             <label className="text-sm font-medium mb-1 block">Tên *</label>
                             <Input
+                                maxLength={100} // Thêm dòng này
                                 value={createForm.name}
                                 onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                                placeholder="Ví dụ: Bánh mì"
+                                placeholder="Ví dụ: Bánh mì (tối đa 100 ký tự)"
                             />
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1 block">SKU *</label>
                             <Input
+                                maxLength={50} // Thêm dòng này
                                 value={createForm.sku}
                                 onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
-                                placeholder="VD: SKU-001"
+                                placeholder="VD: SKU-001 (tối đa 50 ký tự)"
                             />
                         </div>
                         <div>
@@ -535,6 +591,78 @@ const ProductsRecipesPage = () => {
                                 Nếu chọn ảnh, hệ thống sẽ upload lên Firebase và lưu URL vào trường <code>image</code>.
                             </p>
                         </div>
+                        <div className="mt-6 pt-4 border-t border-border md:col-span-2">
+                        <label className="text-sm font-bold mb-3 flex items-center gap-2 text-orange-600">
+                            <UtensilsCrossed className="w-4 h-4" /> Công thức nguyên liệu (Tuỳ chọn)
+                        </label>
+                        
+                        <div className="space-y-3 bg-muted/30 p-4 rounded-xl border border-border">
+                            {(createForm as any).recipe?.length === 0 && (
+                                <p className="text-sm text-muted-foreground italic text-center py-2">Sản phẩm chưa có công thức.</p>
+                            )}
+                            
+                            {(createForm as any).recipe?.map((item: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-3">
+                                    <select
+    className="flex-1 px-3 py-2 rounded-lg border border-input bg-white dark:bg-[#1C1C21] text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+    value={item.ingredientId || ''}
+                                        onChange={(e) => {
+                                            const newRecipe = [...((createForm as any).recipe || [])];
+                                            newRecipe[idx].ingredientId = e.target.value;
+                                            setCreateForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                        }}
+                                    >
+                                        <option value="" disabled>Chọn nguyên liệu...</option>
+                                        {allIngredients.map(ing => (
+                                            <option key={ing._id} value={ing._id}>
+                                                {ing.ingredientName || (ing as any).name} 
+                                                {ing.unit ? ` (${ing.unit})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        placeholder="SL"
+                                        className="w-24 text-right"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                            const newRecipe = [...((createForm as any).recipe || [])];
+                                            newRecipe[idx].quantity = Number(e.target.value) || 0;
+                                            setCreateForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                        }}
+                                    />
+                                    
+                                    <Button
+                                        variant="outline"
+                                        className="px-2 border-red-200 text-red-500 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/20 bg-transparent"
+                                        onClick={() => {
+                                            const newRecipe = (createForm as any).recipe?.filter((_: any, i: number) => i !== idx);
+                                            setCreateForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            ))}
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-dashed border-2 text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:text-orange-400 dark:border-orange-500/30 dark:hover:bg-orange-500/20 dark:hover:border-orange-400 mt-2 bg-transparent"
+                                onClick={() => {
+                                    setCreateForm((p: any) => ({
+                                        ...p,
+                                        recipe: [...(p.recipe || []), { ingredientId: '', quantity: 1 }]
+                                    }));
+                                }}
+                            >
+                                <Plus className="w-4 h-4 mr-2" /> Thêm nguyên liệu
+                            </Button>
+                        </div>
+                    </div>
                     </div>
                 </div>
             </Modal>
