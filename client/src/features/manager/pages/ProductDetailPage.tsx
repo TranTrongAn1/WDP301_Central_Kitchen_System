@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft, Loader2, Package, Tag, Clock,
-    DollarSign, Layers, Edit, Trash2, FlaskConical
+    DollarSign, Layers, Edit, Trash2, FlaskConical, Plus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -35,9 +35,13 @@ const ProductDetailPage = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [categoryName, setCategoryName] = useState<string>('');
     const [ingredientMap, setIngredientMap] = useState<Record<string, string>>({});
+
+    // MỚI: State lưu toàn bộ danh sách nguyên liệu để đổ vào Dropdown lúc sửa
+    const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
+
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editLoading, setEditLoading] = useState(false);
-    const [editForm, setEditForm] = useState<UpdateProductRequest>({
+    const [editForm, setEditForm] = useState<any>({
         name: '',
         sku: '',
         price: 0,
@@ -45,6 +49,7 @@ const ProductDetailPage = () => {
         weight: 0.5,
         weightUnit: 'kg',
         image: undefined,
+        recipe: [] // Thêm recipe vào form state
     });
     const [editImageFile, setEditImageFile] = useState<File | null>(null);
 
@@ -56,6 +61,13 @@ const ProductDetailPage = () => {
             const response = await productApi.getById(id);
             const data = (response as any)?.data || response;
             setProduct(data);
+
+            // Map mảng recipe từ DB ra dạng { ingredientId: string, quantity: number }
+            const mappedRecipe = data?.recipe?.map((r: any) => ({
+                ingredientId: typeof r.ingredientId === 'string' ? r.ingredientId : r.ingredientId?._id,
+                quantity: r.quantity || 0
+            })) || [];
+
             setEditForm({
                 name: data?.name,
                 sku: data?.sku,
@@ -65,12 +77,17 @@ const ProductDetailPage = () => {
                 weight: data?.weight ?? 0.5,
                 weightUnit: data?.weightUnit ?? 'kg',
                 image: data?.image,
+                recipe: mappedRecipe, // Gán recipe vào form
             });
 
-            // Fetch all ingredients once and create a map
+            // Fetch all ingredients once
             try {
                 const ingResponse = await ingredientApi.getAll();
                 const ingData = (ingResponse as any)?.data || ingResponse || [];
+
+                // MỚI: Lưu toàn bộ nguyên liệu vào state
+                setAllIngredients(Array.isArray(ingData) ? ingData : []);
+
                 const map: Record<string, string> = {};
                 (Array.isArray(ingData) ? ingData : []).forEach((ing: Ingredient) => {
                     if (ing._id) {
@@ -78,7 +95,6 @@ const ProductDetailPage = () => {
                     }
                 });
                 setIngredientMap(map);
-                console.log('Ingredient map created:', map);
             } catch (ingErr) {
                 console.error('Error fetching ingredients:', ingErr);
             }
@@ -142,6 +158,10 @@ const ProductDetailPage = () => {
             if (editImageFile) {
                 imageUrl = await uploadProductImage(editImageFile, id);
             }
+
+            // Lọc bỏ những nguyên liệu chưa chọn ID hoặc số lượng = 0
+            const cleanedRecipe = editForm.recipe?.filter((r: any) => r.ingredientId && r.quantity > 0) || [];
+
             const payload: UpdateProductRequest = {
                 ...editForm,
                 image: imageUrl,
@@ -149,7 +169,9 @@ const ProductDetailPage = () => {
                 shelfLifeDays: Number(editForm.shelfLifeDays) || 1,
                 weight: editForm.weight != null ? Number(editForm.weight) || 0.5 : undefined,
                 weightUnit: editForm.weightUnit || 'kg',
+                recipe: cleanedRecipe // Gửi recipe đã lọc lên Backend
             };
+
             await productApi.update(id, payload);
             toast.success('Đã cập nhật sản phẩm.');
             setIsEditOpen(false);
@@ -162,7 +184,6 @@ const ProductDetailPage = () => {
     };
 
     const getCategoryDisplayName = () => {
-        // Use fetched category name first, then fallback
         if (categoryName) return categoryName;
         if (!product?.categoryId) return 'Chưa phân loại';
         if (typeof product.categoryId === 'string') return product.categoryId;
@@ -171,28 +192,20 @@ const ProductDetailPage = () => {
     };
 
     const getIngredientName = (ingredient: any) => {
-        // First, check if ingredientId is populated with name
         if (typeof ingredient.ingredientId === 'object') {
             const ingData = ingredient.ingredientId;
-            // Try ingredientName first (from backend populate)
             if (ingData?.ingredientName) return ingData.ingredientName;
-            // Try name as fallback
             if (ingData?.name) return ingData.name;
         }
-
-        // If ingredientId is just an ID string, use the ingredientMap
         if (typeof ingredient.ingredientId === 'string') {
             return ingredientMap[ingredient.ingredientId] || `Nguyên liệu (${ingredient.ingredientId.substring(0, 8)}...)`;
         }
-
-        // If ingredientId is an object without name, try to find in map using _id
         if (typeof ingredient.ingredientId === 'object') {
             const ingId = ingredient.ingredientId?._id;
             if (ingId) {
                 return ingredientMap[ingId] || `Nguyên liệu (${ingId.substring(0, 8)}...)`;
             }
         }
-
         return 'Không xác định';
     };
 
@@ -280,7 +293,7 @@ const ProductDetailPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2">
                                 <Package className="w-5 h-5" />
                                 Thông tin sản phẩm
                             </CardTitle>
@@ -405,7 +418,7 @@ const ProductDetailPage = () => {
                     {isBundle && (
                         <Card>
                             <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2">
                                     <Layers className="w-5 h-5" />
                                     Sản phẩm trong combo ({product.bundleItems?.length} sản phẩm)
                                 </CardTitle>
@@ -442,7 +455,7 @@ const ProductDetailPage = () => {
 
                 <div className="space-y-6">
                     <Card>
-                            <CardHeader>
+                        <CardHeader>
                             <CardTitle>Tổng quan</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -474,7 +487,7 @@ const ProductDetailPage = () => {
                     </Card>
 
                     <Card>
-                            <CardHeader>
+                        <CardHeader>
                             <CardTitle>Thông tin hệ thống</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
@@ -510,7 +523,7 @@ const ProductDetailPage = () => {
                 isOpen={isEditOpen}
                 onClose={() => !editLoading && setIsEditOpen(false)}
                 title="Sửa sản phẩm"
-                description="Cập nhật thông tin và (tuỳ chọn) upload ảnh mới lên Firebase"
+                description="Cập nhật thông tin và nguyên liệu"
                 size="lg"
                 footer={
                     <>
@@ -533,14 +546,14 @@ const ProductDetailPage = () => {
                             <label className="text-sm font-medium mb-1 block">Tên</label>
                             <Input
                                 value={editForm.name ?? ''}
-                                onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                                onChange={(e) => setEditForm((p: any) => ({ ...p, name: e.target.value }))}
                             />
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1 block">SKU</label>
                             <Input
                                 value={editForm.sku ?? ''}
-                                onChange={(e) => setEditForm((p) => ({ ...p, sku: e.target.value }))}
+                                onChange={(e) => setEditForm((p: any) => ({ ...p, sku: e.target.value }))}
                             />
                         </div>
                         <div>
@@ -549,16 +562,16 @@ const ProductDetailPage = () => {
                                 type="number"
                                 min={0}
                                 value={Number(editForm.price ?? 0)}
-                                onChange={(e) => setEditForm((p) => ({ ...p, price: Number(e.target.value) || 0 }))}
+                                onChange={(e) => setEditForm((p: any) => ({ ...p, price: Number(e.target.value) || 0 }))}
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1 block">Shelf life (days)</label>
+                            <label className="text-sm font-medium mb-1 block">Hạn sử dụng (ngày)</label>
                             <Input
                                 type="number"
                                 min={1}
                                 value={Number(editForm.shelfLifeDays ?? 1)}
-                                onChange={(e) => setEditForm((p) => ({ ...p, shelfLifeDays: Number(e.target.value) || 1 }))}
+                                onChange={(e) => setEditForm((p: any) => ({ ...p, shelfLifeDays: Number(e.target.value) || 1 }))}
                             />
                         </div>
                         <div>
@@ -569,7 +582,7 @@ const ProductDetailPage = () => {
                                 step={0.01}
                                 value={Number(editForm.weight ?? 0)}
                                 onChange={(e) =>
-                                    setEditForm((p) => ({
+                                    setEditForm((p: any) => ({
                                         ...p,
                                         weight: Number(e.target.value) || 0,
                                     }))
@@ -588,6 +601,82 @@ const ProductDetailPage = () => {
                             </p>
                         </div>
                     </div>
+
+                    {/* KHU VỰC CHỈNH SỬA CÔNG THỨC (Chỉ hiện cho sản phẩm thường) */}
+                    {!isBundle && (
+                        <div className="mt-6 pt-4 border-t border-border">
+                            <label className="text-sm font-bold mb-3 flex items-center gap-2 text-orange-600">
+                                <FlaskConical className="w-4 h-4" /> Công thức nguyên liệu
+                            </label>
+
+                            <div className="space-y-3 bg-muted/30 p-4 rounded-xl border border-border">
+                                {editForm.recipe?.length === 0 && (
+                                    <p className="text-sm text-muted-foreground italic text-center py-2">Sản phẩm chưa có công thức.</p>
+                                )}
+
+                                {editForm.recipe?.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center gap-3">
+                                        <select
+                                            className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                                            value={item.ingredientId || ''}
+                                            onChange={(e) => {
+                                                const newRecipe = [...(editForm.recipe || [])];
+                                                newRecipe[idx].ingredientId = e.target.value;
+                                                setEditForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                            }}
+                                        >
+                                            <option value="" disabled>Chọn nguyên liệu...</option>
+                                            {allIngredients.map(ing => (
+                                                <option key={ing._id} value={ing._id}>
+                                                    {ing.ingredientName || (ing as any).name}
+                                                    {ing.unit ? ` (${ing.unit})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            step={0.01}
+                                            placeholder="SL"
+                                            className="w-24 text-right"
+                                            value={item.quantity}
+                                            onChange={(e) => {
+                                                const newRecipe = [...(editForm.recipe || [])];
+                                                newRecipe[idx].quantity = Number(e.target.value) || 0;
+                                                setEditForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                            }}
+                                        />
+
+                                        <Button
+                                            variant="outline"
+                                            className="px-2 border-red-200 text-red-500 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/20 bg-transparent"
+                                            onClick={() => {
+                                                const newRecipe = editForm.recipe?.filter((_: any, i: number) => i !== idx);
+                                                setEditForm((p: any) => ({ ...p, recipe: newRecipe }));
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full border-dashed border-2 text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:text-orange-400 dark:border-orange-500/30 dark:hover:bg-orange-500/20 dark:hover:border-orange-400 mt-2 bg-transparent"
+                                    onClick={() => {
+                                        setEditForm((p: any) => ({
+                                            ...p,
+                                            recipe: [...(p.recipe || []), { ingredientId: '', quantity: 1 }]
+                                        }));
+                                    }}
+                                >
+                                    <Plus className="w-4 h-4 mr-2" /> Thêm nguyên liệu
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Modal>
         </div>
