@@ -2093,6 +2093,7 @@ paths:
         
         **Requirements:**
         - Order must not already be in 'Received' or 'Cancelled' status
+        - Max 3 cancellations per day per store
       security:
         - BearerAuth: []
       parameters:
@@ -2119,7 +2120,7 @@ paths:
         '200':
           description: Order cancelled successfully
         '400':
-          description: Cannot cancel - order not in Pending status
+          description: Cannot cancel - invalid status, missing cancellation reason, or store has reached the maximum limit of 3 order cancellations per day
         '404':
           description: Order not found
 

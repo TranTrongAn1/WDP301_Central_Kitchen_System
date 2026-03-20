@@ -1180,7 +1180,32 @@ const rejectOrder = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 2: Inventory Reversal (if order has batches assigned)
+    // STEP 2: Enforce Daily Store Cancellation Limit
+    // ========================================
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const cancelCount = await Order.countDocuments({
+      storeId: order.storeId._id,
+      status: 'Cancelled',
+      cancelledAt: { $gte: startOfDay, $lte: endOfDay },
+    }).session(session);
+
+    if (cancelCount >= 3) {
+      transactionAborted = true;
+      await session.abortTransaction();
+      res.status(400);
+      throw new Error(
+        'Store has reached the maximum limit of 3 order cancellations per day.'
+      );
+    }
+
+    // ========================================
+    // STEP 3: Inventory Reversal (if order has batches assigned)
     // ========================================
     let batchesReversed = 0;
 
@@ -1210,7 +1235,7 @@ const rejectOrder = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 3: Update Order Status to Cancelled
+    // STEP 4: Update Order Status to Cancelled
     // ========================================
     order.status = 'Cancelled';
     order.cancellationReason = reason;
@@ -1219,7 +1244,7 @@ const rejectOrder = async (req, res, next) => {
     await order.save({ session });
 
     // ========================================
-    // STEP 4: Handle Refunds and Update Invoice Status (if exists)
+    // STEP 5: Handle Refunds and Update Invoice Status (if exists)
     // ========================================
     const invoice = await Invoice.findOne({ orderId: order._id }).session(session);
     let refundInfo = null;
@@ -1284,7 +1309,7 @@ const rejectOrder = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 5: Prepare Response Data (before commit for safety)
+    // STEP 6: Prepare Response Data (before commit for safety)
     // ========================================
     // Populate order data while still in transaction
     await order.populate([
@@ -1312,13 +1337,13 @@ const rejectOrder = async (req, res, next) => {
     };
 
     // ========================================
-    // STEP 6: Commit Transaction
+    // STEP 7: Commit Transaction
     // ========================================
     await session.commitTransaction();
     transactionAborted = true; // Mark as committed to prevent abort attempts
 
     // ========================================
-    // STEP 7: Send Response (immediately after commit)
+    // STEP 8: Send Response (immediately after commit)
     // ========================================
     res.status(200).json(responseData);
   } catch (error) {
