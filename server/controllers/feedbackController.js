@@ -10,7 +10,7 @@ const Store = require('../models/Store');
 const createFeedback = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const { rating, content, images } = req.body;
+    const { rating, content, images, tags } = req.body;
     const userId = req.user._id;
 
     // Validate input
@@ -61,6 +61,7 @@ const createFeedback = async (req, res, next) => {
       storeId: order.storeId,
       rating,
       content: content || '',
+      tags: tags || [],
       images: images || [],
       createdBy: userId,
     });

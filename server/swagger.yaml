@@ -3473,12 +3473,24 @@ paths:
                   type: string
                   description: Feedback comment/review
                   example: 'Excellent quality and on-time delivery!'
+                tags:
+                  type: array
+                  items:
+                    type: string
+                    enum: ['Vận chuyển thiếu hàng', 'Hàng hư hỏng', 'Vận chuyển tốt', 'Thái độ phục vụ tốt', 'Khác']
+                  description: Predefined feedback tags/issues selected by user
+                  example: ['Vận chuyển tốt', 'Thái độ phục vụ tốt']
                 images:
                   type: array
                   items:
                     type: string
                   description: Array of image URLs
                   example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+            example:
+              rating: 5
+              content: 'Excellent quality and on-time delivery!'
+              tags: ['Vận chuyển tốt', 'Thái độ phục vụ tốt']
+              images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
       responses:
         '201':
           description: Feedback created successfully
@@ -5224,6 +5236,13 @@ components:
           type: string
           example: 'Great quality mooncakes, delivered on time!'
           description: 'Feedback comment'
+        tags:
+          type: array
+          items:
+            type: string
+            enum: ['Vận chuyển thiếu hàng', 'Hàng hư hỏng', 'Vận chuyển tốt', 'Thái độ phục vụ tốt', 'Khác']
+          example: ['Vận chuyển tốt', 'Thái độ phục vụ tốt']
+          description: 'Selected predefined feedback tags/issues'
         images:
           type: array
           items:
