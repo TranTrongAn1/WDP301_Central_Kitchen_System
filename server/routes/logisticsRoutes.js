@@ -20,6 +20,7 @@ const {
   deleteDeliveryTrip,
   getInvoices,
   getInvoiceById,
+  autoScheduleTrips,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -92,6 +93,7 @@ router.patch(
   authorize('Coordinator', 'Manager', 'Admin'),
   removeOrdersFromTrip
 );
+router.post('/trips/auto-schedule', authorize('Coordinator', 'Admin'), autoScheduleTrips);
 
 // Start shipping process (KitchenStaff, Manager, Admin)
 router.post(

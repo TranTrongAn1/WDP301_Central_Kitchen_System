@@ -99,7 +99,7 @@ function App() {
               <Route path="/admin/feedback" element={<FeedbackListPage />} />
               <Route path="/admin/suppliers" element={<SuppliersPage />} />
               <Route path="/admin/vehicle-types" element={<VehicleTypesPage />} />
-
+              
               {/* Products & Categories */}
               <Route path="/admin/products" element={<ProductsRecipesPage />} />
               <Route path="/admin/products/:id" element={<ProductDetailPage />} />

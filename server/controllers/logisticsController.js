@@ -2104,7 +2104,143 @@ const deleteDeliveryTrip = async (req, res, next) => {
     session.endSession();
   }
 };
+// Hàm phụ trợ tính đổi ra kg
+const normalizeWeightToKg = (weight, unit) => {
+    if (!weight || weight <= 0) return 0;
+    const u = (unit || 'kg').toLowerCase();
+    if (u === 'g' || u === 'gram' || u === 'grams') return weight / 1000;
+    if (u === 'ton' || u === 't' || u === 'tons') return weight * 1000;
+    return weight;
+};
 
+// @desc    Tự động quét Database, tính toán và LƯU TRỰC TIẾP
+// @route   POST /api/logistics/trips/auto-schedule
+const autoScheduleTrips = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        // KHÔNG CẦN req.body NỮA! BE TỰ LÀM HẾT!
+
+        // 1. Quét tìm những đơn hàng ĐÃ ĐƯỢC XẾP VÀO CHUYẾN (để né tụi nó ra, tránh xếp trùng)
+        const activeTrips = await DeliveryTrip.find({ status: { $ne: 'Cancelled' } });
+        const assignedOrderIds = activeTrips.flatMap(trip => trip.orders.map(id => id.toString()));
+
+        // 2. Kéo tất cả đơn đang chờ giao & CHƯA CÓ CHUYẾN lên
+        const unassignedOrders = await Order.find({ 
+            status: 'Ready_For_Shipping',
+            _id: { $nin: assignedOrderIds } // Lọc bỏ mấy thằng đã bị bế đi
+        }).populate('items.productId');
+
+        if (unassignedOrders.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Hiện tại không có đơn hàng nào đang chờ để xếp chuyến!' 
+            });
+        }
+
+        const vehicleTypes = await VehicleType.find({ isActive: true });
+        if (vehicleTypes.length === 0) {
+            throw new Error('Chưa có xe vận chuyển nào trong hệ thống!');
+        }
+
+        // 3. Tính tổng khối lượng từng đơn
+        let ordersWithWeight = unassignedOrders.map(order => {
+            let totalW = 0;
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    const product = item.productId;
+                    const rawW = product?.weight || 0.5;
+                    const u = product?.weightUnit || 'kg';
+                    totalW += normalizeWeightToKg(rawW, u) * (item.quantity || 0);
+                });
+            }
+            return { ...order._doc, totalWeightKg: totalW };
+        });
+
+        // Sắp xếp đơn NẶNG ĐẾN NHẸ
+        ordersWithWeight.sort((a, b) => b.totalWeightKg - a.totalWeightKg);
+        const tripsToCreate = [];
+
+        // 4. THUẬT TOÁN TỐI ƯU LẤP ĐẦY (Fill Rate)
+        while (ordersWithWeight.length > 0) {
+            let bestTrip = null;
+            let bestFillRate = -1;
+            let bestVehicle = null;
+
+            for (const vehicle of vehicleTypes) {
+                const capacity = normalizeWeightToKg(vehicle.capacity, vehicle.unit);
+                let currentWeight = 0;
+                let currentOrders = [];
+
+                for (const order of ordersWithWeight) {
+                    if (currentWeight + order.totalWeightKg <= capacity) {
+                        currentOrders.push(order);
+                        currentWeight += order.totalWeightKg;
+                    }
+                }
+
+                if (currentOrders.length > 0) {
+                    const fillRate = currentWeight / capacity;
+                    if (fillRate > bestFillRate || (fillRate === bestFillRate && currentWeight > (bestTrip?.totalWeight || 0))) {
+                        bestFillRate = fillRate;
+                        bestTrip = { orders: currentOrders, totalWeight: currentWeight };
+                        bestVehicle = vehicle;
+                    }
+                }
+            }
+
+            if (!bestTrip) { // Xử lý ngoại lệ đơn quá to
+                const oversizedOrder = ordersWithWeight.shift();
+                const largestVehicle = [...vehicleTypes].sort((a, b) => normalizeWeightToKg(b.capacity, b.unit) - normalizeWeightToKg(a.capacity, a.unit))[0];
+                tripsToCreate.push({
+                    orders: [oversizedOrder._id],
+                    vehicleType: largestVehicle._id,
+                    notes: 'Hệ thống tự động xếp (Bị quá tải, cần kiểm tra thủ công)',
+                    status: 'Planning'
+                });
+                continue;
+            }
+
+            // Chốt chuyến tốt nhất
+            tripsToCreate.push({
+                orders: bestTrip.orders.map(o => o._id),
+                vehicleType: bestVehicle._id,
+                notes: 'Hệ thống tự động xếp chuyến',
+                status: 'Planning'
+            });
+
+            // Gạch bỏ đơn đã xếp
+            const packedOrderIds = bestTrip.orders.map(o => o._id.toString());
+            ordersWithWeight = ordersWithWeight.filter(o => !packedOrderIds.includes(o._id.toString()));
+        }
+
+        // 5. LƯU THẲNG XUỐNG DB
+        const createdTrips = [];
+        for (const tripData of tripsToCreate) {
+            const newTrip = new DeliveryTrip({
+                ...tripData
+                // createdBy: req.user._id 
+            });
+            await newTrip.save({ session });
+            createdTrips.push(newTrip);
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json({
+            success: true,
+            message: `Hệ thống đã gom ${unassignedOrders.length} đơn hàng thành ${createdTrips.length} chuyến xe tự động!`,
+            count: createdTrips.length
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
+    }
+};
 module.exports = {
   // Order Management
   createOrder,
@@ -2126,7 +2262,7 @@ module.exports = {
   startShipping,
   receiveOrder,
   deleteDeliveryTrip,
-
+  autoScheduleTrips,
   // Invoice & Payment
   getInvoices,
   getInvoiceById,
@@ -2134,4 +2270,5 @@ module.exports = {
 
   // Analytics
   aggregateDailyDemand,
+  normalizeWeightToKg,
 };
