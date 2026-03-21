@@ -52,6 +52,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="checkout"
+        options={{ href: null, title: "Thanh toán" }}
+      />
+      <Tabs.Screen
         name="store-inventory"
         options={{
           title: "Kho",
