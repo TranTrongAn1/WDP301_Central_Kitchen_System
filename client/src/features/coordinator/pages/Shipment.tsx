@@ -8,7 +8,8 @@ import {
     PenSquare,
     ChevronLeft,
     ChevronRight,
-    Trash2
+    Trash2,
+    Wand2 // Import icon cho nút auto
 } from 'lucide-react';
 import DeliveryTripApi, { type ITrip } from '@/api/DeliveryTripApi';
 import { OrderApi, type Order } from '@/api/OrderApi';
@@ -39,7 +40,7 @@ const Shipments = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingTrip, setEditingTrip] = useState<ITrip | null>(null);
     const [tripToDelete, setTripToDelete] = useState<string | null>(null);
-
+const [isAutoAssigning, setIsAutoAssigning] = useState(false);
     // State Phân trang
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -132,7 +133,6 @@ const Shipments = () => {
     };
 
     const availableOrders = allOrders.filter(order => {
-        // Trip chỉ làm việc với các đơn đã sẵn sàng giao (Ready_For_Shipping)
         const isReadyForShipping = (order.status as string) === 'Ready_For_Shipping';
         const notInAnyTrip = !trips.some((trip) =>
             trip.orders.some((tripOrder) => {
@@ -232,43 +232,62 @@ const Shipments = () => {
         }
     };
 
+    const handleAutoAssign = async () => {
+    try {
+        setIsAutoAssigning(true);
+        const loadingToast = toast.loading('Hệ thống đang tính toán tối ưu chuyến hàng...');
+        
+        const res = await DeliveryTripApi.autoScheduleTrips();
+        
+        toast.dismiss(loadingToast);
+
+        if (res.success) {
+            toast.success(res.message || 'Tự động xếp chuyến thành công!');
+            // Reset về trang 1 và tải lại dữ liệu mới
+            setCurrentPage(1);
+            await fetchData();
+        } else {
+            toast.error(res.message || 'Không có đơn hàng nào đủ điều kiện xếp chuyến');
+        }
+    } catch (err: any) {
+        console.error(err);
+        const msg = err?.response?.data?.message || 'Lỗi hệ thống khi tự động xếp chuyến';
+        toast.error(msg);
+    } finally {
+        setIsAutoAssigning(false);
+    }
+};
+
     const handleSaveTrip = async () => {
         if (selectedOrderIds.length === 0) return toast.error('Vui lòng chọn ít nhất 1 đơn hàng');
 
         try {
             setIsCreating(true);
-if (editingTrip) {
-        const initialOrderIds = (editingTrip.orders || []).map((o) =>
-          typeof o === 'string' ? o : (o as { _id: string })._id
-        );
-        const addedOrders = selectedOrderIds.filter(id => !initialOrderIds.includes(id));
-        const removedOrders = initialOrderIds.filter(id => !selectedOrderIds.includes(id));
+            if (editingTrip) {
+                const initialOrderIds = (editingTrip.orders || []).map((o) =>
+                    typeof o === 'string' ? o : (o as { _id: string })._id
+                );
+                const addedOrders = selectedOrderIds.filter(id => !initialOrderIds.includes(id));
+                const removedOrders = initialOrderIds.filter(id => !selectedOrderIds.includes(id));
 
-        // Khởi tạo mảng chứa các request API
-        const apiPromises = [];
+                const apiPromises = [];
 
-        // 1. Cập nhật thêm/bớt đơn hàng (nếu có thay đổi)
-        if (addedOrders.length > 0) {
-          apiPromises.push(DeliveryTripApi.addOrdersToDeliveryTrip(editingTrip._id, addedOrders));
-        }
-        if (removedOrders.length > 0) {
-          apiPromises.push(DeliveryTripApi.removeOrdersFromDeliveryTrip(editingTrip._id, removedOrders));
-        }
-        
-        // 2. GỌI API THEO SWAGGER ĐỂ UPDATE XE VÀ NOTE
-        // Thêm vào Promise.all để chạy song song cho nhanh
-        apiPromises.push(
-          DeliveryTripApi.updateDeliveryTrip(editingTrip._id, {
-            notes: tripNotes,
-            // Đảm bảo gửi đúng key vehicleTypeId, nếu rỗng thì gửi undefined để backend bỏ qua
-            vehicleTypeId: selectedVehicleTypeId || undefined 
-          })
-        );
+                if (addedOrders.length > 0) {
+                    apiPromises.push(DeliveryTripApi.addOrdersToDeliveryTrip(editingTrip._id, addedOrders));
+                }
+                if (removedOrders.length > 0) {
+                    apiPromises.push(DeliveryTripApi.removeOrdersFromDeliveryTrip(editingTrip._id, removedOrders));
+                }
 
-        // Đợi tất cả API chạy xong
-        await Promise.all(apiPromises);
-        
-        toast.success('Cập nhật chuyến hàng thành công!');
+                apiPromises.push(
+                    DeliveryTripApi.updateDeliveryTrip(editingTrip._id, {
+                        notes: tripNotes,
+                        vehicleTypeId: selectedVehicleTypeId || undefined
+                    })
+                );
+
+                await Promise.all(apiPromises);
+                toast.success('Cập nhật chuyến hàng thành công!');
             } else {
                 const res = await DeliveryTripApi.createDeliveryTrip(selectedOrderIds, {
                     notes: tripNotes || undefined,
@@ -281,19 +300,12 @@ if (editingTrip) {
             fetchData();
         } catch (err: any) {
             console.error(err);
-            const message =
-                err?.response?.data?.message ||
-                err?.message ||
-                'Đã xảy ra lỗi khi lưu chuyến hàng';
+            const message = err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi lưu chuyến hàng';
             toast.error(message);
         } finally {
             setIsCreating(false);
         }
     };
-
-    // Finalize Trip không còn được backend hỗ trợ như một bước riêng.
-    // Trip sẽ được "chốt" bằng start-shipping và tự Completed khi tất cả đơn đã Received,
-    // nên không cần state/nút finalize ở layer Coordinator nữa.
 
     if (loading) return (
         <div className={`flex items-center justify-center h-64 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -304,7 +316,28 @@ if (editingTrip) {
 
     return (
         <div className="animate-in fade-in duration-500 pb-10">
-            <div className="flex justify-end mb-6">
+            {/* CỤM NÚT ĐIỀU KHIỂN */}
+            <div className="flex justify-end gap-3 mb-6">
+                <button
+    onClick={handleAutoAssign}
+    disabled={isAutoAssigning || isCreating}
+    className={cn(
+        "flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-wider transition-all active:scale-95 shadow-md",
+        "bg-amber-500 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+    )}
+>
+    {isAutoAssigning ? (
+        <>
+            <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+            Đang tính toán...
+        </>
+    ) : (
+        <>
+            <Wand2 className="w-5 h-5" /> Auto xếp đơn
+        </>
+    )}
+</button>
+
                 <button
                     onClick={openCreateModal}
                     className={cn(
@@ -426,49 +459,27 @@ if (editingTrip) {
                                     </div>
                                 )}
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">
-                                        Loại phương tiện giao hàng
-                                    </label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground">Loại phương tiện giao hàng</label>
                                     <div className="relative">
                                         <select
                                             value={selectedVehicleTypeId}
                                             onChange={(e) => setSelectedVehicleTypeId(e.target.value)}
                                             className={cn(
                                                 'w-full appearance-none rounded-xl border px-3 pr-9 py-2.5 text-sm font-medium outline-none transition-colors',
-                                                darkMode
-                                                    ? 'bg-[#1C1C21] border-gray-600 text-white hover:border-orange-400'
-                                                    : 'bg-white border-gray-200 text-gray-900 hover:border-orange-400',
+                                                darkMode ? 'bg-[#1C1C21] border-gray-600 text-white hover:border-orange-400' : 'bg-white border-gray-200 text-gray-900 hover:border-orange-400',
                                             )}
                                         >
-                                            <option value="">
-                                                {vehicleTypes.length === 0
-                                                    ? 'Không có loại xe khả dụng'
-                                                    : 'Chọn loại xe (tùy chọn)'}
-                                            </option>
+                                            <option value="">{vehicleTypes.length === 0 ? 'Không có loại xe khả dụng' : 'Chọn loại xe (tùy chọn)'}</option>
                                             {vehicleTypes.map((v) => (
-                                                <option key={v._id} value={v._id}>
-                                                    {v.name}
-                                                </option>
+                                                <option key={v._id} value={v._id}>{v.name}</option>
                                             ))}
                                         </select>
-                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-muted-foreground">
-                                            expand_more
-                                        </span>
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-muted-foreground">expand_more</span>
                                     </div>
                                     {selectedVehicle && (
                                         <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
-                                            <p>
-                                                Đã chọn:{' '}
-                                                <span className="font-semibold text-orange-500">
-                                                    {selectedVehicle.name}
-                                                </span>
-                                            </p>
-                                            <p>
-                                                Sức chở xe:{' '}
-                                                <span className="font-semibold">
-                                                    {getVehicleCapacityText()}
-                                                </span>
-                                            </p>
+                                            <p>Đã chọn: <span className="font-semibold text-orange-500">{selectedVehicle.name}</span></p>
+                                            <p>Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span></p>
                                         </div>
                                     )}
                                 </div>
@@ -480,13 +491,9 @@ if (editingTrip) {
 
                             <div className="mt-2 text-[11px] text-muted-foreground">
                                 <span className="font-bold uppercase tracking-widest">Ước tính khối lượng:</span>{' '}
-                                <span className="font-semibold text-orange-500">
-                                    {totalSelectedWeightKg.toFixed(2)} kg
-                                </span>
+                                <span className="font-semibold text-orange-500">{totalSelectedWeightKg.toFixed(2)} kg</span>
                                 {selectedVehicle && selectedVehicle.capacity != null && selectedVehicle.unit && (
-                                    <>
-                                        {' '}• Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span>
-                                    </>
+                                    <> • Sức chở xe: <span className="font-semibold">{getVehicleCapacityText()}</span></>
                                 )}
                             </div>
 
@@ -532,20 +539,10 @@ if (editingTrip) {
                             <Trash2 className="w-8 h-8" />
                         </div>
                         <h3 className="text-xl font-black uppercase mb-2">Xóa chuyến hàng?</h3>
-                        <p className="text-sm mb-8 text-muted-foreground">
-                            Thao tác này sẽ xóa kế hoạch giao hàng hiện tại. Bạn sẽ cần lập lại chuyến nếu muốn giao các đơn này.
-                        </p>
+                        <p className="text-sm mb-8 text-muted-foreground">Thao tác này sẽ xóa kế hoạch giao hàng hiện tại. Bạn sẽ cần lập lại chuyến nếu muốn giao các đơn này.</p>
                         <div className="flex gap-3">
-                            <button
-                                onClick={() => setTripToDelete(null)}
-                                className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors"
-                            >
-                                Hủy bỏ
-                            </button>
-                            <button
-                                onClick={() => handleDeleteTrip(tripToDelete)}
-                                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2"
-                            >
+                            <button onClick={() => setTripToDelete(null)} className="flex-1 py-3 rounded-xl font-bold uppercase text-xs bg-muted text-muted-foreground hover:bg-secondary transition-colors">Hủy bỏ</button>
+                            <button onClick={() => handleDeleteTrip(tripToDelete)} className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase text-xs transition-all flex items-center justify-center gap-2">
                                 <Trash2 className="w-4 h-4" /> Xác nhận
                             </button>
                         </div>
