@@ -6,13 +6,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/features/manager/components/ui/Dialog';
+// Thêm Loader2 vào đây
+import {Loader2} from 'lucide-react';
 import { Button } from '@/features/manager/components/ui/Button';
 import { Input } from '@/features/manager/components/ui/Input';
 import { Label } from '@/features/manager/components/ui/Label';
 import { ingredientRequestApi } from '@/api/IngredientRequestApi';
-import { supplierApi } from '@/api/SupplierApi'; // Đảm bảo bạn có API này
+import { supplierApi } from '@/api/SupplierApi';
 import toast from 'react-hot-toast';
 import type { IngredientRequest } from '@/shared/types/ingredientRequest';
+import { ingredientApi } from '@/api/IngredientApi';
 
 interface CompleteRequestDialogProps {
   open: boolean;
@@ -20,18 +23,17 @@ interface CompleteRequestDialogProps {
   request: IngredientRequest | null;
   onSuccess: () => void;
 }
+
 const formatMoney = (value: string) => {
   if (!value) return '';
-  // Loại bỏ tất cả ký tự không phải số
   const number = value.replace(/\D/g, '');
-  // Định dạng có dấu chấm phân cách
   return number.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const parseMoney = (formattedValue: string) => {
-  // Chuyển ngược từ "100.000" về 100000 để gửi lên BE
   return parseInt(formattedValue.replace(/\./g, ''), 10) || 0;
 };
+
 export function CompleteRequestDialog({
   open,
   onOpenChange,
@@ -46,61 +48,67 @@ export function CompleteRequestDialog({
   const [displayCost, setDisplayCost] = useState<string>('');
   const MAX_LIMIT = 500000000;
   const [expiryDate, setExpiryDate] = useState<string>('');
-  // Lấy danh sách NCC
+  const [receivedDate, setReceivedDate] = useState<string>(new Date().toISOString().split('T')[0]); // THÊM MỚI: Mặc định ngày hôm nay
+  const [ingredientName, setIngredientName] = useState<string>('');
+
   useEffect(() => {
     if (open) {
       const fetchSuppliers = async () => {
         try {
           const res: any = await supplierApi.getAll();
-          // Kiểm tra nếu res là mảng thì dùng luôn, 
-          // nếu không thì tìm trong res.data hoặc res.data.data (tùy cấu trúc API của bạn)
           const supplierList = Array.isArray(res)
             ? res
             : (Array.isArray(res?.data) ? res.data : []);
-
           setSuppliers(supplierList);
         } catch (error) {
           console.error("Lỗi lấy danh sách NCC", error);
-          setSuppliers([]); // Reset về mảng rỗng nếu lỗi
+          setSuppliers([]);
         }
       };
       fetchSuppliers();
+      // Reset ngày nhận về hôm nay mỗi khi mở dialog
+      setReceivedDate(new Date().toISOString().split('T')[0]);
     }
   }, [open]);
-const handleCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
     const formatted = formatMoney(rawValue);
-    
-    // Kiểm tra ngay khi nhập
     if (parseMoney(formatted) > MAX_LIMIT) {
       toast.error('Số tiền vượt quá hạn mức cho phép (500tr). Vui lòng kiểm tra lại!');
       return;
     }
-    
     setDisplayCost(formatted);
   };
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!request || !request._id) return;
 
-  // Validate Hạn sử dụng
-  if (!expiryDate) {
-    toast.error('Vui lòng chọn Hạn sử dụng cho nguyên liệu!');
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!request || !request._id) return;
 
-  setSubmitting(true);
-  try {
-    const payload = {
-      actualCost: parseMoney(displayCost),
-      supplierId: supplierId || null,
-      receiptImage,
-      expiryDate, // Gửi field mới lên BE
-      status: 'COMPLETED'
-    };
+    if (!expiryDate) {
+      toast.error('Vui lòng chọn Hạn sử dụng!');
+      return;
+    }
+    
+    // Validate Ngày nhận
+    if (!receivedDate) {
+      toast.error('Vui lòng chọn Ngày nhận hàng!');
+      return;
+    }
 
-    await ingredientRequestApi.complete(request._id, payload);
+    setSubmitting(true);
+    try {
+      const payload = {
+        actualCost: parseMoney(displayCost),
+        supplierId: supplierId === 'external' ? null : (supplierId || null),
+        externalSupplierName: supplierId === 'external' ? supplierName : null,
+        receiptImage,
+        expiryDate,
+        receivedDate, // GỬI LÊN BE
+        status: 'COMPLETED' as const
+      };
+
+      await ingredientRequestApi.complete(request._id, payload);
       toast.success('Đã chốt hàng và nhập kho thành công!');
       onSuccess();
       onOpenChange(false);
@@ -112,10 +120,29 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   };
 
+  useEffect(() => {
+    const fetchIngredientDetail = async () => {
+      if (open && request && typeof request.ingredientId === 'string') {
+        try {
+          const res = await ingredientApi.getById(request.ingredientId);
+          if (res.data) {
+            const data = res.data as any;
+            setIngredientName(data.ingredientName || 'N/A');
+          }
+        } catch (error) {
+          console.error("Lỗi lấy chi tiết nguyên liệu:", error);
+        }
+      }
+    };
+    fetchIngredientDetail();
+  }, [open, request]);
+
   const resetForm = () => {
     setSupplierId('');
     setSupplierName('');
     setReceiptImage('');
+    setExpiryDate('');
+    setDisplayCost('');
   };
 
   if (!request) return null;
@@ -124,127 +151,123 @@ const handleSubmit = async (e: React.FormEvent) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Chốt hàng & Nhập kho</DialogTitle>
+          <DialogTitle className="text-xl font-bold">Chốt hàng & Nhập kho</DialogTitle>
         </DialogHeader>
 
-        {/* Thông tin tóm tắt phiếu */}
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 text-sm">
+        <div className="bg-muted/50 p-3 rounded-lg border border-border space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-500">Nguyên liệu:</span>
-            <span className="font-semibold text-slate-700">
-              {typeof request.ingredientId === 'object' ? request.ingredientId?.name : 'N/A'}
+            <span className="text-muted-foreground">Nguyên liệu:</span>
+            <span className="font-semibold text-foreground">
+              {typeof request.ingredientId === 'object' && request.ingredientId !== null
+                ? (request.ingredientId as any).name || (request.ingredientId as any).ingredientName
+                : (ingredientName || "Đang tải...")}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Số lượng duyệt:</span>
-            <span className="font-bold text-blue-600">
+            <span className="text-muted-foreground">Số lượng duyệt:</span>
+            <span className="font-bold text-primary">
               {request.quantityRequested} {request.unit}
             </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* Chọn Nhà Cung Cấp */}
           <div className="space-y-2">
-  <Label htmlFor="supplier-select" className="text-gray-300">Nhà cung cấp (Hệ thống)</Label>
-  <select
-    id="supplier-select"
-    className="flex h-12 w-full rounded-lg border border-gray-700 bg-[#1c1c1c] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none cursor-pointer"
-    style={{ colorScheme: 'dark' }} // Giúp các option bên trong cũng ăn theo theme tối
-    value={supplierId}
-    onChange={(e) => setSupplierId(e.target.value)}
-  >
-    <option value="" className="bg-[#1c1c1c]">-- Chọn nhà cung cấp hoặc mua ngoài --</option>
-    {suppliers.map((s) => (
-      <option key={s._id} value={s._id} className="bg-[#1c1c1c]">
-        {s.name}
-      </option>
-    ))}
-    <option value="external" className="bg-[#1c1c1c] text-green-400">
-      + Mua lẻ bên ngoài (Chợ / Siêu thị...)
-    </option>
-  </select>
-</div>
+            <Label htmlFor="supplier-select">Nhà cung cấp</Label>
+            <select
+              id="supplier-select"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
+            >
+              <option value="">-- Chọn nhà cung cấp --</option>
+              {suppliers.map((s) => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+              <option value="external" className="text-green-600 font-bold">+ Mua lẻ bên ngoài</option>
+            </select>
+          </div>
 
-          {/* Nhập tên mua lẻ - Chỉ hiện khi không chọn NCC hệ thống */}
-          {!supplierId && (
+          {supplierId === 'external' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-              <Label>Tên nơi mua lẻ <span className="text-red-500">*</span></Label>
+              <Label>Tên nơi mua lẻ <span className="text-destructive">*</span></Label>
               <Input
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="VD: Chợ Gò Vấp, WinMart..."
+                placeholder="VD: Chợ, WinMart..."
                 required
               />
             </div>
           )}
 
-          {/* Giá tiền thực tế */}
-       <div className="space-y-2">
-      <Label>Tổng tiền thực tế (VNĐ)</Label>
-      <div className="relative">
-        <Input
-          type="text" // Chuyển sang text để hiển thị dấu chấm
-          value={displayCost}
-          onChange={handleCostChange}
-          placeholder="VD: 100.000"
-          className="pr-12" // Chừa chỗ cho đơn vị VNĐ bên phải nếu cần
-          required
-        />
-        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-500 text-xs">
-          VNĐ
-        </div>
-      </div>
-      {displayCost && (
-        <p className="text-[10px] text-green-500">
-          Ghi nhận: {parseMoney(displayCost).toLocaleString('vi-VN')} đồng
-        </p>
-      )}
-    </div>
-
-          {/* Link ảnh hóa đơn */}
           <div className="space-y-2">
-            <Label>Link ảnh hóa đơn / Chứng từ</Label>
+            <Label>Tổng tiền thực tế (VNĐ)</Label>
+            <div className="relative">
+              <Input
+                type="text"
+                value={displayCost}
+                onChange={handleCostChange}
+                placeholder="0"
+                className="pr-12"
+                required
+              />
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground text-xs font-bold">
+                VNĐ
+              </div>
+            </div>
+          </div>
+
+{/* FIELD: NGÀY NHẬN HÀNG */}
+<div className="space-y-2">
+  <Label className="font-semibold text-blue-600">Ngày nhận hàng (Received Date) *</Label>
+  <Input
+    type="date"
+    value={receivedDate}
+    onChange={(e) => setReceivedDate(e.target.value)}
+    required
+    className="bg-background text-foreground border-input"
+  />
+</div>
+
+{/* FIELD: HẠN SỬ DỤNG */}
+<div className="space-y-2">
+  <Label className="font-semibold text-destructive">Hạn sử dụng (Expiry Date) *</Label>
+  <Input
+    type="date"
+    value={expiryDate}
+    onChange={(e) => setExpiryDate(e.target.value)}
+    required
+    min={new Date().toISOString().split("T")[0]}
+    className="bg-background text-foreground border-input"
+  />
+</div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Link ảnh hóa đơn / Chứng từ</Label>
             <Input
               type="url"
               value={receiptImage}
               onChange={(e) => setReceiptImage(e.target.value)}
               placeholder="https://imgur.com/..."
             />
-            <p className="text-[11px] text-muted-foreground italic">
-              * Dán link ảnh chụp bill để đối soát tài chính sau này.
-            </p>
+            {receiptImage && receiptImage.startsWith('http') && (
+              <div className="mt-2 w-20 h-20 rounded-md overflow-hidden border border-border shadow-sm">
+                <img src={receiptImage} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-  <Label className="text-red-400">Hạn sử dụng (Expiry Date) *</Label>
-  <Input
-    type="date"
-    value={expiryDate}
-    onChange={(e) => setExpiryDate(e.target.value)}
-    className="bg-[#1c1c1c] text-white border-gray-700"
-    required
-    // Ngăn chọn ngày trong quá khứ
-    min={new Date().toISOString().split("T")[0]} 
-  />
-  <p className="text-[10px] text-muted-foreground italic">
-    * Bắt buộc để đảm bảo an toàn thực phẩm.
-  </p>
-</div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
             <Button
               type="submit"
-              className="bg-green-600 hover:bg-green-700"
-              isLoading={submitting}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold"
               disabled={submitting}
             >
-              Hoàn tất nhập kho
+              {submitting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+              Xác nhận nhập kho
             </Button>
           </DialogFooter>
         </form>

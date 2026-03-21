@@ -29,7 +29,11 @@ interface RemoveOrdersResponseData {
 interface StartShippingResponseData {
   trip: DeliveryTrip;
 }
-
+interface AutoScheduleResponse {
+  success: boolean;
+  message: string;
+  count: number; // Số lượng chuyến xe đã được tạo tự động
+}
 export type ITrip = DeliveryTrip;
 
 const DeliveryTripApi = {
@@ -88,6 +92,10 @@ const DeliveryTripApi = {
   updateDeliveryTrip: async (tripId: string, data: { notes?: string; vehicleTypeId?: string }) => {
     const res = await apiClient.patch(`/logistics/trips/${tripId}`, data);
     return res as unknown as LogisticsApiResponse<ITrip>;
+  },
+  autoScheduleTrips: async (): Promise<LogisticsApiResponse<null>> => {
+    const res = await apiClient.post('/logistics/trips/auto-schedule');
+    return res as unknown as LogisticsApiResponse<null>;
   },
 };
 
