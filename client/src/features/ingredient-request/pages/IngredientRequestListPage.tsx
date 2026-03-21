@@ -37,19 +37,19 @@ function getIngredientDisplay(req: IngredientRequest): string {
   return obj?.ingredientName ?? obj?.name ?? obj?.code ?? '—';
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
+// function formatDate(iso: string): string {
+//   try {
+//     return new Date(iso).toLocaleString('vi-VN', {
+//       day: '2-digit',
+//       month: '2-digit',
+//       year: 'numeric',
+//       hour: '2-digit',
+//       minute: '2-digit',
+//     });
+//   } catch {
+//     return iso;
+//   }
+// }
 
 function StatusBadge({ status }: { status: IngredientRequestStatus }) {
   const map: Record<IngredientRequestStatus, { variant: 'default' | 'secondary' | 'destructive' | 'warning' | 'success'; label: string }> = {

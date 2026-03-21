@@ -29,11 +29,11 @@ interface RemoveOrdersResponseData {
 interface StartShippingResponseData {
   trip: DeliveryTrip;
 }
-interface AutoScheduleResponse {
-  success: boolean;
-  message: string;
-  count: number; // Số lượng chuyến xe đã được tạo tự động
-}
+// interface AutoScheduleResponse {
+//   success: boolean;
+//   message: string;
+//   count: number;
+// }
 export type ITrip = DeliveryTrip;
 
 const DeliveryTripApi = {
