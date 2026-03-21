@@ -512,4 +512,20 @@ export const ingredientRequestsApi = {
 
     return response.json();
   },
+  complete: async (id: string, data: any, token: string | undefined | null) => {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const response = await fetch(
+    `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests/${id}/complete`, 
+    {
+      method: "PATCH", 
+      headers,
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) throw new Error("Lỗi khi hoàn tất yêu cầu");
+  return response.json();
+},
 };

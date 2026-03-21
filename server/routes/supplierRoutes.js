@@ -15,7 +15,7 @@ const { protect, authorize } = require('../middleware/authMiddleware');
  * @desc    Get all suppliers (with optional filtering and pagination)
  * @access  Private (Admin, Manager, KitchenStaff)
  */
-router.get('/', protect, authorize('Admin', 'Manager', 'KitchenStaff'), getSuppliers);
+router.get('/', protect, authorize('Admin', 'Manager','Coordinator', 'KitchenStaff'), getSuppliers);
 
 /**
  * @route   GET /api/suppliers/:id
