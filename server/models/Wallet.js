@@ -37,8 +37,7 @@ const walletSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster lookups
-walletSchema.index({ storeId: 1 });
+
 
 const Wallet = mongoose.model('Wallet', walletSchema);
 

@@ -46,8 +46,6 @@ const systemSettingSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster key lookups
-systemSettingSchema.index({ key: 1 });
 
 // [MỚI] Index for grouping queries (Tối ưu tốc độ khi FE gọi theo Tab)
 systemSettingSchema.index({ group: 1 });
