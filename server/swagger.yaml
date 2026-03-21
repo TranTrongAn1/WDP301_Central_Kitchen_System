@@ -1410,13 +1410,15 @@ paths:
         - Production
       summary: Complete production item and create finished batch
       description: |
-        Mark a production item as complete. Kitchen staff manually selects which ingredient batches were used.
+        Mark a production item as complete.
+        If `usedIngredients` is provided, the system uses manual override mode.
+        If `usedIngredients` is omitted or empty, the system automatically deducts ingredients using FEFO (First Expired, First Out) based on the product recipe.
         
         **Workflow:**
-        1. Kitchen staff selects batches and quantities from the `usedIngredients` array.
-        2. System validates each batch has sufficient quantity.
-        3. System deducts quantities from the selected batches and updates parent ingredient totals.
-        4. System creates an `IngredientUsage` audit record for each batch used.
+        1. System determines deduction mode: manual override (`usedIngredients`) or automatic FEFO by recipe.
+        2. System validates stock availability and deducts ingredient batch quantities.
+        3. System updates parent ingredient totals.
+        4. System creates `IngredientUsage` audit records for all deducted batches.
         5. System creates a new Finished Goods Batch linked to this production plan.
       security:
         - BearerAuth: []
@@ -1436,7 +1438,6 @@ paths:
               required:
                 - productId
                 - actualQuantity
-                - usedIngredients
               properties:
                 productId:
                   type: string
@@ -1447,7 +1448,7 @@ paths:
                   description: 'Actual quantity of finished products produced'
                 usedIngredients:
                   type: array
-                  description: 'Ingredient batches manually selected by kitchen staff'
+                  description: 'Optional. If left empty, the system will automatically deduct ingredients using FEFO (First Expired, First Out) logic based on the product recipe. Provide this array only if manual override is needed.'
                   minItems: 1
                   items:
                     type: object

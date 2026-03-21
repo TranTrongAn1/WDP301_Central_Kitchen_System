@@ -249,22 +249,16 @@ const completeProductionItem = async (req, res, next) => {
   try {
     const { planId } = req.params;
     const { productId, actualQuantity, usedIngredients } = req.body;
+    const actualQty = Number(actualQuantity);
 
     // ========================================
     // STEP 1: Validation
     // ========================================
-    if (!productId || !actualQuantity || actualQuantity <= 0) {
+    if (!productId || !actualQty || actualQty <= 0) {
       transactionAborted = true;
       await session.abortTransaction();
       res.status(400);
       throw new Error('Product ID and valid actual quantity are required');
-    }
-
-    if (!usedIngredients || !Array.isArray(usedIngredients) || usedIngredients.length === 0) {
-      transactionAborted = true;
-      await session.abortTransaction();
-      res.status(400);
-      throw new Error('usedIngredients must be a non-empty array');
     }
 
     const plan = await ProductionPlan.findById(planId).session(session);
@@ -303,7 +297,9 @@ const completeProductionItem = async (req, res, next) => {
     // ========================================
     // STEP 2: Fetch Product
     // ========================================
-    const product = await Product.findById(productId).session(session);
+    const product = await Product.findById(productId)
+      .populate('recipe.ingredientId', 'ingredientName')
+      .session(session);
     if (!product) {
       transactionAborted = true;
       await session.abortTransaction();
@@ -312,89 +308,170 @@ const completeProductionItem = async (req, res, next) => {
     }
 
     // ========================================
-    // STEP 3: Manual Deduction + IngredientUsage records
+    // STEP 3: Ingredient Deduction (Manual override OR Auto FEFO)
     // ========================================
     const ingredientBatchesUsed = [];
+    const usageRecords = [];
+    const isManualMode = Array.isArray(usedIngredients) && usedIngredients.length > 0;
 
-    for (const item of usedIngredients) {
-      const { ingredientBatchId, quantityUsed, note } = item;
+    if (isManualMode) {
+      for (const item of usedIngredients) {
+        const { ingredientBatchId, quantityUsed, note } = item;
 
-      if (!ingredientBatchId || !quantityUsed || quantityUsed <= 0) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          'Each usedIngredients item must have ingredientBatchId and a positive quantityUsed'
-        );
+        if (!ingredientBatchId || !quantityUsed || quantityUsed <= 0) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(
+            'Each usedIngredients item must have ingredientBatchId and a positive quantityUsed'
+          );
+        }
+
+        const qtyUsed = Number(quantityUsed);
+
+        // Find the batch
+        const batch = await IngredientBatch.findById(ingredientBatchId).session(session);
+        if (!batch) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(404);
+          throw new Error(`Ingredient batch not found: ${ingredientBatchId}`);
+        }
+
+        // Check sufficient quantity
+        if (batch.currentQuantity < qtyUsed) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(
+            `Insufficient quantity in batch '${batch.batchCode}'. ` +
+            `Available: ${batch.currentQuantity}, Requested: ${qtyUsed}`
+          );
+        }
+
+        // Deduct from batch
+        batch.currentQuantity -= qtyUsed;
+        if (batch.currentQuantity === 0) {
+          batch.isActive = false;
+        }
+        await batch.save({ session });
+
+        // Deduct from parent Ingredient totalQuantity
+        const ingredient = await Ingredient.findById(batch.ingredientId).session(session);
+        if (!ingredient) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(404);
+          throw new Error(`Parent ingredient not found for batch '${batch.batchCode}'`);
+        }
+
+        ingredient.totalQuantity -= qtyUsed;
+        if (ingredient.totalQuantity < 0) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(500);
+          throw new Error(
+            `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
+          );
+        }
+        await ingredient.save({ session });
+
+        usageRecords.push({
+          productionPlanId: planId,
+          productId,
+          ingredientId: batch.ingredientId,
+          ingredientBatchId,
+          quantityUsed: qtyUsed,
+          note: note || null,
+        });
+
+        // Collect for finished batch traceability
+        ingredientBatchesUsed.push({
+          ingredientBatchId: batch._id,
+          quantityUsed: qtyUsed,
+        });
       }
+    } else {
+      // Auto FEFO mode: derive usage from product recipe and deduct earliest-expiring batches first.
+      for (const recipeItem of product.recipe || []) {
+        const ingredientRef = recipeItem.ingredientId;
+        const ingredientId = ingredientRef?._id || ingredientRef;
+        const ingredientName = ingredientRef?.ingredientName || ingredientId?.toString() || 'Unknown Ingredient';
 
-      // Find the batch
-      const batch = await IngredientBatch.findById(ingredientBatchId).session(session);
-      if (!batch) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(404);
-        throw new Error(`Ingredient batch not found: ${ingredientBatchId}`);
-      }
+        let totalNeeded = Number(recipeItem.quantity || 0) * actualQty;
+        let consumedForIngredient = 0;
+        if (totalNeeded <= 0) {
+          continue;
+        }
 
-      // Check sufficient quantity
-      if (batch.currentQuantity < quantityUsed) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(400);
-        throw new Error(
-          `Insufficient quantity in batch '${batch.batchCode}'. ` +
-          `Available: ${batch.currentQuantity}, Requested: ${quantityUsed}`
-        );
-      }
+        const batches = await IngredientBatch.find({
+          ingredientId,
+          isActive: true,
+          currentQuantity: { $gt: 0 },
+        })
+          .sort({ expiryDate: 1 })
+          .session(session);
 
-      // Deduct from batch
-      batch.currentQuantity -= quantityUsed;
-      if (batch.currentQuantity === 0) {
-        batch.isActive = false;
-      }
-      await batch.save({ session });
+        for (const batch of batches) {
+          if (totalNeeded <= 0) {
+            break;
+          }
 
-      // Deduct from parent Ingredient totalQuantity
-      const ingredient = await Ingredient.findById(batch.ingredientId).session(session);
-      if (!ingredient) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(404);
-        throw new Error(`Parent ingredient not found for batch '${batch.batchCode}'`);
-      }
+          const deductAmount = Math.min(batch.currentQuantity, totalNeeded);
+          batch.currentQuantity -= deductAmount;
+          if (batch.currentQuantity === 0) {
+            batch.isActive = false;
+          }
+          await batch.save({ session });
 
-      ingredient.totalQuantity -= quantityUsed;
-      if (ingredient.totalQuantity < 0) {
-        transactionAborted = true;
-        await session.abortTransaction();
-        res.status(500);
-        throw new Error(
-          `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
-        );
-      }
-      await ingredient.save({ session });
-
-      // Create IngredientUsage audit record
-      await IngredientUsage.create(
-        [
-          {
+          usageRecords.push({
             productionPlanId: planId,
             productId,
-            ingredientId: batch.ingredientId,
-            ingredientBatchId,
-            quantityUsed,
-            note: note || null,
-          },
-        ],
-        { session }
-      );
+            ingredientId,
+            ingredientBatchId: batch._id,
+            quantityUsed: deductAmount,
+            note: null,
+          });
 
-      // Collect for finished batch traceability
-      ingredientBatchesUsed.push({
-        ingredientBatchId: batch._id,
-        quantityUsed,
-      });
+          ingredientBatchesUsed.push({
+            ingredientBatchId: batch._id,
+            quantityUsed: deductAmount,
+          });
+
+          consumedForIngredient += deductAmount;
+          totalNeeded -= deductAmount;
+        }
+
+        if (totalNeeded > 0) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(400);
+          throw new Error(`Insufficient stock for ingredient ${ingredientName}.`);
+        }
+
+        const ingredient = await Ingredient.findById(ingredientId).session(session);
+        if (!ingredient) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(404);
+          throw new Error(`Parent ingredient not found for ingredient '${ingredientName}'`);
+        }
+
+        ingredient.totalQuantity -= consumedForIngredient;
+        if (ingredient.totalQuantity < 0) {
+          transactionAborted = true;
+          await session.abortTransaction();
+          res.status(500);
+          throw new Error(
+            `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
+          );
+        }
+        await ingredient.save({ session });
+      }
+    }
+
+    if (usageRecords.length > 0) {
+      await IngredientUsage.insertMany(usageRecords, { session });
     }
 
     // ========================================
@@ -423,8 +500,8 @@ const completeProductionItem = async (req, res, next) => {
           productId,
           mfgDate,
           expDate,
-          initialQuantity: actualQuantity,
-          currentQuantity: actualQuantity,
+          initialQuantity: actualQty,
+          currentQuantity: actualQty,
           status: 'Active',
           ingredientBatchesUsed,
         },
@@ -435,7 +512,7 @@ const completeProductionItem = async (req, res, next) => {
     // ========================================
     // STEP 5: Update Production Plan
     // ========================================
-    plan.details[detailIndex].actualQuantity = actualQuantity;
+    plan.details[detailIndex].actualQuantity = actualQty;
     plan.details[detailIndex].status = 'Completed';
 
     if (plan.status === 'Planned') {
