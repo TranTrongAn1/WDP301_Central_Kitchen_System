@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Check, X, Package, Loader2, Calendar, ClipboardList, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, Loader2, Calendar, ClipboardList, Clock, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/features/manager/components/ui/Button';
 import { Card, CardContent } from '@/features/manager/components/ui/Card';
 import { Badge } from '@/features/manager/components/ui/Badge';
