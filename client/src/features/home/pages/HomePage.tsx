@@ -9,7 +9,7 @@ import { FloatingActionButton } from '../components/FloatingActionButton';
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark text-text-main dark:text-gray-200 font-display transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground font-display transition-colors duration-300">
       <Header />
       <main>
         <HeroSection />

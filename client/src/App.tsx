@@ -24,7 +24,7 @@ import ProductDetailPage from '@/features/manager/pages/ProductDetailPage';
 import StoresPage from '@/features/manager/pages/StoresPage';
 import AdminPaymentPage from '@/features/admin/pages/AdminPaymentPage';
 import SettingsPage from '@/features/manager/pages/SettingsPage';
-import FeedbackListPage from '@/features/manager/pages/FeedbackListPage';
+import ManagerFeedbackPage from '@/features/manager/pages/ManagerFeedbackPage';
 import UsersRolesPage from '@/features/manager/pages/UsersRolesPage';
 import SuppliersPage from '@/features/manager/pages/SuppliersPage';
 import VehicleTypesPage from '@/features/manager/pages/VehicleTypesPage';
@@ -46,6 +46,8 @@ import HelpPage from '@/features/dashboard/pages/HelpPage';
 
 import './App.css';
 import { AccountManagement } from './features/admin/pages/AccountManagment';
+import AdminOrderDetail from './features/admin/pages/AdminOrderDetail';
+import AdminOrderList from './features/admin/pages/AdminOrderList';
 import StoreManagment from './features/admin/pages/StoreManagment';
 import Order from './features/coordinator/pages/Order';
 import Shipment from './features/coordinator/pages/Shipment';
@@ -54,6 +56,7 @@ import IssuseReport from './features/coordinator/pages/IssuseReport';
 import OrderDetail from './features/coordinator/pages/OrderDetail';
 import ShipmentDetail from './features/coordinator/pages/ShipmentDetail';
 import IngredientRequestListPage from './features/ingredient-request/pages/IngredientRequestListPage';
+import AdminFeedbackPage from './features/admin/pages/AdminFeedbackPage';
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && user) {
@@ -96,7 +99,9 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/account" element={<AccountManagement />} />
               <Route path="/admin/stores" element={<StoreManagment />} />
-              <Route path="/admin/feedback" element={<FeedbackListPage />} />
+              <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
+              <Route path="/admin/orders" element={<AdminOrderList />} />
+              <Route path="/admin/orders/:id" element={<AdminOrderDetail />} />
               <Route path="/admin/suppliers" element={<SuppliersPage />} />
               <Route path="/admin/vehicle-types" element={<VehicleTypesPage />} />
               
@@ -148,7 +153,7 @@ function App() {
 
               {/* Admin settings */}
               <Route path="/manager/settings" element={<SettingsPage />} />
-              <Route path="/manager/feedback" element={<FeedbackListPage />} />
+              <Route path="/manager/feedback" element={<ManagerFeedbackPage />} />
               <Route path="/manager/users" element={<UsersRolesPage />} />
               <Route path="/manager/suppliers" element={<SuppliersPage />} />
               <Route path="/manager/reports" element={<ReportsAnalyticsPage />} />

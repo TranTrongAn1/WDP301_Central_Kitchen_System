@@ -3,13 +3,11 @@ import { Outlet, useLocation } from "react-router-dom";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSideBar } from "./DashboardSideBar";
 import { CoordinatorSidebar } from "@/features/coordinator/components/CoordinatorSideBar";
-import { useThemeStore } from "@/shared/zustand/themeStore";
 import { cn } from "@/shared/lib/utils";
 
 export const DashboardLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { darkMode } = useThemeStore();
   const location = useLocation();
   const isCoordinator = location.pathname.startsWith("/coordinator");
 
@@ -22,8 +20,7 @@ export const DashboardLayout = () => {
   return (
     <div
       className={cn(
-        "flex h-screen transition-colors duration-300",
-        darkMode ? "bg-background-dark text-gray-200" : "bg-background-light text-text-main"
+        "flex h-screen transition-colors duration-300 bg-background text-foreground"
       )}
     >
       <div className="hidden lg:block">
@@ -53,8 +50,7 @@ export const DashboardLayout = () => {
 
         <main
           className={cn(
-            "flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 transition-colors duration-300",
-            darkMode ? "bg-background-dark" : "bg-background-light"
+            "flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 transition-colors duration-300 bg-background"
           )}
         >
           <div className="mx-auto max-w-7xl">
