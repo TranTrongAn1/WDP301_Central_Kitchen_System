@@ -8,6 +8,8 @@ import React, {
   useState,
 } from "react";
 
+import { useNotification } from "@/context/notification-context";
+
 const CART_STORAGE_KEY = "store_staff_cart";
 
 export type CartItem = {
@@ -31,6 +33,7 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { showToast } = useNotification();
   const [items, setItems] = useState<CartItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -51,25 +54,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persist = useCallback((next: CartItem[]) => {
-    AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next)).catch(() => { });
   }, []);
 
   const addItem = useCallback(
     (item: Omit<CartItem, "quantity">, quantity = 1) => {
+      const safeQuantity = Math.max(1, quantity);
       setItems((prev) => {
         const i = prev.findIndex((x) => x.productId === item.productId);
         let next: CartItem[];
         if (i >= 0) {
           next = [...prev];
-          next[i] = { ...next[i], quantity: next[i].quantity + quantity };
+          next[i] = { ...next[i], quantity: next[i].quantity + safeQuantity };
         } else {
-          next = [...prev, { ...item, quantity }];
+          next = [...prev, { ...item, quantity: safeQuantity }];
         }
         persist(next);
         return next;
       });
+
+      showToast(`Đã thêm ${safeQuantity} ${item.productName} vào giỏ hàng.`);
     },
-    [persist],
+    [persist, showToast],
   );
 
   const removeItem = useCallback(

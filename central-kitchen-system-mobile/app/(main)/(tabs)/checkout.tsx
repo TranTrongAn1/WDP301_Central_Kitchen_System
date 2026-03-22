@@ -20,8 +20,9 @@ import { useNotification } from "@/context/notification-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useStore } from "@/hooks/use-store";
 import { useSystemSettings } from "@/hooks/use-system-settings";
-import { useWallet } from "@/hooks/use-wallet";
+import { triggerWalletRefresh, useWallet } from "@/hooks/use-wallet";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
+import { invalidateData } from "@/lib/data-sync";
 import type { Invoice } from "@/lib/invoices";
 import { CreateOrderData, Order } from "@/lib/orders";
 
@@ -169,6 +170,7 @@ export default function CheckoutTabScreen() {
             const creationData: CreateOrderData = res.data;
             const orderObj: Order = creationData.order;
             const currentOrderId = orderObj._id;
+            invalidateData("orders");
             setOrderId(currentOrderId);
             orderRef.current = currentOrderId;
             setSubmitError(null);
@@ -190,6 +192,8 @@ export default function CheckoutTabScreen() {
 
             // Check if invoice is already paid (via Wallet)
             if (paymentMethod === "Wallet" && invoice?.paymentStatus === "Paid") {
+                invalidateData("orders");
+                triggerWalletRefresh();
                 showToast("Tạo đơn thành công. Thanh toán bằng ví đã được xử lý.");
                 router.push(`/orders/${currentOrderId}`);
             } else if (invoice?._id) {

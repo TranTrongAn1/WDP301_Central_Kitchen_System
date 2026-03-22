@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { productionPlansApi } from "@/lib/api";
-import type { ProductionPlan } from "@/lib/production-plans";
 import { useAuth } from "@/hooks/use-auth";
+import { productionPlansApi } from "@/lib/api";
+import { subscribeInvalidation } from "@/lib/data-sync";
+import type { ProductionPlan } from "@/lib/production-plans";
 
 type Params = { status?: string; planDate?: string };
 
@@ -28,6 +29,12 @@ export function useProductionPlans(params?: Params) {
 
   useEffect(() => {
     fetchPlans();
+  }, [fetchPlans]);
+
+  useEffect(() => {
+    return subscribeInvalidation(["kitchen", "orders"], () => {
+      void fetchPlans();
+    });
   }, [fetchPlans]);
 
   return { plans, isLoading, error, refetch: fetchPlans };

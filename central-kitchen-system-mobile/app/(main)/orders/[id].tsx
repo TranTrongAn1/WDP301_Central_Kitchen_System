@@ -23,7 +23,9 @@ import {
   useFeedback,
 } from "@/hooks/use-feedback";
 import { useSystemSettings } from "@/hooks/use-system-settings";
+import { triggerWalletRefresh } from "@/hooks/use-wallet";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
+import { invalidateData } from "@/lib/data-sync";
 import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order, OrderItem } from "@/lib/orders";
@@ -137,6 +139,7 @@ export default function OrderDetailScreen() {
             setReceiving(true);
             try {
               await logisticsOrdersApi.receive(orderId, token);
+              invalidateData("orders");
               showToast("Đã xác nhận nhận hàng.");
               load();
             } catch (e) {
@@ -181,6 +184,8 @@ export default function OrderDetailScreen() {
           setInvoice(first);
           if (first?.paymentStatus === "Paid") {
             clearInterval(interval);
+            invalidateData("orders");
+            triggerWalletRefresh();
             showToast("Thanh toán đã được ghi nhận.");
             setPaymentModalVisible(false);
           }
@@ -215,6 +220,8 @@ export default function OrderDetailScreen() {
                 { reason: "Store requested cancellation from mobile app" },
                 token,
               );
+              invalidateData("orders", "kitchen");
+              triggerWalletRefresh();
               showToast("Hủy đơn thành công. Tiền đã được hoàn về ví cửa hàng.");
               await load();
             } catch (e) {

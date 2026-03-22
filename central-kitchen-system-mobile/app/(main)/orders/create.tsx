@@ -17,6 +17,7 @@ import { cardShadowSmall } from "@/constants/theme";
 import { useNotification } from "@/context/notification-context";
 import { useAuth } from "@/hooks/use-auth";
 import { logisticsOrdersApi } from "@/lib/api";
+import { invalidateData } from "@/lib/data-sync";
 
 export default function CreateOrderScreen() {
     const insets = useSafeAreaInsets();
@@ -58,6 +59,7 @@ export default function CreateOrderScreen() {
             };
 
             await logisticsOrdersApi.create(payload, token);
+            invalidateData("orders");
             showToast("Tạo đơn hàng thành công.");
             router.back();
         } catch (e) {

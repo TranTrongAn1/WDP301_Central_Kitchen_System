@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { productionPlansApi } from "@/lib/api";
+import { invalidateData, subscribeInvalidation } from "@/lib/data-sync";
 import type { ProductionPlan, ProductionPlanStatus } from "@/lib/production-plans";
 
 export function useProductionPlan(id: string | undefined) {
@@ -32,10 +33,17 @@ export function useProductionPlan(id: string | undefined) {
     fetchPlan();
   }, [fetchPlan]);
 
+  useEffect(() => {
+    return subscribeInvalidation(["kitchen"], () => {
+      void fetchPlan();
+    });
+  }, [fetchPlan]);
+
   const updateStatus = useCallback(
     async (status: ProductionPlanStatus) => {
       if (!id || !token) return;
       await productionPlansApi.updateStatus(id, { status }, token);
+      invalidateData("kitchen", "orders");
       await fetchPlan();
     },
     [id, token, fetchPlan]
@@ -49,6 +57,7 @@ export function useProductionPlan(id: string | undefined) {
         { productId, actualQuantity },
         token
       );
+      invalidateData("kitchen", "orders");
       await fetchPlan();
     },
     [id, token, fetchPlan]
