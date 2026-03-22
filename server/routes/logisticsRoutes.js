@@ -60,7 +60,7 @@ router.post(
 // Reject/Cancel order (Coordinator, Manager, Admin)
 router.post(
   '/orders/:orderId/reject',
-  authorize('Coordinator', 'Manager', 'Admin'),
+  authorize('Coordinator','StoreStaff', 'Manager', 'Admin'),
   rejectOrder
 );
 
