@@ -1,12 +1,25 @@
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cardShadow } from '@/constants/theme';
+import { useNotification } from '@/context/notification-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { useWallet } from '@/hooks/use-wallet';
+import { paymentApi } from '@/lib/api';
 
 const formatValue = (value: string | null | undefined) => value ?? '--';
 
@@ -57,7 +70,8 @@ const getTransactionColor = (type: string) => {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, token, user } = useAuth();
+  const { showToast } = useNotification();
   const { profile, isLoading, error, refetch } = useProfile();
   const {
     wallet,
@@ -67,6 +81,58 @@ export default function ProfileScreen() {
     refetch: refetchWallet,
   } = useWallet();
   const [showTransactions, setShowTransactions] = useState(false);
+  const [depositModalVisible, setDepositModalVisible] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('100000');
+  const [depositQrCode, setDepositQrCode] = useState<string | null>(null);
+  const [creatingDepositLink, setCreatingDepositLink] = useState(false);
+
+  const openDepositModal = () => {
+    setDepositModalVisible(true);
+    setDepositQrCode(null);
+  };
+
+  const closeDepositModal = () => {
+    if (creatingDepositLink) return;
+    setDepositModalVisible(false);
+    setDepositQrCode(null);
+  };
+
+  const handleOpenDepositCheckout = async () => {
+    if (!token || !user?.storeId) {
+      showToast('Không xác định được cửa hàng để nạp tiền.', 'error');
+      return;
+    }
+
+    const amount = Number(depositAmount.replace(/\D/g, ''));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Vui lòng nhập số tiền nạp hợp lệ.', 'error');
+      return;
+    }
+
+    setCreatingDepositLink(true);
+    try {
+      const res = await paymentApi.createDepositLink(user.storeId, amount, token);
+      const checkoutUrl = res.data?.checkoutUrl ?? null;
+      const qrCode = res.data?.qrCode ?? null;
+
+      if (!checkoutUrl && !qrCode) {
+        showToast('Không tạo được link nạp tiền.', 'error');
+        return;
+      }
+
+      setDepositQrCode(qrCode);
+      if (checkoutUrl) {
+        await WebBrowser.openBrowserAsync(checkoutUrl);
+      } else {
+        showToast('Đã tạo QR nạp tiền. Vui lòng quét mã để thanh toán.');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Không thể tạo link nạp tiền.';
+      showToast(msg, 'error');
+    } finally {
+      setCreatingDepositLink(false);
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
@@ -151,8 +217,8 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            <Pressable onPress={refetchWallet} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Cap nhat vi</Text>
+            <Pressable onPress={openDepositModal} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Nạp tiền vào ví</Text>
             </Pressable>
 
             {showTransactions ? (
@@ -195,6 +261,65 @@ export default function ProfileScreen() {
       <Pressable onPress={logout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Đăng xuất</Text>
       </Pressable>
+
+      <Modal
+        visible={depositModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeDepositModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nạp tiền vào ví</Text>
+              <Pressable onPress={closeDepositModal}>
+                <Text style={styles.modalClose}>✕</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.modalLabel}>Nhập số tiền (đ)</Text>
+            <TextInput
+              value={depositAmount}
+              onChangeText={(text) => setDepositAmount(text.replace(/[^0-9]/g, ''))}
+              placeholder="100000"
+              keyboardType="numeric"
+              style={styles.amountInput}
+              editable={!creatingDepositLink}
+            />
+
+            <Text style={styles.currentBalanceText}>
+              Số dư ví hiện tại: {wallet?.balance.toLocaleString('vi-VN') ?? 0} đ
+            </Text>
+
+            {depositQrCode ? (
+              <View style={styles.qrWrap}>
+                <Image source={{ uri: depositQrCode }} style={styles.qrImage} resizeMode="contain" />
+                <Text style={styles.qrHint}>Quét mã QR để thanh toán nạp ví</Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.secondaryButton, creatingDepositLink && styles.buttonDisabled]}
+              onPress={handleOpenDepositCheckout}
+              disabled={creatingDepositLink}
+            >
+              {creatingDepositLink ? (
+                <ActivityIndicator color="#9B0F0F" />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Thanh toán</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={[styles.secondaryButton, creatingDepositLink && styles.buttonDisabled]}
+              onPress={closeDepositModal}
+              disabled={creatingDepositLink}
+            >
+              <Text style={styles.secondaryButtonText}>Hủy</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -377,5 +502,83 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2A2A2A',
+  },
+  modalClose: {
+    fontSize: 22,
+    color: '#666',
+    fontWeight: '700',
+  },
+  modalLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
+  },
+  amountInput: {
+    borderWidth: 1,
+    borderColor: '#FFD6D6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2A2A2A',
+    backgroundColor: '#FFF4F4',
+  },
+  currentBalanceText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  primaryButton: {
+    marginTop: 16,
+    backgroundColor: '#F15A24',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  qrWrap: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  qrImage: {
+    width: 180,
+    height: 180,
+    marginBottom: 8,
+  },
+  qrHint: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
   },
 });

@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { walletApi } from "@/lib/api";
+import { invalidateData, subscribeInvalidation } from "@/lib/data-sync";
 import type { Wallet, WalletTransaction } from "@/lib/wallet";
+
+export const triggerWalletRefresh = () => {
+    invalidateData("wallet");
+};
 
 export const useWallet = () => {
     const { token, user } = useAuth();
@@ -47,6 +52,14 @@ export const useWallet = () => {
         if (user?.storeId && token) {
             fetchWallet();
         }
+    }, [fetchWallet, user?.storeId, token]);
+
+    useEffect(() => {
+        return subscribeInvalidation(["wallet"], () => {
+            if (user?.storeId && token) {
+                void fetchWallet();
+            }
+        });
     }, [fetchWallet, user?.storeId, token]);
 
     return { wallet, transactions, isLoading, error, refetch: fetchWallet };

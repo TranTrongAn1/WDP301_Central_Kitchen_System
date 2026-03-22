@@ -435,6 +435,16 @@ export const paymentApi = {
       headers: withAuth(token),
       body: JSON.stringify({ invoiceId }),
     }),
+  createDepositLink: (
+    storeId: string,
+    amount: number,
+    token?: string | null,
+  ) =>
+    request<PaymentLinkResponse>("/api/payment/deposit-link", {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify({ storeId, amount }),
+    }),
 };
 
 /** Feedback API – đánh giá đơn hàng (chỉ khi order status = Received) */

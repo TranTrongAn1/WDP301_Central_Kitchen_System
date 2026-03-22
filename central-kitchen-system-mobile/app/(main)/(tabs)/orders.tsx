@@ -1,3 +1,4 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import { cardShadowSmall } from "@/constants/theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 import { invoicesApi, logisticsOrdersApi } from "@/lib/api";
+import { subscribeInvalidation } from "@/lib/data-sync";
 import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order } from "@/lib/orders";
@@ -102,6 +104,18 @@ export default function OrdersTabScreen() {
     load();
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  useEffect(() => {
+    return subscribeInvalidation(["orders"], () => {
+      void load();
+    });
+  }, [load]);
+
   const todayStr = formatDateKey(new Date());
   const filtered = orders.filter((o) => {
     if (normalizeStoreId(o.storeId) !== user?.storeId) {
@@ -175,6 +189,7 @@ export default function OrdersTabScreen() {
               taxRate: systemSettings?.TAX_RATE,
               shippingCostBase: systemSettings?.SHIPPING_COST_BASE,
             });
+            const statusStyle = styles[`status_${order.status}` as keyof typeof styles] as any;
 
             return (
               <Pressable
@@ -184,7 +199,7 @@ export default function OrdersTabScreen() {
               >
                 <View style={styles.cardRow}>
                   <Text style={styles.orderId}>#{order.orderNumber ?? order._id.slice(-6)}</Text>
-                  <Text style={[styles.status, styles[`status_${order.status}` as keyof typeof styles]]}>
+                  <Text style={[styles.status, statusStyle]}>
                     {order.status}
                   </Text>
                 </View>
