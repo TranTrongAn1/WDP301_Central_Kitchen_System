@@ -9,10 +9,11 @@ import { AppLogo } from '@/shared/components/AppLogo';
 const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
     "/admin": { name: "Bảng điều khiển", desc: "Tổng quan hệ thống" },
     "/admin/dashboard": { name: "Bảng điều khiển", desc: "Tổng quan hệ thống" },
+    "/admin/orders": { name: "Quản lý đơn hàng", desc: "Danh sách và chi tiết đơn hàng" },
     "/admin/users": { name: "Quản lý người dùng", desc: "Quản lý người dùng & phân quyền" },
     "/admin/stores": { name: "Quản lý cửa hàng", desc: "Quản lý danh sách cửa hàng" },
     "/admin/account": { name: "Tài khoản", desc: "Quản lý tài khoản" },
-    "/admin/feedback": { name: "Phản hồi", desc: "Danh sách phản hồi từ khách hàng" },
+    "/admin/feedback": { name: "Phản hồi khách hàng", desc: "Danh sách phản hồi từ khách hàng" },
     "/admin/suppliers": { name: "Nhà cung cấp", desc: "Quản lý nhà cung cấp" },
     "/admin/vehicle-types": { name: "Loại xe", desc: "Quản lý loại xe" },
     "/admin/settings": { name: "Cài đặt", desc: "Cài đặt hệ thống" },

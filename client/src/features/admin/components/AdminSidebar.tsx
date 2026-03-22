@@ -4,6 +4,7 @@ import { AppLogo } from '@/shared/components/AppLogo';
 
 const MENU_ITEMS = [
   { icon: 'dashboard', label: 'Tổng quan', path: '/admin/dashboard' },
+  { icon: 'shopping_cart', label: 'Đơn hàng', path: '/admin/orders' },
   { icon: 'storefront', label: 'Cửa hàng', path: '/admin/stores' },
   { icon: 'manage_accounts', label: 'Tài khoản', path: '/admin/account' },
   { icon: 'group', label: 'Người dùng', path: '/admin/users' },

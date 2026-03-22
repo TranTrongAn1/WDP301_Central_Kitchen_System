@@ -49,7 +49,9 @@ export interface CreateIngredientRequestBody {
 
 // PUT status body (Điều phối Duyệt)
 export interface UpdateIngredientRequestStatusBody {
-  status: 'APPROVED' | 'REJECTED' | 'COMPLETED'; // 👈 thêm dòng này
+  status: 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  expectedDeliveryDate?: string;
+  supplierId?: string;
 }
 
 // GET list query

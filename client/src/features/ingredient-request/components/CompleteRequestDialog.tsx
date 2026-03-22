@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,8 +6,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/features/manager/components/ui/Dialog';
-// Thêm Loader2 vào đây
-import {Loader2} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/features/manager/components/ui/Button';
 import { Input } from '@/features/manager/components/ui/Input';
 import { Label } from '@/features/manager/components/ui/Label';
@@ -16,6 +15,8 @@ import { supplierApi } from '@/api/SupplierApi';
 import toast from 'react-hot-toast';
 import type { IngredientRequest } from '@/shared/types/ingredientRequest';
 import { ingredientApi } from '@/api/IngredientApi';
+import { uploadProductImage } from '@/shared/lib/firebase';
+import { useThemeStore } from '@/shared/zustand/themeStore';
 
 interface CompleteRequestDialogProps {
   open: boolean;
@@ -40,16 +41,19 @@ export function CompleteRequestDialog({
   request,
   onSuccess,
 }: CompleteRequestDialogProps) {
+  const { darkMode } = useThemeStore();
   const [supplierId, setSupplierId] = useState<string>('');
   const [supplierName, setSupplierName] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string>('');
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [displayCost, setDisplayCost] = useState<string>('');
   const MAX_LIMIT = 500000000;
   const [expiryDate, setExpiryDate] = useState<string>('');
-  const [receivedDate, setReceivedDate] = useState<string>(new Date().toISOString().split('T')[0]); // THÊM MỚI: Mặc định ngày hôm nay
+  const [receivedDate, setReceivedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ingredientName, setIngredientName] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -66,7 +70,6 @@ export function CompleteRequestDialog({
         }
       };
       fetchSuppliers();
-      // Reset ngày nhận về hôm nay mỗi khi mở dialog
       setReceivedDate(new Date().toISOString().split('T')[0]);
     }
   }, [open]);
@@ -81,6 +84,39 @@ export function CompleteRequestDialog({
     setDisplayCost(formatted);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file hình ảnh!');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const url = await uploadProductImage(file, 'receipts');
+      setReceiptImage(url);
+      toast.success('Tải ảnh lên thành công!');
+    } catch (error: any) {
+      toast.error(error.message || 'Tải ảnh thất bại!');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setReceiptImage('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!request || !request._id) return;
@@ -89,8 +125,7 @@ export function CompleteRequestDialog({
       toast.error('Vui lòng chọn Hạn sử dụng!');
       return;
     }
-    
-    // Validate Ngày nhận
+
     if (!receivedDate) {
       toast.error('Vui lòng chọn Ngày nhận hàng!');
       return;
@@ -104,7 +139,7 @@ export function CompleteRequestDialog({
         externalSupplierName: supplierId === 'external' ? supplierName : null,
         receiptImage,
         expiryDate,
-        receivedDate, // GỬI LÊN BE
+        receivedDate,
         status: 'COMPLETED' as const
       };
 
@@ -149,34 +184,36 @@ export function CompleteRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[95vh] overflow-y-auto">
+      <DialogContent className={`sm:max-w-md max-h-[95vh] overflow-y-auto ${darkMode ? 'bg-[#1c1c24] border-gray-700' : 'bg-white'}`}>
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Chốt hàng & Nhập kho</DialogTitle>
+          <DialogTitle className={darkMode ? 'text-white' : ''}>Chốt hàng & Nhập kho</DialogTitle>
         </DialogHeader>
 
-        <div className="bg-muted/50 p-3 rounded-lg border border-border space-y-1 text-sm">
+        <div className={`p-3 rounded-lg border space-y-1 text-sm ${darkMode ? 'bg-[#252530] border-gray-700' : 'bg-amber-50 border-amber-200'}`}>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Nguyên liệu:</span>
-            <span className="font-semibold text-foreground">
+            <span className={`${darkMode ? 'text-gray-400' : 'text-amber-700'}`}>Nguyên liệu:</span>
+            <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               {typeof request.ingredientId === 'object' && request.ingredientId !== null
                 ? (request.ingredientId as any).name || (request.ingredientId as any).ingredientName
                 : (ingredientName || "Đang tải...")}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Số lượng duyệt:</span>
-            <span className="font-bold text-primary">
+            <span className={`${darkMode ? 'text-gray-400' : 'text-amber-700'}`}>Số lượng duyệt:</span>
+            <span className={`font-bold ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>
               {request.quantityRequested} {request.unit}
             </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          {/* Supplier */}
           <div className="space-y-2">
-            <Label htmlFor="supplier-select">Nhà cung cấp</Label>
+            <Label className={darkMode ? 'text-gray-300' : ''}>Nhà cung cấp</Label>
             <select
-              id="supplier-select"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/20 cursor-pointer ${
+                darkMode ? 'bg-[#252530] border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+              }`}
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
             >
@@ -184,87 +221,166 @@ export function CompleteRequestDialog({
               {suppliers.map((s) => (
                 <option key={s._id} value={s._id}>{s.name}</option>
               ))}
-              <option value="external" className="text-green-600 font-bold">+ Mua lẻ bên ngoài</option>
+              <option value="external" className={darkMode ? 'text-green-400 font-bold' : 'text-green-600 font-bold'}>+ Mua lẻ bên ngoài</option>
             </select>
           </div>
 
           {supplierId === 'external' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-              <Label>Tên nơi mua lẻ <span className="text-destructive">*</span></Label>
+              <Label className={darkMode ? 'text-gray-300' : ''}>Tên nơi mua lẻ <span className="text-red-500">*</span></Label>
               <Input
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
                 placeholder="VD: Chợ, WinMart..."
                 required
+                className={darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}
               />
             </div>
           )}
 
+          {/* Cost */}
           <div className="space-y-2">
-            <Label>Tổng tiền thực tế (VNĐ)</Label>
+            <Label className={darkMode ? 'text-gray-300' : ''}>Tổng tiền thực tế (VNĐ)</Label>
             <div className="relative">
               <Input
                 type="text"
                 value={displayCost}
                 onChange={handleCostChange}
                 placeholder="0"
-                className="pr-12"
+                className={`pr-12 ${darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}`}
                 required
               />
-              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground text-xs font-bold">
+              <div className={`absolute inset-y-0 right-3 flex items-center pointer-events-none text-xs font-bold ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 VNĐ
               </div>
             </div>
           </div>
 
-{/* FIELD: NGÀY NHẬN HÀNG */}
-<div className="space-y-2">
-  <Label className="font-semibold text-blue-600">Ngày nhận hàng (Received Date) *</Label>
-  <Input
-    type="date"
-    value={receivedDate}
-    onChange={(e) => setReceivedDate(e.target.value)}
-    required
-    className="bg-background text-foreground border-input"
-  />
-</div>
-
-{/* FIELD: HẠN SỬ DỤNG */}
-<div className="space-y-2">
-  <Label className="font-semibold text-destructive">Hạn sử dụng (Expiry Date) *</Label>
-  <Input
-    type="date"
-    value={expiryDate}
-    onChange={(e) => setExpiryDate(e.target.value)}
-    required
-    min={new Date().toISOString().split("T")[0]}
-    className="bg-background text-foreground border-input"
-  />
-</div>
-
+          {/* Received Date */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Link ảnh hóa đơn / Chứng từ</Label>
+            <Label className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-orange-700'}`}>
+              Ngày nhận hàng <span className="text-red-500">*</span>
+            </Label>
             <Input
-              type="url"
-              value={receiptImage}
-              onChange={(e) => setReceiptImage(e.target.value)}
-              placeholder="https://imgur.com/..."
+              type="date"
+              value={receivedDate}
+              onChange={(e) => setReceivedDate(e.target.value)}
+              required
+              className={darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}
             />
-            {receiptImage && receiptImage.startsWith('http') && (
-              <div className="mt-2 w-20 h-20 rounded-md overflow-hidden border border-border shadow-sm">
-                <img src={receiptImage} alt="Preview" className="w-full h-full object-cover" />
+          </div>
+
+          {/* Expiry Date */}
+          <div className="space-y-2">
+            <Label className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-red-600'}`}>
+              Hạn sử dụng <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              required
+              min={new Date().toISOString().split("T")[0]}
+              className={darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}
+            />
+          </div>
+
+          {/* Receipt Image Upload */}
+          <div className="space-y-2">
+            <Label className={darkMode ? 'text-gray-300' : ''}>Ảnh hóa đơn / Chứng từ</Label>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+              id="receipt-upload"
+            />
+            
+            {receiptImage ? (
+              <div className="relative">
+                <div className={`w-full h-40 rounded-xl overflow-hidden border-2 ${darkMode ? 'border-gray-700' : 'border-amber-200'} overflow-hidden`}>
+                  <img 
+                    src={receiptImage} 
+                    alt="Receipt preview" 
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      darkMode
+                        ? 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Đổi ảnh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  darkMode
+                    ? 'border-gray-700 bg-[#252530] hover:bg-gray-800 text-gray-400'
+                    : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-600'
+                }`}
+              >
+                {uploadingImage ? (
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                ) : (
+                  <>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${darkMode ? 'bg-gray-800' : 'bg-amber-100'}`}>
+                      <span className="material-symbols-outlined text-2xl">upload</span>
+                    </div>
+                    <p className="text-sm font-medium">
+                      {uploadingImage ? 'Đang tải...' : 'Tải ảnh lên'}
+                    </p>
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-amber-500'}`}>
+                      PNG, JPG, WEBP (tối đa 5MB)
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          {/* Or paste URL */}
+          <div className="space-y-2">
+            <Label className={darkMode ? 'text-gray-300' : ''}>Hoặc dán link ảnh</Label>
+            <Input
+              type="url"
+              value={receiptImage}
+              onChange={(e) => setReceiptImage(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              className={darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={() => onOpenChange(false)}
+              className={darkMode ? 'text-gray-300' : ''}
+            >
               Hủy
             </Button>
             <Button
               type="submit"
               className="bg-green-600 hover:bg-green-700 text-white font-bold"
-              disabled={submitting}
+              disabled={submitting || uploadingImage}
             >
               {submitting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
               Xác nhận nhập kho
