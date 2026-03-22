@@ -304,12 +304,34 @@ export const ingredientBatchesApi = {
 
 export const ingredientUsagesApi = {
   getAll: (
-    params?: { productionPlanId?: string },
+    params?: {
+      productionPlanId?: string;
+      productId?: string;
+      ingredientId?: string;
+      ingredientBatchId?: string;
+      startDate?: string;
+      endDate?: string;
+    },
     token?: string | null,
   ) => {
     const search = new URLSearchParams();
     if (params?.productionPlanId) {
       search.set("productionPlanId", params.productionPlanId);
+    }
+    if (params?.productId) {
+      search.set("productId", params.productId);
+    }
+    if (params?.ingredientId) {
+      search.set("ingredientId", params.ingredientId);
+    }
+    if (params?.ingredientBatchId) {
+      search.set("ingredientBatchId", params.ingredientBatchId);
+    }
+    if (params?.startDate) {
+      search.set("startDate", params.startDate);
+    }
+    if (params?.endDate) {
+      search.set("endDate", params.endDate);
     }
     const qs = search.toString();
     return request<IngredientUsagesResponse>(
@@ -344,6 +366,16 @@ export const logisticsOrdersApi = {
     request<OrderResponse>(`/api/logistics/orders/${orderId}/receive`, {
       method: "POST",
       headers: withAuth(token),
+    }),
+  reject: (
+    orderId: string,
+    payload: { reason: string },
+    token?: string | null,
+  ) =>
+    request<OrderResponse>(`/api/logistics/orders/${orderId}/reject`, {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
     }),
 };
 
@@ -513,19 +545,19 @@ export const ingredientRequestsApi = {
     return response.json();
   },
   complete: async (id: string, data: any, token: string | undefined | null) => {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(
-    `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests/${id}/complete`, 
-    {
-      method: "PATCH", 
-      headers,
-      body: JSON.stringify(data),
-    }
-  );
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests/${id}/complete`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(data),
+      }
+    );
 
-  if (!response.ok) throw new Error("Lỗi khi hoàn tất yêu cầu");
-  return response.json();
-},
+    if (!response.ok) throw new Error("Lỗi khi hoàn tất yêu cầu");
+    return response.json();
+  },
 };

@@ -47,7 +47,8 @@ function productName(item: OrderItem): string {
 
 export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string | string[] }>();
+  const orderId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { token } = useAuth();
   const { showToast } = useNotification();
@@ -60,6 +61,7 @@ export default function OrderDetailScreen() {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState(false);
   const { settings: systemSettings } = useSystemSettings();
 
   const {
@@ -68,7 +70,7 @@ export default function OrderDetailScreen() {
     create: createFeedback,
     update: updateFeedback,
     remove: deleteFeedback,
-  } = useFeedback(id);
+  } = useFeedback(orderId);
   const { user } = useAuth();
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackContent, setFeedbackContent] = useState("");
@@ -76,11 +78,11 @@ export default function OrderDetailScreen() {
   const [feedbackEditMode, setFeedbackEditMode] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id || !token) return;
+    if (!orderId || !token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await logisticsOrdersApi.getById(id, token);
+      const res = await logisticsOrdersApi.getById(orderId, token);
       const nextOrder = res.data ?? null;
       setOrder(nextOrder);
       if (nextOrder?._id) {
@@ -101,17 +103,19 @@ export default function OrderDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, token]);
+  }, [orderId, token]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const canReceive = order?.status === "In_Transit" && id && token;
-  const showFeedbackSection = order?.status === "Received" && id && token;
+  const canReceive = order?.status === "In_Transit" && orderId && token;
+  const canRejectOrder = order?.status === "Pending" && orderId && token;
+  const showFeedbackSection = order?.status === "Received" && orderId && token;
   const canCreateFeedback = showFeedbackSection && !feedback && !feedbackEditMode;
   const canEditFeedback = showFeedbackSection && feedback && isFeedbackAuthor(feedback, user?.id);
   const canPayOnline =
+    order?.status !== "Cancelled" &&
     invoice &&
     invoice.totalAmount > 0 &&
     invoice.paymentStatus !== "Paid";
@@ -121,7 +125,7 @@ export default function OrderDetailScreen() {
   });
 
   const handleReceive = () => {
-    if (!canReceive || !id || !token) return;
+    if (!canReceive || !orderId || !token) return;
     Alert.alert(
       "Xác nhận nhận hàng",
       "Xác nhận đã nhận đủ hàng?",
@@ -132,7 +136,7 @@ export default function OrderDetailScreen() {
           onPress: async () => {
             setReceiving(true);
             try {
-              await logisticsOrdersApi.receive(id, token);
+              await logisticsOrdersApi.receive(orderId, token);
               showToast("Đã xác nhận nhận hàng.");
               load();
             } catch (e) {
@@ -172,7 +176,7 @@ export default function OrderDetailScreen() {
       // start polling invoice status while modal open
       const interval = setInterval(async () => {
         try {
-          const invRes = await invoicesApi.getByOrder(id, token);
+          const invRes = await invoicesApi.getByOrder(orderId, token);
           const first = invRes.data?.[0] ?? null;
           setInvoice(first);
           if (first?.paymentStatus === "Paid") {
@@ -193,8 +197,46 @@ export default function OrderDetailScreen() {
     }
   };
 
+  const handleRejectOrder = () => {
+    if (!canRejectOrder || !orderId || !token) return;
+    Alert.alert(
+      "Xác nhận hủy đơn",
+      "Đơn sẽ được chuyển sang Cancelled và hoàn tiền về ví cửa hàng. Bạn có chắc chắn muốn hủy?",
+      [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Hủy đơn",
+          style: "destructive",
+          onPress: async () => {
+            setRejecting(true);
+            try {
+              await logisticsOrdersApi.reject(
+                orderId,
+                { reason: "Store requested cancellation from mobile app" },
+                token,
+              );
+              showToast("Hủy đơn thành công. Tiền đã được hoàn về ví cửa hàng.");
+              await load();
+            } catch (e) {
+              const status = (e as Error & { status?: number }).status;
+              if (status === 403) {
+                showToast("Bạn không có quyền hủy đơn này.", "error");
+              } else if (status === 400) {
+                showToast("Chỉ đơn Pending mới được hủy.", "error");
+              } else if (status !== 401 && status !== 500) {
+                showToast(e instanceof Error ? e.message : "Không thể hủy đơn.", "error");
+              }
+            } finally {
+              setRejecting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSubmitFeedback = async () => {
-    if (!id || !token || feedbackRating < 1 || feedbackRating > 5) return;
+    if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
     setFeedbackSubmitting(true);
     try {
       await createFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
@@ -214,7 +256,7 @@ export default function OrderDetailScreen() {
   };
 
   const handleUpdateFeedback = async () => {
-    if (!id || !token || feedbackRating < 1 || feedbackRating > 5) return;
+    if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
     setFeedbackSubmitting(true);
     try {
       await updateFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
@@ -505,6 +547,22 @@ export default function OrderDetailScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.payBtnText}>Thanh toán online</Text>
+            )}
+          </Pressable>
+        )
+      }
+
+      {
+        canRejectOrder && (
+          <Pressable
+            style={[styles.rejectBtn, rejecting && styles.rejectBtnDisabled]}
+            onPress={handleRejectOrder}
+            disabled={rejecting}
+          >
+            {rejecting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.rejectBtnText}>Hủy đơn</Text>
             )}
           </Pressable>
         )
@@ -859,6 +917,15 @@ const styles = StyleSheet.create({
   },
   payBtnDisabled: { opacity: 0.7 },
   payBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  rejectBtn: {
+    marginTop: 12,
+    backgroundColor: "#C62828",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  rejectBtnDisabled: { opacity: 0.7 },
+  rejectBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",

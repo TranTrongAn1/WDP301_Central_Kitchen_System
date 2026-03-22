@@ -50,7 +50,7 @@ export default function ProductsTabScreen() {
           </Pressable>
           <Pressable
             style={styles.cartIconBtn}
-            onPress={() => router.push("/(tabs)/cart")}
+            onPress={() => router.push("/(main)/(tabs)/cart")}
           >
             <IconSymbol size={24} name="cart.fill" color="#9B0F0F" />
             {cartItems.length > 0 ? (
