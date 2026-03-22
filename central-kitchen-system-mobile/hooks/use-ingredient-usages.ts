@@ -6,11 +6,21 @@ import type { IngredientUsage } from "@/lib/ingredient-usages";
 
 type Params = {
     productionPlanId?: string;
+    productId?: string;
+    ingredientId?: string;
+    ingredientBatchId?: string;
+    startDate?: string;
+    endDate?: string;
 };
 
 export function useIngredientUsages(params?: Params) {
     const { token } = useAuth();
     const productionPlanId = params?.productionPlanId;
+    const productId = params?.productId;
+    const ingredientId = params?.ingredientId;
+    const ingredientBatchId = params?.ingredientBatchId;
+    const startDate = params?.startDate;
+    const endDate = params?.endDate;
 
     const [items, setItems] = useState<IngredientUsage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +31,17 @@ export function useIngredientUsages(params?: Params) {
         setError(null);
 
         try {
-            const res = await ingredientUsagesApi.getAll({ productionPlanId }, token);
+            const res = await ingredientUsagesApi.getAll(
+                {
+                    productionPlanId,
+                    productId,
+                    ingredientId,
+                    ingredientBatchId,
+                    startDate,
+                    endDate,
+                },
+                token,
+            );
             const raw = (res as { data?: unknown })?.data;
             setItems(Array.isArray(raw) ? (raw as IngredientUsage[]) : []);
         } catch (e) {
@@ -30,7 +50,7 @@ export function useIngredientUsages(params?: Params) {
         } finally {
             setIsLoading(false);
         }
-    }, [token, productionPlanId]);
+    }, [token, productionPlanId, productId, ingredientId, ingredientBatchId, startDate, endDate]);
 
     useEffect(() => {
         fetchItems();
