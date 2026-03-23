@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { ingredientBatchesApi, ingredientsApi, productionPlansApi, productsApi } from "@/lib/api";
+import { invalidateData } from "@/lib/data-sync";
 import type {
   CompleteItemPayload,
   UsedIngredientItem,
@@ -211,6 +212,7 @@ export function useProductionRecipe(
         };
 
         await productionPlansApi.completeItem(planId, payload, token);
+        invalidateData("kitchen", "orders");
       } finally {
         setIsSaving(false);
       }

@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDeliveryTrips } from "@/hooks/use-delivery-trips";
+import { getTripStatusLabel } from "@/lib/status-labels";
 import type { DeliveryTrip, TripStatus } from "@/lib/trips";
 
 function formatDate(iso?: string) {
@@ -108,7 +109,7 @@ export default function KitchenHistoryScreen() {
               {trip.notes?.trim() || "Không có ghi chú"}
             </Text>
             <Text style={styles.cardMeta}>
-              Trạng thái: {trip.status} • Xe: {vehicleName(trip)}
+              Trạng thái: {getTripStatusLabel(trip.status)} • Xe: {vehicleName(trip)}
             </Text>
           </Pressable>
         ))

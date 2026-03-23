@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useProductionPlans } from "@/hooks/use-production-plans";
 import type { ProductionPlan } from "@/lib/production-plans";
+import { getProductionPlanStatusLabel } from "@/lib/status-labels";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Tất cả" },
@@ -112,7 +113,7 @@ export default function KitchenOrdersScreen() {
                   styles[`status_${plan.status}` as keyof typeof styles],
                 ]}
               >
-                {plan.status}
+                {getProductionPlanStatusLabel(plan.status)}
               </Text>
             </View>
             <Text style={styles.cardDate}>Ngày: {formatDate(plan.planDate)}</Text>

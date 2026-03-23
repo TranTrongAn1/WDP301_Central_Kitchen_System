@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotification } from "@/context/notification-context";
 import { useAuth } from "@/hooks/use-auth";
 import { deliveryTripsApi, logisticsOrdersApi, storeApi } from "@/lib/api";
+import { getTripStatusLabel } from "@/lib/status-labels";
 import type { DeliveryTrip } from "@/lib/trips";
 
 type ProductItem = {
@@ -265,7 +266,7 @@ export default function TripDetailScreen() {
                 <View style={styles.row}>
                     <Text style={styles.label}>Trạng thái</Text>
                     <Text style={[styles.value, styles[`status_${trip.status}` as keyof typeof styles]]}>
-                        {trip.status}
+                        {getTripStatusLabel(trip.status)}
                     </Text>
                 </View>
                 <View style={styles.row}>

@@ -19,6 +19,7 @@ import { subscribeInvalidation } from "@/lib/data-sync";
 import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order } from "@/lib/orders";
+import { getOrderStatusLabel } from "@/lib/status-labels";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Tất cả" },
@@ -200,7 +201,7 @@ export default function OrdersTabScreen() {
                 <View style={styles.cardRow}>
                   <Text style={styles.orderId}>#{order.orderNumber ?? order._id.slice(-6)}</Text>
                   <Text style={[styles.status, statusStyle]}>
-                    {order.status}
+                    {getOrderStatusLabel(order.status)}
                   </Text>
                 </View>
                 <Text style={styles.time}>
