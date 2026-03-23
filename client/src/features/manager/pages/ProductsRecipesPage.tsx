@@ -14,6 +14,8 @@ import { categoryApi, type Category } from '@/api/CategoryApi';
 import type { Product, CreateProductRequest } from '@/api/ProductApi';
 import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 import { useAuthStore } from '@/shared/zustand/authStore';
+import { useThemeStore } from '@/shared/zustand/themeStore';
+import { cn } from '@/shared/lib/utils';
 import { uploadProductImage } from '@/shared/lib/firebase';
 import toast from 'react-hot-toast';
 import { ingredientApi, type Ingredient } from '@/api/InventoryApi';
@@ -22,6 +24,7 @@ const ProductsRecipesPage = () => {
     const navigate = useNavigate();
     const { isManagerReadOnly } = useManagerReadOnly();
     const { user } = useAuthStore();
+    const { darkMode } = useThemeStore();
     const isAdmin = user?.role === 'Admin';
     const productsBasePath = isAdmin ? '/admin/products' : '/manager/products';
     const [products, setProducts] = useState<Product[]>([]);
@@ -242,7 +245,10 @@ const handleCreate = async () => {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-muted-foreground">Đang tải danh sách sản phẩm...</span>
+                <span className={cn(
+                    "ml-2",
+                    darkMode ? "text-muted-foreground" : "text-gray-500"
+                )}>Đang tải danh sách sản phẩm...</span>
             </div>
         );
     }
@@ -292,8 +298,14 @@ const handleCreate = async () => {
                                 <UtensilsCrossed className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Tổng số sản phẩm</p>
-                                <p className="text-2xl font-bold">{products.length}</p>
+                                <p className={cn(
+                                    "text-sm",
+                                    darkMode ? "text-muted-foreground" : "text-gray-500"
+                                )}>Tổng số sản phẩm</p>
+                                <p className={cn(
+                                    "text-2xl font-bold",
+                                    darkMode ? "text-foreground" : "text-gray-900"
+                                )}>{products.length}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -305,8 +317,14 @@ const handleCreate = async () => {
                                 <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Có công thức</p>
-                                <p className="text-2xl font-bold">{products.filter(p => p.recipe && p.recipe.length > 0).length}</p>
+                                <p className={cn(
+                                    "text-sm",
+                                    darkMode ? "text-muted-foreground" : "text-gray-500"
+                                )}>Có công thức</p>
+                                <p className={cn(
+                                    "text-2xl font-bold",
+                                    darkMode ? "text-foreground" : "text-gray-900"
+                                )}>{products.filter(p => p.recipe && p.recipe.length > 0).length}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -318,8 +336,14 @@ const handleCreate = async () => {
                                 <Package className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Sản phẩm gộp</p>
-                                <p className="text-2xl font-bold">{products.filter(p => p.bundleItems && p.bundleItems.length > 0).length}</p>
+                                <p className={cn(
+                                    "text-sm",
+                                    darkMode ? "text-muted-foreground" : "text-gray-500"
+                                )}>Sản phẩm gộp</p>
+                                <p className={cn(
+                                    "text-2xl font-bold",
+                                    darkMode ? "text-foreground" : "text-gray-900"
+                                )}>{products.filter(p => p.bundleItems && p.bundleItems.length > 0).length}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -338,10 +362,21 @@ const handleCreate = async () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className="relative min-w-[200px]">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <div
+                            className="relative min-w-[200px]"
+                            style={{ colorScheme: darkMode ? 'dark' : 'light' }}
+                        >
+                            <Filter className={cn(
+                                "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4",
+                                darkMode ? "text-gray-400" : "text-gray-500"
+                            )} />
                             <select
-                                className="flex h-10 w-full rounded-xl border border-input bg-background text-foreground dark:bg-neutral-900 dark:text-foreground px-4 py-2 pl-10 text-sm appearance-none cursor-pointer shadow-sm"
+                                className={cn(
+                                    "flex h-10 w-full rounded-xl border px-4 py-2 pl-10 text-sm appearance-none cursor-pointer shadow-sm",
+                                    darkMode
+                                        ? "border-gray-700 bg-neutral-900 text-white"
+                                        : "border-gray-200 bg-white text-gray-900"
+                                )}
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
                             >
@@ -388,8 +423,14 @@ const handleCreate = async () => {
                                                 </div>
                                             )}
                                             <div>
-                                                <h4 className="font-semibold">{product.name}</h4>
-                                                <p className="text-sm text-muted-foreground">{product.sku}</p>
+                                                <h4 className={cn(
+                                                    "font-semibold",
+                                                    darkMode ? "text-foreground" : "text-gray-900"
+                                                )}>{product.name}</h4>
+                                                <p className={cn(
+                                                    "text-sm",
+                                                    darkMode ? "text-muted-foreground" : "text-gray-500"
+                                                )}>{product.sku}</p>
                                             </div>
                                         </div>
                                         <Button
@@ -407,22 +448,22 @@ const handleCreate = async () => {
 
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Danh mục</span>
+                                            <span className={darkMode ? "text-muted-foreground" : "text-gray-500"}>Danh mục</span>
                                             <Badge variant="outline">{getCategoryName(product)}</Badge>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Giá</span>
+                                            <span className={darkMode ? "text-muted-foreground" : "text-gray-500"}>Giá</span>
                                             <span className="font-semibold text-orange-500">
                                                 {product.price?.toLocaleString()}đ
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Hạn sử dụng</span>
-                                            <span>{product.shelfLifeDays} ngày</span>
+                                            <span className={darkMode ? "text-muted-foreground" : "text-gray-500"}>Hạn sử dụng</span>
+                                            <span className={darkMode ? "text-foreground" : "text-gray-900"}>{product.shelfLifeDays} ngày</span>
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">Công thức</span>
-                                            <span>{product.recipe?.length || 0} nguyên liệu</span>
+                                            <span className={darkMode ? "text-muted-foreground" : "text-gray-500"}>Công thức</span>
+                                            <span className={darkMode ? "text-foreground" : "text-gray-900"}>{product.recipe?.length || 0} nguyên liệu</span>
                                         </div>
                                     </div>
 
@@ -536,7 +577,12 @@ const handleCreate = async () => {
                         <div>
                             <label className="text-sm font-medium mb-1 block">Category *</label>
                             <select
-                                className="flex h-10 w-full rounded-xl border border-input bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-base appearance-none cursor-pointer"
+                                className={cn(
+                                    "flex h-10 w-full rounded-xl border px-4 py-2 text-base appearance-none cursor-pointer",
+                                    darkMode
+                                        ? "border-gray-700 bg-neutral-900 text-white"
+                                        : "border-gray-200 bg-white text-gray-900"
+                                )}
                                 value={createForm.categoryId}
                                 onChange={(e) => setCreateForm((p) => ({ ...p, categoryId: e.target.value }))}
                             >

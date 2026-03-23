@@ -260,7 +260,7 @@ export default function IngredientRequestListPage() {
               <TrendingUp className={`w-5 h-5 ${darkMode ? 'text-primary' : 'text-orange-600'}`} />
             </div>
             <div>
-              <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Tổng số lượng yêu cầu</p>
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Tổng số lượng</p>
               <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.totalQuantity.toLocaleString()} đơn vị</p>
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function IngredientRequestListPage() {
               <Clock className={`w-5 h-5 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`} />
             </div>
             <div>
-              <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Chờ duyệt (số lượng)</p>
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Số lượng chờ duyệt</p>
               <p className={`text-xl font-bold ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>{stats.pendingQuantity.toLocaleString()} đơn vị</p>
             </div>
           </div>

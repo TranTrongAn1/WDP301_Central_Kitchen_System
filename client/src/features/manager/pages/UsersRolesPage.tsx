@@ -254,11 +254,12 @@ export default function UsersRolesPage() {
                       <button
                         ref={(el) => { buttonRefs.current[user._id] = el; }}
                         onClick={(e) => handleToggleMenu(e, user._id, index)}
-                        className="p-2 rounded-full hover:bg-secondary"
+                        disabled={isManagerReadOnly}
+                        className="p-2 rounded-full hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="material-symbols-outlined text-[20px]">more_vert</span>
                       </button>
-                      {openMenuId === user._id && (
+                      {openMenuId === user._id && !isManagerReadOnly && (
                         <div
                           className={`absolute right-0 z-50 w-36 rounded-lg border shadow-lg py-1 ${darkMode ? 'bg-[#25252A] border-gray-700' : 'bg-white border-gray-200'}`}
                           style={{ [menuPosition === 'up' ? 'bottom' : 'top']: '100%', marginTop: menuPosition === 'up' ? 0 : 4, marginBottom: menuPosition === 'up' ? 4 : 0 }}

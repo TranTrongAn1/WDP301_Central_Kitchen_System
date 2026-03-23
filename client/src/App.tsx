@@ -52,11 +52,13 @@ import StoreManagment from './features/admin/pages/StoreManagment';
 import Order from './features/coordinator/pages/Order';
 import Shipment from './features/coordinator/pages/Shipment';
 import Inventory from './features/coordinator/pages/Inventory';
+import InventoryDetail from './features/coordinator/pages/InventoryDetail';
 import IssuseReport from './features/coordinator/pages/IssuseReport';
 import OrderDetail from './features/coordinator/pages/OrderDetail';
 import ShipmentDetail from './features/coordinator/pages/ShipmentDetail';
 import IngredientRequestListPage from './features/ingredient-request/pages/IngredientRequestListPage';
 import AdminFeedbackPage from './features/admin/pages/AdminFeedbackPage';
+import AdminIssuesPage from './features/admin/pages/AdminIssuesPage';
 const AuthHandler = () => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && user) {
@@ -116,6 +118,11 @@ function App() {
 
               {/* Inventory */}
               <Route path="/admin/inventory" element={<InventoryReportsPage />} />
+              <Route path="/admin/finished-goods" element={<Inventory />} />
+              <Route path="/admin/finished-goods/:storeId" element={<InventoryDetail />} />
+
+              {/* Issues & Returns */}
+              <Route path="/admin/issues" element={<AdminIssuesPage />} />
 
               {/* Transfers */}
               <Route path="/admin/transfers" element={<OrdersShipmentsPage />} />
@@ -147,6 +154,15 @@ function App() {
 
               {/* Inventory */}
               <Route path="/manager/inventory" element={<InventoryReportsPage />} />
+              <Route path="/manager/finished-goods" element={<Inventory />} />
+              <Route path="/manager/finished-goods/:storeId" element={<InventoryDetail />} />
+
+              {/* Issues & Returns */}
+              <Route path="/manager/issues" element={<AdminIssuesPage />} />
+
+              {/* Orders & Shipments */}
+              <Route path="/manager/orders" element={<Order />} />
+              <Route path="/manager/orders/:id" element={<AdminOrderDetail />} />
 
               {/* Stores */}
               <Route path="/manager/stores" element={<StoresPage />} />
@@ -208,7 +224,6 @@ function App() {
               <Route path="/coordinator/orders/:id" element={<OrderDetail />} />
               <Route path="/coordinator/shipments" element={<Shipment />} />
               <Route path="/coordinator/shipments/:id" element={<ShipmentDetail />} />
-              <Route path="/coordinator/inventory" element={<Inventory />} />
               <Route path="/coordinator/ingredient-requests" element={<IngredientRequestListPage />} />
               <Route path="/coordinator/issues" element={<IssuseReport />} />
               {/* Production (Coordinator tạo plan, Kitchen thực hiện) */}

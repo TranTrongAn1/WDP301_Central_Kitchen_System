@@ -233,13 +233,12 @@ const [isAutoAssigning, setIsAutoAssigning] = useState(false);
     };
 
     const handleAutoAssign = async () => {
+    let loadingToast: string | number | undefined;
     try {
         setIsAutoAssigning(true);
-        const loadingToast = toast.loading('Hệ thống đang tính toán tối ưu chuyến hàng...');
+        loadingToast = toast.loading('Hệ thống đang tính toán tối ưu chuyến hàng...');
         
         const res = await DeliveryTripApi.autoScheduleTrips();
-        
-        toast.dismiss(loadingToast);
 
         if (res.success) {
             toast.success(res.message || 'Tự động xếp chuyến thành công!');
@@ -254,6 +253,7 @@ const [isAutoAssigning, setIsAutoAssigning] = useState(false);
         const msg = err?.response?.data?.message || 'Lỗi hệ thống khi tự động xếp chuyến';
         toast.error(msg);
     } finally {
+        if (loadingToast != null) toast.dismiss(String(loadingToast));
         setIsAutoAssigning(false);
     }
 };
