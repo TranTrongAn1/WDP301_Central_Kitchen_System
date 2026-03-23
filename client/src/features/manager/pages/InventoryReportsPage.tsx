@@ -563,15 +563,19 @@ const InventoryReportsPage = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {expiringList.map((item) => (
+                                            {expiringList.map((item) => {
+                                                const store = item.storeId as unknown as { storeName?: string } | string;
+                                                const product = item.productId as unknown as { name?: string; sku?: string } | string;
+                                                const batch = item.batchId as unknown as { batchCode?: string; expDate?: string } | string;
+                                                return (
                                                 <tr key={item._id} className="border-b last:border-0">
-                                                    <td className="py-2">{typeof item.storeId === 'object' ? item.storeId?.storeName : item.storeId}</td>
-                                                    <td className="py-2">{typeof item.productId === 'object' ? item.productId?.name : item.productId}</td>
-                                                    <td className="py-2 font-mono text-xs">{typeof item.batchId === 'object' ? item.batchId?.batchCode : item.batchId}</td>
+                                                    <td className="py-2">{typeof store === 'object' ? store?.storeName : store}</td>
+                                                    <td className="py-2">{typeof product === 'object' ? product?.name : product}</td>
+                                                    <td className="py-2 font-mono text-xs">{typeof batch === 'object' ? batch?.batchCode : batch}</td>
                                                     <td className="py-2 text-right">{item.quantity}</td>
-                                                    <td className="py-2 text-muted-foreground">{typeof item.batchId === 'object' && item.batchId?.expDate ? new Date(item.batchId.expDate).toLocaleDateString('vi-VN') : '—'}</td>
+                                                    <td className="py-2 text-muted-foreground">{typeof batch === 'object' && batch?.expDate ? new Date(batch.expDate).toLocaleDateString('vi-VN') : '—'}</td>
                                                 </tr>
-                                            ))}
+                                            )})}
                                         </tbody>
                                     </table>
                                 </div>

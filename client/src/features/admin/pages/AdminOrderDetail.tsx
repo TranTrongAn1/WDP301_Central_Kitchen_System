@@ -4,6 +4,7 @@ import { OrderApi, type Order as OrderType } from '@/api/OrderApi';
 import { invoiceApi, type Invoice } from '@/api/InvoiceApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { useThemeStore } from '@/shared/zustand/themeStore';
+import { useAuthStore } from '@/shared/zustand/authStore';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, Package, Store, Clock, User, MapPin, Phone,
@@ -24,6 +25,9 @@ export default function AdminOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { darkMode } = useThemeStore();
+  const { user } = useAuthStore();
+
+  const isReadOnly = user?.role === 'Manager';
 
   const [order, setOrder] = useState<OrderType | null>(null);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -238,7 +242,7 @@ export default function AdminOrderDetail() {
 
       {/* Action Buttons */}
       <div className="flex items-center gap-3 mb-6">
-        {order.status === 'Pending' && (
+        {order.status === 'Pending' && !isReadOnly && (
           <>
             <button
               onClick={() => setIsRejectModalOpen(true)}
@@ -256,6 +260,12 @@ export default function AdminOrderDetail() {
               {isApproving ? 'Đang duyệt...' : 'Duyệt đơn'}
             </button>
           </>
+        )}
+        {order.status === 'Pending' && isReadOnly && (
+          <div className={`px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${darkMode ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+            <Clock className="w-4 h-4" />
+            Chờ Admin duyệt
+          </div>
         )}
         {(order.status === 'Approved' || order.status === 'Transferred_To_Kitchen') && (
             <div className={`px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${darkMode ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`}>

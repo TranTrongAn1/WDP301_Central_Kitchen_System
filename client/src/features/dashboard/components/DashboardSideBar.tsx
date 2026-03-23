@@ -18,6 +18,7 @@ import {
   Car,
   BarChart3,
   ShoppingCart,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/zustand/authStore";
@@ -183,6 +184,20 @@ export const DashboardSideBar = ({
           end: false,
         },
         {
+          icon: Package,
+          label: "Kho thành phẩm",
+          subLabel: "Kho thành phẩm cửa hàng",
+          path: "/admin/finished-goods",
+          end: false,
+        },
+        {
+          icon: AlertTriangle,
+          label: "Sự cố & Đổi trả",
+          subLabel: "Xử lý sự cố đổi trả",
+          path: "/admin/issues",
+          end: false,
+        },
+        {
           icon: UtensilsCrossed,
           label: "Sản phẩm & Công thức",
           subLabel: "Sản phẩm & Công thức",
@@ -261,6 +276,20 @@ export const DashboardSideBar = ({
           label: "Kho & Lô hàng",
           subLabel: "Kho & Lô hàng",
           path: "/manager/inventory",
+          end: false,
+        },
+        {
+          icon: Package,
+          label: "Kho thành phẩm",
+          subLabel: "Kho thành phẩm cửa hàng",
+          path: "/manager/finished-goods",
+          end: false,
+        },
+        {
+          icon: AlertTriangle,
+          label: "Sự cố & Đổi trả",
+          subLabel: "Xử lý sự cố đổi trả",
+          path: "/manager/issues",
           end: false,
         },
         {

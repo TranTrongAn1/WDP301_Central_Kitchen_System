@@ -5,7 +5,6 @@ import {
   ClipboardList,
   Truck,
   Package,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
@@ -31,9 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: ClipboardList, label: "Đơn cửa hàng", path: "/coordinator/orders", end: false },
   { icon: Truck, label: "Chuyến giao", path: "/coordinator/shipments", end: false },
   { icon: Package, label: "Kế hoạch sản xuất", path: "/coordinator/production", end: false },
-  { icon: Package, label: "Kho thành phẩm", path: "/coordinator/inventory", end: true },
   { icon: ShoppingCart, label: "Phiếu xin mua", path: "/coordinator/ingredient-requests", end: true },
-  { icon: AlertCircle, label: "Sự cố & Đổi trả", path: "/coordinator/issues", end: true },
 ];
 
 export const CoordinatorSidebar = ({ isCollapsed, onToggle }: CoordinatorSideBarProps) => {

@@ -56,16 +56,13 @@ export interface IngredientQueryParams {
 
 export interface StoreInventoryItem {
     _id: string;
-    storeId: {
-        _id: string;
-        storeName: string;
-    };
+    storeId: string;
     productId: {
         _id: string;
         name: string;
         sku: string;
-        price: number;
-        shelfLifeDays: number;
+        price?: number;
+        shelfLifeDays?: number;
     };
     batchId: {
         _id: string;
@@ -74,8 +71,9 @@ export interface StoreInventoryItem {
         expDate: string;
     };
     quantity: number;
-    createdAt: string;
-    updatedAt: string;
+    lastUpdated?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface StoreInventoryResponse {

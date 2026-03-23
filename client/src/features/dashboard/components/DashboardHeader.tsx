@@ -30,6 +30,8 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/manager/production/batches": { name: "Finished Batches", title: "Lô thành phẩm" },
   "/manager/production/:id": { name: "Production Plan Detail", title: "Chi tiết kế hoạch sản xuất" },
   "/manager/inventory": { name: "Inventory & Batches", title: "Kho & Lô hàng" },
+  "/manager/finished-goods": { name: "Kho thành phẩm", title: "Kho thành phẩm tại cửa hàng" },
+  "/manager/finished-goods/:storeId": { name: "Chi tiết kho", title: "Chi tiết kho thành phẩm" },
   "/manager/products": { name: "Products & Recipes", title: "Sản phẩm & Công thức" },
   "/manager/products/:id": { name: "Product Detail", title: "Chi tiết sản phẩm" },
   "/manager/stores": { name: "Stores", title: "Quản lý cửa hàng" },
@@ -49,6 +51,9 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/admin/production": { name: "Production Plans", title: "Kế hoạch sản xuất" },
   "/admin/production/batches": { name: "Finished Batches", title: "Lô thành phẩm" },
   "/admin/inventory": { name: "Inventory & Batches", title: "Kho & Lô hàng" },
+  "/admin/finished-goods": { name: "Kho thành phẩm", title: "Kho thành phẩm tại cửa hàng" },
+  "/admin/finished-goods/:storeId": { name: "Chi tiết kho", title: "Chi tiết kho thành phẩm" },
+  "/admin/issues": { name: "Sự cố & Đổi trả", title: "Xử lý sự cố & đổi trả" },
   "/admin/products": { name: "Products & Recipes", title: "Sản phẩm & Công thức" },
   "/admin/categories": { name: "Categories", title: "Danh mục sản phẩm" },
   "/admin/ingredients": { name: "Ingredients", title: "Nguyên liệu" },
@@ -64,6 +69,7 @@ const PAGE_NAME: Record<string, { name: string; title: string }> = {
   "/coordinator/shipments": { name: "Shipments", title: "Lập lịch & theo dõi chuyến giao hàng" },
   "/coordinator/shipments/:id": { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" },
   "/coordinator/inventory": { name: "Finished Goods", title: "Kho thành phẩm sẵn sàng giao" },
+  "/coordinator/inventory/:storeId": { name: "Kho chi tiết", title: "Chi tiết kho thành phẩm" },
   "/coordinator/ingredient-requests": { name: "Phiếu xin mua", title: "Phiếu xin mua nguyên liệu" },
   "/coordinator/issues": { name: "Issues & Returns", title: "Xử lý sự cố & đổi trả" },
   "/store/dashboard": { name: "Dashboard cửa hàng", title: "Tổng quan hoạt động cửa hàng" },
@@ -95,7 +101,11 @@ export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
       ? { name: "Order Detail", title: "Chi tiết đơn hàng" }
       : path.startsWith("/coordinator/shipments/")
         ? { name: "Shipment Detail", title: "Chi tiết chuyến giao hàng" }
-        : path.startsWith("/store/orders/")
+        : path.startsWith("/coordinator/inventory/")
+          ? { name: "Kho chi tiết", title: "Chi tiết kho thành phẩm" }
+          : path.startsWith("/manager/finished-goods/") || path.startsWith("/admin/finished-goods/")
+            ? { name: "Chi tiết kho", title: "Chi tiết kho thành phẩm" }
+            : path.startsWith("/store/orders/")
           ? { name: "Order Detail", title: "Chi tiết đơn hàng cửa hàng" }
           : { name: "Dashboard", title: "Tổng quan" });
 
