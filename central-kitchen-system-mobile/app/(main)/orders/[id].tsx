@@ -29,6 +29,7 @@ import { invalidateData } from "@/lib/data-sync";
 import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order, OrderItem } from "@/lib/orders";
+import { getOrderStatusLabel } from "@/lib/status-labels";
 
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
@@ -334,7 +335,7 @@ export default function OrderDetailScreen() {
         <View style={styles.row}>
           <Text style={styles.label}>Trạng thái</Text>
           <Text style={[styles.status, styles[`status_${order.status}` as keyof typeof styles]]}>
-            {order.status}
+            {getOrderStatusLabel(order.status)}
           </Text>
         </View>
         <View style={styles.row}>

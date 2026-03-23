@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +15,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotification } from "@/context/notification-context";
 import { useProductionPlan } from "@/hooks/use-production-plan";
 import type { ProductionPlanDetail } from "@/lib/production-plans";
+import {
+  getProductionPlanDetailStatusLabel,
+  getProductionPlanStatusLabel,
+} from "@/lib/status-labels";
 
 function productName(d: ProductionPlanDetail): string {
   const p = d.productId;
@@ -38,6 +43,12 @@ export default function KitchenProductionDetailScreen() {
     useProductionPlan(id as string);
   const { showToast } = useNotification();
   const [busy, setBusy] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const handleStart = () => {
     if (!plan) return;
@@ -183,7 +194,7 @@ export default function KitchenProductionDetailScreen() {
         <View style={styles.row}>
           <Text style={styles.label}>Trạng thái</Text>
           <Text style={[styles.status, styles[`status_${plan.status}` as keyof typeof styles]]}>
-            {plan.status}
+            {getProductionPlanStatusLabel(plan.status)}
           </Text>
         </View>
         {plan.note ? (
@@ -235,7 +246,7 @@ export default function KitchenProductionDetailScreen() {
             </View>
             <View style={styles.itemRow}>
               <Text style={styles.itemLabel}>Trạng thái dòng</Text>
-              <Text style={styles.itemValue}>{detail.status ?? "Pending"}</Text>
+              <Text style={styles.itemValue}>{getProductionPlanDetailStatusLabel(detail.status ?? "Pending")}</Text>
             </View>
             {isInProgress && !isItemCompleted && (
               <Pressable
