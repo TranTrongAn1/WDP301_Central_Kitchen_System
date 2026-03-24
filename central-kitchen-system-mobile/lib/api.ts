@@ -39,7 +39,11 @@ import type {
 } from "@/lib/trips";
 import type { WalletResponse } from "@/lib/wallet";
 
-const API_REQUEST_TIMEOUT_MS = 10000; // 10 seconds
+const API_REQUEST_TIMEOUT_MS = 20000; // 20 seconds
+
+type RequestOptions = RequestInit & {
+  timeoutMs?: number;
+};
 
 type ApiError = {
   success: false;
@@ -53,17 +57,20 @@ const buildUrl = (path: string) => {
   return `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
-const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
+const request = async <T>(path: string, options?: RequestOptions): Promise<T> => {
   const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? API_REQUEST_TIMEOUT_MS;
   const timeoutId = setTimeout(
     () => controller.abort(),
-    API_REQUEST_TIMEOUT_MS,
+    timeoutMs,
   );
 
   try {
     const url = buildUrl(path);
     const method = options?.method ?? "GET";
     const hasBody = options?.body != null;
+    const isFormDataBody =
+      typeof FormData !== "undefined" && options?.body instanceof FormData;
     const incomingHeaders = options?.headers;
     let normalizedHeaders: Record<string, string> = {};
     if (incomingHeaders != null) {
@@ -77,7 +84,7 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
     }
     const defaultHeaders: Record<string, string> = {
       Accept: "application/json",
-      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(hasBody && !isFormDataBody ? { "Content-Type": "application/json" } : {}),
       ...normalizedHeaders,
     };
     const response = await fetch(url, {
@@ -122,17 +129,46 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
     return data as T;
   } catch (err) {
     clearTimeout(timeoutId);
-    if (__DEV__) {
-      console.warn("[api] Error:", path, err);
-    }
     if (err instanceof Error) {
       if (err.name === "AbortError") {
         throw new Error("Request timeout. Please try again.");
       }
+      if (__DEV__) {
+        console.warn("[api] Error:", path, err);
+      }
       throw err;
+    }
+    if (__DEV__) {
+      console.warn("[api] Error:", path, err);
     }
     throw new Error("Network error. Please try again.");
   }
+};
+
+const createFeedbackFormData = (
+  payload: CreateFeedbackPayload | UpdateFeedbackPayload,
+): FormData => {
+  const formData = new FormData();
+  if (payload.rating != null) {
+    formData.append("rating", String(payload.rating));
+  }
+  if (payload.content) {
+    formData.append("content", payload.content);
+  }
+  if (payload.tags?.length) {
+    formData.append("tags", JSON.stringify(payload.tags));
+  } else if (payload.tags && payload.tags.length === 0) {
+    formData.append("tags", "[]");
+  }
+  payload.imageFiles?.forEach((file, index) => {
+    const fallbackName = `feedback-${Date.now()}-${index}.jpg`;
+    formData.append("images", {
+      uri: file.uri,
+      name: file.name ?? fallbackName,
+      type: file.type ?? "image/jpeg",
+    } as unknown as Blob);
+  });
+  return formData;
 };
 
 const withAuth = (token?: string | null): Record<string, string> =>
@@ -153,6 +189,7 @@ export const authApi = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      timeoutMs: 30000,
     }),
 };
 
@@ -160,10 +197,12 @@ export const ingredientsApi = {
   getAll: (token?: string | null) =>
     request<IngredientsResponse>("/api/ingredients", {
       headers: withAuth(token),
+      timeoutMs: 30000,
     }),
   getById: (id: string, token?: string | null) =>
     request<IngredientResponse>(`/api/ingredients/${id}`, {
       headers: withAuth(token),
+      timeoutMs: 30000,
     }),
   create: (payload: Partial<Ingredient>, token?: string | null) =>
     request<IngredientResponse>("/api/ingredients", {
@@ -213,12 +252,13 @@ export const productionPlansApi = {
     const qs = search.toString();
     return request<ProductionPlansResponse>(
       `/api/production-plans${qs ? `?${qs}` : ""}`,
-      { headers: withAuth(token) }
+      { headers: withAuth(token), timeoutMs: 45000 }
     );
   },
   getById: (id: string, token?: string | null) =>
     request<ProductionPlanResponse>(`/api/production-plans/${id}`, {
       headers: withAuth(token),
+      timeoutMs: 30000,
     }),
   updateStatus: (
     id: string,
@@ -266,7 +306,7 @@ export const ingredientBatchesApi = {
     const qs = search.toString();
     return request<IngredientBatchesResponse>(
       `/api/ingredients/${ingredientId}/batches${qs ? `?${qs}` : ""}`,
-      { headers: withAuth(token) },
+      { headers: withAuth(token), timeoutMs: 30000 },
     );
   },
   getById: (id: string, token?: string | null) =>
@@ -386,12 +426,13 @@ export const deliveryTripsApi = {
     const qs = search.toString();
     return request<DeliveryTripsResponse>(
       `/api/logistics/trips${qs ? `?${qs}` : ""}`,
-      { headers: withAuth(token) }
+      { headers: withAuth(token), timeoutMs: 30000 }
     );
   },
   getById: (id: string, token?: string | null) =>
     request<DeliveryTripResponse>(`/api/logistics/trips/${id}`, {
       headers: withAuth(token),
+      timeoutMs: 30000,
     }),
   startShipping: (id: string, token?: string | null) =>
     request<{ success: boolean; message?: string; data?: unknown }>(
@@ -453,18 +494,22 @@ export const feedbackApi = {
     request<FeedbackResponse>(`/api/feedback/${orderId}`, {
       headers: withAuth(token),
     }),
-  create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) =>
-    request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+  create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) => {
+    const body = createFeedbackFormData(payload);
+    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
       method: "POST",
       headers: withAuth(token),
-      body: JSON.stringify(payload),
-    }),
-  update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) =>
-    request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      body,
+    });
+  },
+  update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) => {
+    const body = createFeedbackFormData(payload);
+    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
       method: "PUT",
       headers: withAuth(token),
-      body: JSON.stringify(payload),
-    }),
+      body,
+    });
+  },
   delete: (orderId: string, token?: string | null) =>
     request<{ success: boolean; message?: string; data?: Record<string, unknown> }>(
       `/api/feedback/${orderId}`,

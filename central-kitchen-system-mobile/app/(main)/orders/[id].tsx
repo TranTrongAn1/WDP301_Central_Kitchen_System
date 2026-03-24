@@ -1,3 +1,4 @@
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
@@ -26,6 +27,7 @@ import { useSystemSettings } from "@/hooks/use-system-settings";
 import { triggerWalletRefresh } from "@/hooks/use-wallet";
 import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
 import { invalidateData } from "@/lib/data-sync";
+import { FEEDBACK_TAGS, type FeedbackImageFile } from "@/lib/feedback";
 import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order, OrderItem } from "@/lib/orders";
@@ -47,6 +49,23 @@ function productName(item: OrderItem): string {
   if (typeof p === "object" && p?.name) return p.name;
   return "Sản phẩm";
 }
+
+const MAX_FEEDBACK_IMAGES = 5;
+
+const fileNameFromUri = (uri: string, fallbackPrefix = "feedback") => {
+  const raw = uri.split("?")[0]?.split("/").pop();
+  if (raw && raw.includes(".")) return raw;
+  return `${fallbackPrefix}-${Date.now()}.jpg`;
+};
+
+const mimeTypeFromName = (name?: string) => {
+  if (!name) return "image/jpeg";
+  const ext = name.toLowerCase().split(".").pop();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "heic") return "image/heic";
+  return "image/jpeg";
+};
 
 export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -77,6 +96,8 @@ export default function OrderDetailScreen() {
   const { user } = useAuth();
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackTags, setFeedbackTags] = useState<string[]>([]);
+  const [feedbackImages, setFeedbackImages] = useState<FeedbackImageFile[]>([]);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackEditMode, setFeedbackEditMode] = useState(false);
 
@@ -247,9 +268,16 @@ export default function OrderDetailScreen() {
     if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
     setFeedbackSubmitting(true);
     try {
-      await createFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
+      await createFeedback({
+        rating: feedbackRating,
+        content: feedbackContent.trim() || undefined,
+        tags: feedbackTags.length ? feedbackTags : undefined,
+        imageFiles: feedbackImages.length ? feedbackImages : undefined,
+      });
       setFeedbackContent("");
       setFeedbackRating(5);
+      setFeedbackTags([]);
+      setFeedbackImages([]);
       showToast("Đã gửi đánh giá.");
     } catch (e) {
       const err = e as Error & { status?: number };
@@ -267,8 +295,14 @@ export default function OrderDetailScreen() {
     if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
     setFeedbackSubmitting(true);
     try {
-      await updateFeedback({ rating: feedbackRating, content: feedbackContent.trim() || undefined });
+      await updateFeedback({
+        rating: feedbackRating,
+        content: feedbackContent.trim() || undefined,
+        tags: feedbackTags.length ? feedbackTags : undefined,
+        imageFiles: feedbackImages.length ? feedbackImages : undefined,
+      });
       setFeedbackEditMode(false);
+      setFeedbackImages([]);
       showToast("Đã cập nhật đánh giá.");
     } catch (e) {
       const err = e as Error & { status?: number };
@@ -306,6 +340,52 @@ export default function OrderDetailScreen() {
         },
       },
     ]);
+  };
+
+  const toggleFeedbackTag = (tag: string) => {
+    setFeedbackTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handlePickFeedbackImages = async () => {
+    if (feedbackSubmitting) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showToast("Cần quyền truy cập thư viện ảnh để tải ảnh feedback.", "error");
+      return;
+    }
+
+    const currentCount = feedbackImages.length;
+    const selectionLimit = Math.max(1, MAX_FEEDBACK_IMAGES - currentCount);
+    if (selectionLimit <= 0) {
+      showToast(`Chỉ được tải tối đa ${MAX_FEEDBACK_IMAGES} ảnh.`, "error");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      selectionLimit,
+      quality: 0.85,
+    });
+
+    if (result.canceled) return;
+
+    const nextFiles: FeedbackImageFile[] = result.assets.map((asset) => {
+      const name = asset.fileName ?? fileNameFromUri(asset.uri);
+      return {
+        uri: asset.uri,
+        name,
+        type: asset.mimeType ?? mimeTypeFromName(name),
+      };
+    });
+
+    setFeedbackImages((prev) => [...prev, ...nextFiles].slice(0, MAX_FEEDBACK_IMAGES));
+  };
+
+  const removeFeedbackImage = (index: number) => {
+    setFeedbackImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -630,6 +710,50 @@ export default function OrderDetailScreen() {
                 maxLength={1000}
                 editable={!feedbackSubmitting}
               />
+              <Text style={styles.feedbackLabel}>Tag feedback</Text>
+              <View style={styles.feedbackTagWrap}>
+                {FEEDBACK_TAGS.map((tag) => {
+                  const selected = feedbackTags.includes(tag);
+                  return (
+                    <Pressable
+                      key={tag}
+                      style={[styles.feedbackTagChip, selected && styles.feedbackTagChipSelected]}
+                      onPress={() => toggleFeedbackTag(tag)}
+                      disabled={feedbackSubmitting}
+                    >
+                      <Text style={[styles.feedbackTagText, selected && styles.feedbackTagTextSelected]}>
+                        {tag}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.feedbackImageHeader}>
+                <Text style={styles.feedbackLabel}>Ảnh feedback (tối đa 5)</Text>
+                <Pressable
+                  style={styles.feedbackPickImageBtn}
+                  onPress={handlePickFeedbackImages}
+                  disabled={feedbackSubmitting || feedbackImages.length >= MAX_FEEDBACK_IMAGES}
+                >
+                  <Text style={styles.feedbackPickImageText}>+ Chọn ảnh</Text>
+                </Pressable>
+              </View>
+              {feedbackImages.length > 0 ? (
+                <View style={styles.feedbackImages}>
+                  {feedbackImages.map((img, idx) => (
+                    <View key={`${img.uri}-${idx}`} style={styles.feedbackImageItem}>
+                      <Image source={{ uri: img.uri }} style={styles.feedbackThumb} />
+                      <Pressable
+                        style={styles.feedbackRemoveImageBtn}
+                        onPress={() => removeFeedbackImage(idx)}
+                        disabled={feedbackSubmitting}
+                      >
+                        <Text style={styles.feedbackRemoveImageText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               <Pressable
                 style={[styles.feedbackSubmitBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}
                 onPress={handleSubmitFeedback}
@@ -658,6 +782,15 @@ export default function OrderDetailScreen() {
               {feedback.content ? (
                 <Text style={styles.feedbackContentText}>{feedback.content}</Text>
               ) : null}
+              {(feedback.tags ?? []).length > 0 ? (
+                <View style={styles.feedbackTagWrap}>
+                  {(feedback.tags ?? []).map((tag, index) => (
+                    <View key={`${tag}-${index}`} style={[styles.feedbackTagChip, styles.feedbackTagChipReadonly]}>
+                      <Text style={styles.feedbackTagTextReadonly}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               {(feedback.images ?? []).length > 0 ? (
                 <View style={styles.feedbackImages}>
                   {(feedback.images ?? []).slice(0, 5).map((uri, idx) => (
@@ -675,6 +808,8 @@ export default function OrderDetailScreen() {
                     onPress={() => {
                       setFeedbackRating(feedback.rating);
                       setFeedbackContent(feedback.content ?? "");
+                      setFeedbackTags(feedback.tags ?? []);
+                      setFeedbackImages([]);
                       setFeedbackEditMode(true);
                     }}
                   >
@@ -718,6 +853,50 @@ export default function OrderDetailScreen() {
                 maxLength={1000}
                 editable={!feedbackSubmitting}
               />
+              <Text style={styles.feedbackLabel}>Tag feedback</Text>
+              <View style={styles.feedbackTagWrap}>
+                {FEEDBACK_TAGS.map((tag) => {
+                  const selected = feedbackTags.includes(tag);
+                  return (
+                    <Pressable
+                      key={tag}
+                      style={[styles.feedbackTagChip, selected && styles.feedbackTagChipSelected]}
+                      onPress={() => toggleFeedbackTag(tag)}
+                      disabled={feedbackSubmitting}
+                    >
+                      <Text style={[styles.feedbackTagText, selected && styles.feedbackTagTextSelected]}>
+                        {tag}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.feedbackImageHeader}>
+                <Text style={styles.feedbackLabel}>Thêm ảnh mới</Text>
+                <Pressable
+                  style={styles.feedbackPickImageBtn}
+                  onPress={handlePickFeedbackImages}
+                  disabled={feedbackSubmitting || feedbackImages.length >= MAX_FEEDBACK_IMAGES}
+                >
+                  <Text style={styles.feedbackPickImageText}>+ Chọn ảnh</Text>
+                </Pressable>
+              </View>
+              {feedbackImages.length > 0 ? (
+                <View style={styles.feedbackImages}>
+                  {feedbackImages.map((img, idx) => (
+                    <View key={`${img.uri}-${idx}`} style={styles.feedbackImageItem}>
+                      <Image source={{ uri: img.uri }} style={styles.feedbackThumb} />
+                      <Pressable
+                        style={styles.feedbackRemoveImageBtn}
+                        onPress={() => removeFeedbackImage(idx)}
+                        disabled={feedbackSubmitting}
+                      >
+                        <Text style={styles.feedbackRemoveImageText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               <View style={styles.feedbackEditActions}>
                 <Pressable
                   style={[styles.feedbackUpdateBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}
@@ -736,6 +915,8 @@ export default function OrderDetailScreen() {
                     setFeedbackEditMode(false);
                     setFeedbackRating(feedback.rating);
                     setFeedbackContent(feedback.content ?? "");
+                    setFeedbackTags(feedback.tags ?? []);
+                    setFeedbackImages([]);
                   }}
                   disabled={feedbackSubmitting}
                 >
@@ -1086,6 +1267,57 @@ const styles = StyleSheet.create({
     minHeight: 80,
     marginBottom: 12,
   },
+  feedbackTagWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  feedbackTagChip: {
+    borderWidth: 1,
+    borderColor: "#FFD6D6",
+    backgroundColor: "#FFF4F4",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  feedbackTagChipSelected: {
+    backgroundColor: "#D91E18",
+    borderColor: "#D91E18",
+  },
+  feedbackTagChipReadonly: {
+    backgroundColor: "#FFEDED",
+  },
+  feedbackTagText: {
+    fontSize: 12,
+    color: "#9B0F0F",
+    fontWeight: "600",
+  },
+  feedbackTagTextSelected: {
+    color: "#fff",
+  },
+  feedbackTagTextReadonly: {
+    fontSize: 12,
+    color: "#9B0F0F",
+    fontWeight: "600",
+  },
+  feedbackImageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  feedbackPickImageBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#FFE1E1",
+  },
+  feedbackPickImageText: {
+    fontSize: 12,
+    color: "#9B0F0F",
+    fontWeight: "700",
+  },
   feedbackSubmitBtn: {
     backgroundColor: "#D91E18",
     paddingVertical: 12,
@@ -1117,6 +1349,26 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 8,
+  },
+  feedbackImageItem: {
+    position: "relative",
+  },
+  feedbackRemoveImageBtn: {
+    position: "absolute",
+    right: -6,
+    top: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedbackRemoveImageText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 14,
   },
   feedbackDate: {
     fontSize: 12,
