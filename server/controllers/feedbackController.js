@@ -10,16 +10,39 @@ const Store = require('../models/Store');
 const createFeedback = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const { rating, content, images, tags } = req.body;
+    const { rating, content, tags } = req.body;
     const userId = req.user._id;
+    const numericRating = Number(rating);
+
+    let parsedTags = [];
+    if (Array.isArray(tags)) {
+      parsedTags = tags.map((tag) => String(tag).trim()).filter(Boolean);
+    } else if (typeof tags === 'string' && tags.trim() !== '') {
+      const rawTags = tags.trim();
+      try {
+        const jsonTags = JSON.parse(rawTags);
+        if (Array.isArray(jsonTags)) {
+          parsedTags = jsonTags.map((tag) => String(tag).trim()).filter(Boolean);
+        } else {
+          parsedTags = rawTags.split(',').map((tag) => tag.trim()).filter(Boolean);
+        }
+      } catch (parseError) {
+        parsedTags = rawTags.split(',').map((tag) => tag.trim()).filter(Boolean);
+      }
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    const imageUrls = files.map(
+      (file) => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`
+    );
 
     // Validate input
-    if (!rating) {
+    if (!numericRating) {
       res.status(400);
       return next(new Error('Rating is required'));
     }
 
-    if (rating < 1 || rating > 5) {
+    if (numericRating < 1 || numericRating > 5) {
       res.status(400);
       return next(new Error('Rating must be between 1 and 5'));
     }
@@ -59,10 +82,10 @@ const createFeedback = async (req, res, next) => {
     const feedback = await Feedback.create({
       orderId,
       storeId: order.storeId,
-      rating,
+      rating: numericRating,
       content: content || '',
-      tags: tags || [],
-      images: images || [],
+      tags: parsedTags,
+      images: imageUrls,
       createdBy: userId,
     });
 

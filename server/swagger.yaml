@@ -3459,7 +3459,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               required:
@@ -3476,23 +3476,19 @@ paths:
                   description: Feedback comment/review
                   example: 'Excellent quality and on-time delivery!'
                 tags:
-                  type: array
-                  items:
-                    type: string
-                    enum: ['Vận chuyển thiếu hàng', 'Hàng hư hỏng', 'Vận chuyển tốt', 'Thái độ phục vụ tốt', 'Khác']
-                  description: Predefined feedback tags/issues selected by user
-                  example: ['Vận chuyển tốt', 'Thái độ phục vụ tốt']
+                  type: string
+                  description: JSON stringified array of tags (e.g. ["Vận chuyển tốt","Thái độ phục vụ tốt"]) or comma-separated text
+                  example: '["Vận chuyển tốt","Thái độ phục vụ tốt"]'
                 images:
                   type: array
                   items:
                     type: string
-                  description: Array of image URLs
-                  example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+                    format: binary
+                  description: Up to 5 image files uploaded from mobile app
             example:
               rating: 5
               content: 'Excellent quality and on-time delivery!'
-              tags: ['Vận chuyển tốt', 'Thái độ phục vụ tốt']
-              images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
+              tags: '["Vận chuyển tốt","Thái độ phục vụ tốt"]'
       responses:
         '201':
           description: Feedback created successfully
