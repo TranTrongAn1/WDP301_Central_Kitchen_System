@@ -34,6 +34,12 @@ const ingredientSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Total quantity cannot be negative'],
     },
+    reservedQuantity: { 
+      type: Number,
+      default: 0,
+      min: [0, 'Reserved quantity cannot be negative'],
+    },
+  
   },
   {
     timestamps: true,
@@ -51,7 +57,10 @@ ingredientSchema.pre('save', async function () {
 ingredientSchema.methods.isBelowThreshold = function () {
   return this.totalQuantity < this.warningThreshold;
 };
-
+// Công thức: Available = Thực tế - Đã giữ chỗ
+ingredientSchema.virtual('availableQuantity').get(function () {
+  return this.totalQuantity - this.reservedQuantity;
+});
 const Ingredient = mongoose.model('Ingredient', ingredientSchema);
 
 module.exports = Ingredient;

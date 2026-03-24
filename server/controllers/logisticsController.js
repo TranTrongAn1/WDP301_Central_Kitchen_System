@@ -11,6 +11,7 @@ const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
 const VehicleType = require('../models/VehicleType');
 const { getSettingNumber } = require('../utils/settingHelper');
+const Ingredient = require('../models/Ingredient');
 /**
  * @desc    Create new order from store
  * @route   POST /api/logistics/orders
@@ -315,7 +316,7 @@ const createOrder = async (req, res, next) => {
   };
 
 /**
- * @desc    Approve order and deduct inventory
+ * @desc    Approve order, reserve inventory (tạm giữ nguyên liệu)
  * @route   POST /api/logistics/orders/:orderId/approve
  * @access  Private (Admin, Manager)
  */
@@ -329,9 +330,30 @@ const approveAndShipOrder = async (req, res, next) => {
     const { orderId } = req.params;
 
     // ========================================
-    // STEP 1: Fetch & Validate Order
+    // STEP 1: Fetch Order & Deep Populate (Quét cả Recipe đơn và Recipe trong Combo)
     // ========================================
-    const order = await Order.findById(orderId).session(session);
+    const order = await Order.findById(orderId)
+      .populate({
+        path: 'items.productId',
+        select: 'name sku recipe bundleItems', // Lấy cả bundleItems
+        populate: [
+          // 1. Lấy nguyên liệu nếu đây là Sản phẩm đơn
+          {
+            path: 'recipe.ingredientId',
+            select: 'ingredientName totalQuantity reservedQuantity unit'
+          },
+          // 2. Lấy nguyên liệu của Bánh con nếu đây là Hộp Combo
+          {
+            path: 'bundleItems.childProductId',
+            select: 'name recipe',
+            populate: {
+              path: 'recipe.ingredientId',
+              select: 'ingredientName totalQuantity reservedQuantity unit'
+            }
+          }
+        ]
+      })
+      .session(session);
 
     if (!order) {
       transactionAborted = true;
@@ -348,11 +370,81 @@ const approveAndShipOrder = async (req, res, next) => {
     }
 
     // ========================================
+    // STEP 1.5: TÍNH TOÁN VÀ GIỮ CHỖ NGUYÊN LIỆU (HỖ TRỢ COMBO)
+    // ========================================
+    const ingredientNeeds = new Map(); 
+
+    for (const item of order.items) {
+      const product = item.productId;
+      const orderQty = item.quantity || 0;
+
+      if (!product) continue;
+
+      // CASE 1: SẢN PHẨM ĐƠN (Có công thức trực tiếp)
+      if (product.recipe && product.recipe.length > 0) {
+        for (const recipeItem of product.recipe) {
+          if (!recipeItem.ingredientId) continue;
+          
+          const ingId = recipeItem.ingredientId._id.toString(); 
+          const requiredQty = recipeItem.quantity * orderQty; 
+
+          ingredientNeeds.set(ingId, (ingredientNeeds.get(ingId) || 0) + requiredQty);
+        }
+      }
+
+      // CASE 2: HỘP COMBO (Có bundleItems chứa bánh con)
+      if (product.bundleItems && product.bundleItems.length > 0) {
+        for (const bundle of product.bundleItems) {
+          const childProduct = bundle.childProductId;
+          const childQtyInBundle = bundle.quantity; // Số lượng bánh con trong 1 hộp
+
+          if (childProduct && childProduct.recipe && childProduct.recipe.length > 0) {
+            for (const recipeItem of childProduct.recipe) {
+              if (!recipeItem.ingredientId) continue;
+
+              const ingId = recipeItem.ingredientId._id.toString();
+              // Công thức: Nguyên liệu 1 bánh * Số bánh trong hộp * Số hộp khách đặt
+              const requiredQty = recipeItem.quantity * childQtyInBundle * orderQty; 
+              
+              ingredientNeeds.set(ingId, (ingredientNeeds.get(ingId) || 0) + requiredQty);
+            }
+          }
+        }
+      }
+    }
+    console.log("🛠️ TỔNG NGUYÊN LIỆU CẦN GIỮ CHỖ:", Object.fromEntries(ingredientNeeds));
+    // B. Kiểm tra Tồn kho và Cộng dồn vào reservedQuantity (GIỮ NGUYÊN NHƯ CŨ)
+    for (const [ingId, totalRequired] of ingredientNeeds.entries()) {
+      const ingredient = await Ingredient.findById(ingId).session(session);
+      
+      if (!ingredient) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(404);
+        throw new Error(`Lỗi hệ thống: Không tìm thấy nguyên liệu có ID ${ingId}.`);
+      }
+
+      const currentReserved = ingredient.reservedQuantity || 0;
+      const availableQty = ingredient.totalQuantity - currentReserved;
+
+      if (totalRequired > availableQty) {
+        transactionAborted = true;
+        await session.abortTransaction();
+        res.status(400);
+        throw new Error(`Không thể duyệt đơn! '${ingredient.ingredientName}' không đủ. Cần: ${totalRequired} ${ingredient.unit}, Khả dụng: ${availableQty} ${ingredient.unit}.`);
+      }
+
+      ingredient.reservedQuantity = currentReserved + totalRequired;
+      await ingredient.save({ session });
+    }
+
+    // ========================================
     // STEP 2: Update Order Status to Approved
     // ========================================
-    order.status = 'Approved';
+    // 💡 Lưu ý: Trạng thái tiếp theo của bạn có thể là Approved hoặc Ready_For_Shipping tùy workflow
+    order.status = 'Approved'; 
     order.approvedBy = req.user ? req.user._id : null;
-    order.approvedAt = new Date();
+    order.approvedDate = new Date(); // Đổi từ approvedAt thành approvedDate cho khớp với DB của bạn ở trên
     await order.save({ session });
 
     // ========================================
@@ -388,7 +480,7 @@ const approveAndShipOrder = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Order approved successfully. Awaiting production by the kitchen.',
+      message: 'Đã duyệt đơn hàng thành công. Nguyên liệu đã được tạm giữ cho bếp!',
       data: {
         order,
         invoice: invoice || null,
@@ -2269,7 +2361,7 @@ const autoScheduleTrips = async (req, res, next) => {
 module.exports = {
   // Order Management
   createOrder,
-  getOrders,
+  getOrders,  
   getOrderById,
   updateOrder,
   approveAndShipOrder,
