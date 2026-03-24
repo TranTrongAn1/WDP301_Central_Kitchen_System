@@ -3509,6 +3509,80 @@ paths:
         '404':
           description: Order not found
 
+    put:
+      tags:
+        - Feedback
+      summary: Update feedback for an order
+      description: |
+        Update feedback fields for an existing order feedback.
+        Supports multipart/form-data for optional image re-upload.
+
+        **Behavior:** If new images are uploaded, they replace old images. If no images are uploaded, old images are kept.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  description: Updated rating from 1 (poor) to 5 (excellent)
+                content:
+                  type: string
+                  description: Updated feedback comment/review
+                tags:
+                  type: string
+                  description: JSON stringified array of tags (e.g. ["Vận chuyển tốt","Thái độ phục vụ tốt"]) or comma-separated text
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Optional new image files. If provided, existing image list is replaced.
+      responses:
+        '200':
+          description: Feedback updated successfully
+        '400':
+          description: Invalid input data
+        '403':
+          description: Not authorized to update this feedback
+        '404':
+          description: Feedback not found
+
+    delete:
+      tags:
+        - Feedback
+      summary: Delete feedback for an order
+      description: Delete feedback by order ID (Admin or feedback creator)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+          description: Order ID
+      responses:
+        '200':
+          description: Feedback deleted successfully
+        '403':
+          description: Not authorized to delete this feedback
+        '404':
+          description: Feedback not found
+
   # ============================================================
   # FEATURE 5: STORE INVENTORY & OPERATIONS
   # ============================================================

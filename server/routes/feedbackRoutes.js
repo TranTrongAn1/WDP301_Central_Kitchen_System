@@ -47,7 +47,7 @@ router.post('/:orderId', upload.array('images', 5), createFeedback);
 router.get('/:orderId', getFeedbackByOrder);
 
 // Update feedback for a specific order (Creator only)
-router.put('/:orderId', updateFeedback);
+router.put('/:orderId', upload.array('images', 5), updateFeedback);
 
 // Delete feedback (Admin or Creator)
 router.delete('/:orderId', deleteFeedback);
