@@ -1766,7 +1766,7 @@ paths:
         '200':
           description: Success
         '404':
-          $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
     put:
       tags:
         - Vehicle Types
@@ -3516,70 +3516,6 @@ paths:
   # ============================================================
   # FEATURE 5: STORE INVENTORY & OPERATIONS
   # ============================================================
-  /api/inventory/store/{storeId}:
-    get:
-      tags:
-        - Inventory
-      summary: Get store inventory
-      description: |
-        View current inventory for a specific store with batch-level traceability.
-        
-        **Traceability:** Shows which finished batch each store's stock came from.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: storeId
-          required: true
-          schema:
-            type: string
-          description: Store ID
-        - in: query
-          name: productId
-          schema:
-            type: string
-          description: Filter by product
-        - in: query
-          name: lowStock
-          schema:
-            type: boolean
-          description: Show only low stock items
-      responses:
-        '200':
-          description: Successfully retrieved inventory
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  storeName:
-                    type: string
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        _id:
-                          type: string
-                        storeId:
-                          type: string
-                        productId:
-                          type: object
-                          description: 'Populated product details'
-                        batchId:
-                          type: object
-                          description: 'Populated batch details with expiry'
-                        quantity:
-                          type: number
-                        createdAt:
-                          type: string
-                        updatedAt:
-                          type: string
-        '404':
-          description: Store not found
-
   /api/inventory/expiring:
     get:
       tags:
@@ -5062,7 +4998,7 @@ components:
           format: date
           example: '2026-01-30'
           description: 'Requested delivery date'
-          recipientName:
+        recipientName:
           type: string
           example: "Nguyễn Văn A"
         recipientPhone:
