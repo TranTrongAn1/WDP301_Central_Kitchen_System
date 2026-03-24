@@ -2358,6 +2358,89 @@ const autoScheduleTrips = async (req, res, next) => {
         next(error);
     }
 };
+/**
+ * @desc    [TOOL CHỮA CHÁY] Đồng bộ lại toàn bộ reservedQuantity từ các Order
+ * @route   POST /api/logistics/sync-reserved-inventory
+ * @access  Private (Admin)
+ */
+const syncReservedInventory = async (req, res, next) => {
+  try {
+    // 1. RESET TOÀN BỘ VỀ 0
+    await Ingredient.updateMany({}, { $set: { reservedQuantity: 0 } });
+
+    // 2. CHỈ QUÉT NHỮNG ĐƠN ĐANG CHỜ HOẶC ĐANG NẤU (Chưa trừ kho thật)
+    const activeStatuses = ['Approved', 'Transferred_To_Kitchen']; 
+    
+    const activeOrders = await Order.find({ status: { $in: activeStatuses } })
+      .populate({
+        path: 'items.productId',
+        select: 'recipe bundleItems',
+        populate: [
+          { path: 'recipe.ingredientId', select: '_id' },
+          {
+            path: 'bundleItems.childProductId',
+            select: 'recipe',
+            populate: { path: 'recipe.ingredientId', select: '_id' }
+          }
+        ]
+      });
+
+    const ingredientNeeds = new Map();
+
+    // 3. TÍNH TOÁN LẠI TỔNG 
+    for (const order of activeOrders) {
+      for (const item of order.items) {
+        const product = item.productId;
+        const orderQty = item.quantity || 0;
+
+        if (!product) continue;
+
+        if (product.recipe && product.recipe.length > 0) {
+          for (const recipeItem of product.recipe) {
+            if (!recipeItem.ingredientId) continue;
+            const ingId = recipeItem.ingredientId._id.toString();
+            const requiredQty = recipeItem.quantity * orderQty;
+            ingredientNeeds.set(ingId, (ingredientNeeds.get(ingId) || 0) + requiredQty);
+          }
+        }
+
+        if (product.bundleItems && product.bundleItems.length > 0) {
+          for (const bundle of product.bundleItems) {
+            const childProduct = bundle.childProductId;
+            const childQty = bundle.quantity;
+
+            if (childProduct && childProduct.recipe && childProduct.recipe.length > 0) {
+              for (const recipeItem of childProduct.recipe) {
+                if (!recipeItem.ingredientId) continue;
+                const ingId = recipeItem.ingredientId._id.toString();
+                const requiredQty = recipeItem.quantity * childQty * orderQty;
+                ingredientNeeds.set(ingId, (ingredientNeeds.get(ingId) || 0) + requiredQty);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 4. LƯU VÀO DATABASE
+    let updatedCount = 0;
+    for (const [ingId, totalRequired] of ingredientNeeds.entries()) {
+      await Ingredient.findByIdAndUpdate(ingId, {
+        $set: { reservedQuantity: totalRequired }
+      });
+      updatedCount++;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Đã dọn dẹp và đồng bộ! Có ${activeOrders.length} đơn hàng đang chờ bếp và ${updatedCount} loại nguyên liệu đã được update reservedQuantity.`,
+      data: Object.fromEntries(ingredientNeeds)
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   // Order Management
   createOrder,
@@ -2388,4 +2471,5 @@ module.exports = {
   // Analytics
   aggregateDailyDemand,
   normalizeWeightToKg,
+  syncReservedInventory,
 };

@@ -21,6 +21,7 @@ const {
   getInvoices,
   getInvoiceById,
   autoScheduleTrips,
+  syncReservedInventory,
 } = require('../controllers/logisticsController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -143,5 +144,9 @@ router.post(
   authorize('StoreStaff', 'Manager', 'Admin'),
   recordPayment
 );
-
+router.post(
+  '/sync-reserved-inventory', 
+  authorize('Admin', 'Manager', 'Coordinator'), 
+  syncReservedInventory
+);
 module.exports = router;
