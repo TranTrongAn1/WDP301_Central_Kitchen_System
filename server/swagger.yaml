@@ -3689,18 +3689,136 @@ paths:
                         productId: { type: string }
                         productName: { type: string }
                         productSku: { type: string }
+                        productPrice: { type: number }
                         totalQuantity: { type: number }
-                        batches: { type: number }
+                        batches:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              batchId:
+                                type: string
+                              batchCode:
+                                type: string
+                              quantity:
+                                type: number
+                              expDate:
+                                type: string
+                                format: date-time
                   count:
                     type: number
                   data:
                     type: array
                     items:
                       $ref: '#/components/schemas/StoreInventory'
+                example:
+                  success: true
+                  store:
+                    id: '65d100000000000000000001'
+                    name: 'Kendo Q1 Branch'
+                    address: '123 Nguyen Hue Street, District 1, HCMC'
+                  summary:
+                    - productId: '65d200000000000000000001'
+                      productName: 'Lotus Mooncake 200g'
+                      productSku: 'MK-LOTUS-200'
+                      productPrice: 75000
+                      totalQuantity: 32
+                      batches:
+                        - batchId: '65d300000000000000000001'
+                          batchCode: 'FG-LOTUS-240330-A'
+                          quantity: 12
+                          expDate: '2026-04-15T00:00:00.000Z'
+                        - batchId: '65d300000000000000000002'
+                          batchCode: 'FG-LOTUS-240331-B'
+                          quantity: 20
+                          expDate: '2026-04-20T00:00:00.000Z'
+                  count: 2
+                  data:
+                    - _id: '65d400000000000000000001'
+                      storeId: '65d100000000000000000001'
+                      productId: '65d200000000000000000001'
+                      batchId: '65d300000000000000000001'
+                      quantity: 12
+                      lastUpdated: '2026-03-24T09:30:00.000Z'
+                      createdAt: '2026-03-20T08:00:00.000Z'
+                      updatedAt: '2026-03-24T09:30:00.000Z'
+                    - _id: '65d400000000000000000002'
+                      storeId: '65d100000000000000000001'
+                      productId: '65d200000000000000000001'
+                      batchId: '65d300000000000000000002'
+                      quantity: 20
+                      lastUpdated: '2026-03-24T09:30:00.000Z'
+                      createdAt: '2026-03-21T08:00:00.000Z'
+                      updatedAt: '2026-03-24T09:30:00.000Z'
         '404':
           description: Store not found
         '403':
           description: Unauthorized - StoreStaff can only view their own store
+
+  /api/inventory/sell:
+    post:
+      tags:
+        - Inventory
+      summary: Retail POS Sale (Hybrid FEFO Deduction)
+      description: |
+        Records a retail sale and automatically deducts store inventory.
+        Uses Auto-FEFO by default, but allows manual batch selection if `batchId` is provided.
+        Accessible by StoreStaff, Manager, Admin.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventorySellRequest'
+            example:
+              storeId: '65d100000000000000000001'
+              items:
+                - productId: '65d200000000000000000001'
+                  quantity: 3
+                  batchId: '65d300000000000000000001'
+                - productId: '65d200000000000000000002'
+                  quantity: 5
+      responses:
+        '200':
+          description: Sale recorded and inventory deducted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InventorySoldDetail'
+              example:
+                success: true
+                message: 'Products sold and inventory deducted successfully'
+                data:
+                  - productId: '65d200000000000000000001'
+                    batchId: '65d300000000000000000001'
+                    batchCode: 'FG-LOTUS-240330-A'
+                    quantityDeducted: 3
+                    isManualSelect: true
+                  - productId: '65d200000000000000000002'
+                    batchId: '65d300000000000000000010'
+                    batchCode: 'FG-MIXED-240328-A'
+                    quantityDeducted: 2
+                    isManualSelect: false
+                  - productId: '65d200000000000000000002'
+                    batchId: '65d300000000000000000011'
+                    batchCode: 'FG-MIXED-240329-B'
+                    quantityDeducted: 3
+                    isManualSelect: false
+        '400':
+          description: Bad request (e.g., invalid payload or out of stock)
+        '403':
+          description: Forbidden - StoreStaff cannot sell for another store
 
   /api/inventory/{id}:
     put:
@@ -5214,6 +5332,64 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    InventorySellItemInput:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          example: '65d200000000000000000001'
+        quantity:
+          type: number
+          minimum: 0.000001
+          example: 3
+        batchId:
+          type: string
+          description: Optional manual batch selection. If omitted, system auto-deducts by FEFO.
+          example: '65d300000000000000000001'
+
+    InventorySellRequest:
+      type: object
+      required:
+        - storeId
+        - items
+      properties:
+        storeId:
+          type: string
+          example: '65d100000000000000000001'
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InventorySellItemInput'
+
+    InventorySoldDetail:
+      type: object
+      required:
+        - productId
+        - batchId
+        - batchCode
+        - quantityDeducted
+        - isManualSelect
+      properties:
+        productId:
+          type: string
+          example: '65d200000000000000000001'
+        batchId:
+          type: string
+          example: '65d300000000000000000001'
+        batchCode:
+          type: string
+          example: 'FG-LOTUS-240330-A'
+        quantityDeducted:
+          type: number
+          example: 3
+        isManualSelect:
+          type: boolean
+          example: true
 
     Feedback:
       type: object

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const StoreInventory = require('../models/StoreInventory');
 const Store = require('../models/Store');
 const Order = require('../models/Order');
@@ -106,6 +107,128 @@ const updateInventoryQuantity = async (req, res, next) => {
     next(error);
   }
 };
+
+const sellProducts = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { storeId, items } = req.body;
+
+    if (!storeId || !Array.isArray(items) || items.length === 0) {
+      res.status(400);
+      throw new Error('storeId and non-empty items array are required');
+    }
+
+    const userRole = req.user?.roleId?.roleName;
+    if (userRole === 'StoreStaff') {
+      const userStoreId = req.user.storeId?._id
+        ? req.user.storeId._id.toString()
+        : req.user.storeId?.toString();
+
+      if (!userStoreId || userStoreId !== storeId.toString()) {
+        res.status(403);
+        throw new Error('StoreStaff can only sell from their own store');
+      }
+    }
+
+    const soldDetails = [];
+
+    for (const item of items) {
+      const { productId, quantity, batchId } = item || {};
+
+      if (!productId || !quantity || quantity <= 0) {
+        res.status(400);
+        throw new Error('Each item must include productId and quantity > 0');
+      }
+
+      if (batchId) {
+        const inventoryRecord = await StoreInventory.findOne({
+          storeId,
+          productId,
+          batchId,
+        }).session(session);
+
+        if (!inventoryRecord || inventoryRecord.quantity < quantity) {
+          res.status(400);
+          throw new Error(`Insufficient stock for product ${productId} in selected batch ${batchId}`);
+        }
+
+        inventoryRecord.quantity -= quantity;
+        inventoryRecord.lastUpdated = Date.now();
+        await inventoryRecord.save({ session });
+
+        soldDetails.push({
+          productId,
+          batchId,
+          deductedQuantity: quantity,
+          inventoryId: inventoryRecord._id,
+        });
+
+        continue;
+      }
+
+      const inventoryRecords = await StoreInventory.find({
+        storeId,
+        productId,
+        quantity: { $gt: 0 },
+      })
+        .populate('batchId', 'batchCode expDate')
+        .session(session);
+
+      const sortedRecords = inventoryRecords.sort((a, b) => {
+        const expA = a.batchId?.expDate ? new Date(a.batchId.expDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const expB = b.batchId?.expDate ? new Date(b.batchId.expDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return expA - expB;
+      });
+
+      let remainingToDeduct = quantity;
+
+      for (const record of sortedRecords) {
+        if (remainingToDeduct <= 0) {
+          break;
+        }
+
+        const deductAmount = Math.min(record.quantity, remainingToDeduct);
+        if (deductAmount <= 0) {
+          continue;
+        }
+
+        record.quantity -= deductAmount;
+        record.lastUpdated = Date.now();
+        await record.save({ session });
+
+        soldDetails.push({
+          productId,
+          batchId: record.batchId?._id || null,
+          deductedQuantity: deductAmount,
+          inventoryId: record._id,
+        });
+
+        remainingToDeduct -= deductAmount;
+      }
+
+      if (remainingToDeduct > 0) {
+        res.status(400);
+        throw new Error(`Insufficient stock for product ${productId}. Missing quantity: ${remainingToDeduct}`);
+      }
+    }
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      success: true,
+      message: 'Products sold and inventory deducted successfully',
+      soldDetails,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};
+
 const updateOrderStatus = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction(); // Sử dụng Transaction để đảm bảo an toàn dữ liệu
@@ -226,6 +349,7 @@ module.exports = {
   getStoreInventory,
   getAllInventory,
   updateInventoryQuantity,
+  sellProducts,
   deleteInventoryItem,
   updateOrderStatus
 };

@@ -3,6 +3,7 @@ const {
   getStoreInventory,
   getAllInventory,
   updateInventoryQuantity,
+  sellProducts,
   deleteInventoryItem,
   updateOrderStatus
 } = require('../controllers/inventoryController');
@@ -21,6 +22,9 @@ router.get('/store/:storeId', getStoreInventory);
 
 // 3. Cập nhật số lượng thủ công - Kiểm kho (Staff sửa kho mình, Admin/Manager sửa mọi kho)
 router.put('/:id', updateInventoryQuantity);
+
+// 3.1 Bán hàng POS - trừ tồn kho theo batch chỉ định hoặc FEFO tự động
+router.post('/sell', authorize('StoreStaff', 'Manager', 'Admin'), sellProducts);
 
 // 4. Xóa một bản ghi kho (Chỉ Admin)
 router.delete('/:id', authorize('Admin'), deleteInventoryItem);
