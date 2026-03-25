@@ -10,6 +10,8 @@ export interface Ingredient {
   createdAt: string;
   updatedAt: string;
   isBelowThreshold?: boolean;
+  reservedQuantity: number;     
+  availableQuantity?: number;
 }
 
 export interface Supplier {

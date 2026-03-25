@@ -5,7 +5,8 @@ import { invoiceApi, type Invoice } from '@/api/InvoiceApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { StarRating } from '@/shared/components/StarRating';
 import toast from 'react-hot-toast';
-
+import { productApi, type Product } from '@/api/ProductApi';
+import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -29,7 +30,14 @@ const OrderDetail = () => {
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-
+  const [ingredientSummary, setIngredientSummary] = useState<{ 
+        name: string; 
+        unit: string; 
+        totalQty: number; 
+        inStock: number; 
+        reserved: number; 
+        available: number 
+    }[]>([]);
   useEffect(() => {
     const fetchAllData = async () => {
       if (!id) return;
@@ -222,7 +230,72 @@ const OrderDetail = () => {
     };
     return map[normalized] ?? map[normalized.replace(/\s+/g, '_')] ?? 'Trạng thái hệ thống khác';
   };
+const unwrapArrayData = <T,>(res: unknown): T[] => {
+      if (Array.isArray(res)) return res as T[];
+      if (res && typeof res === 'object' && 'data' in res) {
+          const data = (res as { data?: unknown }).data;
+          if (Array.isArray(data)) return data as T[];
+      }
+      return [];
+  };
 
+  useEffect(() => {
+      if (!order || !order.items || order.items.length === 0) {
+          setIngredientSummary([]);
+          return;
+      }
+      let cancelled = false;
+      const run = async () => {
+          try {
+              const [productsRes, ingredientsRes] = await Promise.all([
+                  productApi.getAll(),
+                  ingredientApi.getAll(),
+              ]);
+              const products: Product[] = unwrapArrayData<Product>(productsRes);
+              const ingredients: Ingredient[] = unwrapArrayData<Ingredient>(ingredientsRes);
+              
+              const ingMap: Record<string, { name: string; unit: string; totalQty: number; inStock: number; reserved: number; available: number }> = {};
+              
+              for (const item of order.items) {
+                  const pid = typeof item.productId === 'object' ? item.productId?._id : item.productId;
+                  const product = products.find(p => p._id === pid);
+                  
+                  // Chỉ lấy các product có công thức
+                  if (!product?.recipe) continue;
+                  
+                  const qty = item.quantity || 0;
+                  
+                  for (const rec of product.recipe) {
+                      const ingIdRaw = typeof rec.ingredientId === 'object' ? rec.ingredientId?._id : rec.ingredientId;
+                      const ingId = String(ingIdRaw || '');
+                      const need = (rec.quantity || 0) * qty;
+                      
+                      const ing = ingredients.find((i: Ingredient) => i._id === ingId);
+                      if (!ingMap[ingId]) {
+                          const inStock = ing?.totalQuantity ?? 0;
+                          const reserved = ing?.reservedQuantity ?? 0;
+                          ingMap[ingId] = {
+                              name: ing?.ingredientName ?? ingId,
+                              unit: ing?.unit ?? '',
+                              totalQty: 0,
+                              inStock: inStock,
+                              reserved: reserved,
+                              available: inStock - reserved
+                          };
+                      }
+                      ingMap[ingId].totalQty += need;
+                  }
+              }
+              if (!cancelled) {
+                  setIngredientSummary(Object.values(ingMap));
+              }
+          } catch (err) {
+              console.error('Lỗi khi tính toán nguyên liệu:', err);
+          }
+      };
+      run();
+      return () => { cancelled = true; };
+  }, [order]);
   if (loading && !order) return (
     <div className="flex h-screen items-center justify-center text-muted-foreground">
       <span className="material-symbols-outlined animate-spin text-3xl mr-2">progress_activity</span>
@@ -349,6 +422,71 @@ const OrderDetail = () => {
               </table>
             </div>
           </div>
+          {ingredientSummary.length > 0 && order.status === 'Pending' && (
+              <div className="rounded-2xl border border-border p-6 bg-card shadow-sm">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <span className="material-symbols-outlined text-emerald-500">inventory_2</span>
+                      Kiểm tra Tồn kho Nguyên liệu
+                  </h3>
+                  
+                  {/* Chỉ hiện cảnh báo nếu đơn hàng chưa duyệt (Pending) */}
+                  {order.status === 'Pending' && ingredientSummary.some(ing => ing.available < ing.totalQty) && (
+                      <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-sm font-semibold flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px]">warning</span>
+                          Không đủ nguyên liệu khả dụng! Nếu duyệt đơn này, có thể bếp sẽ không sản xuất được.
+                      </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                      {ingredientSummary.map((ing, idx) => {
+                          const isShortage = order.status === 'Pending' && ing.available < ing.totalQty;
+                          
+                          return (
+                              <div
+                                  key={idx}
+                                  className={`flex flex-col p-4 rounded-xl border transition-colors ${
+                                      isShortage 
+                                          ? 'border-red-500/50 bg-red-500/5' 
+                                          : 'border-border bg-secondary/50'
+                                  }`}
+                              >
+                                  <span className="font-bold text-sm mb-3 text-card-foreground">
+                                      {ing.name}
+                                  </span>
+                                  <div className="space-y-2">
+                                      <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Cần cho đơn này:</span>
+                                          <span className="font-bold text-primary">
+                                              {ing.totalQty.toFixed(2)} {ing.unit}
+                                          </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Kho thực tế:</span>
+                                          <span className="font-semibold text-card-foreground">
+                                              {ing.inStock.toFixed(2)} {ing.unit}
+                                          </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Đã giữ cho đơn khác:</span>
+                                          <span className="font-semibold text-orange-500">
+                                              {ing.reserved.toFixed(2)} {ing.unit}
+                                          </span>
+                                      </div>
+                                  </div>
+                                  <div className={`flex justify-between text-xs mt-3 pt-3 border-t ${isShortage ? 'border-red-500/20' : 'border-border'}`}>
+                                      <span className="font-bold uppercase tracking-wider text-[10px] text-muted-foreground">
+                                          Khả dụng (Còn lại):
+                                      </span>
+                                      <span className={`font-black ${isShortage ? 'text-red-600' : 'text-emerald-600'}`}>
+                                          {ing.available.toFixed(2)} {ing.unit}
+                                      </span>
+                                  </div>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+          )}
         </div>
 
         <div className="space-y-6">
