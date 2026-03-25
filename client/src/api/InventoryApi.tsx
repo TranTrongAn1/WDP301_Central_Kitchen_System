@@ -152,6 +152,10 @@ export const inventoryApi = {
     getExpiring: (days?: number) =>
         apiClient.get<ApiResponse<StoreInventoryItem[]>>('/inventory/expiring', { params: { days } }),
 
+    /** Lấy danh sách sản phẩm đã hết hạn (trong store inventory) */
+    getExpired: () =>
+        apiClient.get<ApiResponse<StoreInventoryItem[]>>('/inventory/expired'),
+
     getAllIngredientBatches: () =>
         apiClient.get<ApiResponse<IngredientBatch[]>>('/ingredient-batches'),
 };

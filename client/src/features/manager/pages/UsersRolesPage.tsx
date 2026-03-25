@@ -4,7 +4,7 @@ import { userApi } from '@/api/UserApi';
 import { storeApi } from '@/api/StoreApi';
 import type { User, Role, CreateUserPayload } from '@/api/UserApi';
 import type { Store } from '@/api/StoreApi';
-import UpdateUserModal from '@/features/admin/components/UpdateUserModal';
+import ManagerUpdateUserModal from '../components/ManagerUpdateUserModal';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -159,11 +159,12 @@ export default function UsersRolesPage() {
 
   const getRoleBadgeColor = (roleName: string | undefined) => {
     const s = roleName || '';
-    if (s === 'Manager') return 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300';
-    if (s === 'Coordinator') return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300';
-    if (s === 'KitchenStaff') return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
-    if (s === 'StoreStaff') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300';
-    return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    if (s === 'Manager') return 'bg-purple-500 text-white border-purple-600';
+    if (s === 'Coordinator') return 'bg-blue-500 text-white border-blue-600';
+    if (s === 'KitchenStaff') return 'bg-orange-500 text-white border-orange-600';
+    if (s === 'StoreStaff') return 'bg-emerald-500 text-white border-emerald-600';
+    if (s === 'Admin') return 'bg-red-500 text-white border-red-600';
+    return 'bg-slate-500 text-white border-slate-600';
   };
 
   const isStoreStaffSelected = () => roles.find((r) => r._id === newUser.roleId)?.roleName === 'StoreStaff';
@@ -376,7 +377,7 @@ export default function UsersRolesPage() {
         </div>
       )}
 
-      <UpdateUserModal
+      <ManagerUpdateUserModal
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
         onUpdate={onUpdateUserSubmit}

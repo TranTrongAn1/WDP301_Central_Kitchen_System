@@ -41,11 +41,11 @@ function StatusBadge({ status }: { status: IngredientRequestStatus }) {
   const c = map[status] ?? { variant: 'secondary', label: status, icon: 'help' };
   return (
     <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
-      status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' :
-      status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' :
-      status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
-      status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' :
-      'bg-gray-100 text-gray-700 border-gray-200'
+      status === 'PENDING' ? 'bg-amber-500 text-white border-amber-600' :
+      status === 'APPROVED' ? 'bg-blue-500 text-white border-blue-600' :
+      status === 'REJECTED' ? 'bg-red-500 text-white border-red-600' :
+      status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600' :
+      'bg-slate-500 text-white border-slate-600'
     }`}>
       <span className="material-symbols-outlined text-[12px]">{c.icon}</span>
       {c.label}
@@ -58,8 +58,8 @@ function RequestTypeBadge({ type }: { type: 'URGENT' | 'PLANNED' }) {
   return (
     <div className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border w-fit uppercase tracking-tight flex items-center gap-1 ${
       isUrgent
-        ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400'
-        : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400'
+        ? 'bg-red-500 text-white border-red-600'
+        : 'bg-amber-500 text-white border-amber-600'
     }`}>
       <span className="material-symbols-outlined text-[10px]">{isUrgent ? 'priority_high' : 'event'}</span>
       {isUrgent ? 'Mua Gấp' : 'Kế Hoạch'}

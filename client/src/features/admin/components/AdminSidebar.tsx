@@ -10,7 +10,6 @@ const MENU_ITEMS = [
   { icon: 'group', label: 'Người dùng', path: '/admin/users' },
   { icon: 'inventory_2', label: 'Kho & Lô hàng', path: '/admin/inventory' },
   { icon: 'warehouse', label: 'Kho thành phẩm', path: '/admin/finished-goods' },
-  { icon: 'warning', label: 'Sự cố & Đổi trả', path: '/admin/issues' },
   { icon: 'restaurant_menu', label: 'Sản phẩm & Công thức', path: '/admin/products' },
   { icon: 'category', label: 'Danh mục', path: '/admin/categories' },
   { icon: 'science', label: 'Nguyên liệu', path: '/admin/ingredients' },

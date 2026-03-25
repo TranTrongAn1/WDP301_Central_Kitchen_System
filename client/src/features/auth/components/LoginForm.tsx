@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +44,11 @@ const LoginForm = () => {
       const response = await authApi.login(data);
       if (response.success && response.token) {
         const { user, token } = response;
-        setAuth(user, token);
+        const authOk = setAuth(user, token);
+        if (!authOk) {
+          toast.error('Vai trò tài khoản không hợp lệ. Liên hệ quản trị viên.', { id: toastId });
+          return;
+        }
 
         toast.success(response.message || 'Đăng nhập thành công!', { id: toastId });
 
@@ -85,12 +89,13 @@ const LoginForm = () => {
     <div className="relative z-10 w-full p-4 flex justify-center">
       <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6">
         {/* Content kept as is */}
-        <Link
-          to="/"
+        <a
+          href="/"
           className="absolute top-4 left-4 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+          aria-label="Về trang chủ"
         >
           <span className="material-symbols-outlined">arrow_back</span>
-        </Link>
+        </a>
 
         <div className="flex flex-col items-center gap-4 pt-4">
           <div className="text-center">

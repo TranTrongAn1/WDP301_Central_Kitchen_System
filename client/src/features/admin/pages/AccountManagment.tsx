@@ -227,12 +227,12 @@ const fetchData = async () => {
     const getRoleBadgeColor = (roleName: string | undefined) => {
         const safeRole = roleName || '';
         switch (safeRole) {
-            case 'Admin': return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
-            case 'Manager': return 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300';
-            case 'Coordinator': return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300';
-            case 'KitchenStaff': return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
-            case 'StoreStaff': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+            case 'Admin': return 'bg-red-500 text-white border border-red-600';
+            case 'Manager': return 'bg-purple-500 text-white border border-purple-600';
+            case 'Coordinator': return 'bg-blue-500 text-white border border-blue-600';
+            case 'KitchenStaff': return 'bg-orange-500 text-white border border-orange-600';
+            case 'StoreStaff': return 'bg-emerald-500 text-white border border-emerald-600';
+            default: return 'bg-slate-500 text-white border border-slate-600';
         }
     };
 

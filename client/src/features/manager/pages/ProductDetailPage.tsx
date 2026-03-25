@@ -338,7 +338,7 @@ const ProductDetailPage = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                                        <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20">
                                             <Package className="w-4 h-4 text-emerald-600" />
                                         </div>
                                         <div>

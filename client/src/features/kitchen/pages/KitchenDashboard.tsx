@@ -374,12 +374,12 @@ const KitchenDashboard = () => {
                           </p>
                         </div>
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
                             plan.status === 'Completed'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                              ? 'bg-emerald-500 text-white border-emerald-600'
                               : plan.status === 'In_Progress' || plan.status === 'InProgress'
-                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                              : 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200'
+                              ? 'bg-orange-500 text-white border-orange-600'
+                              : 'bg-slate-500 text-white border-slate-600'
                           }`}
                         >
                           {plan.status === 'Completed'
@@ -434,7 +434,7 @@ const KitchenDashboard = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <span className="inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white border border-amber-600">
                         Đang chờ bếp (theo dõi)
                       </span>
                     </div>
@@ -444,7 +444,7 @@ const KitchenDashboard = () => {
             )}
           </div>
                         {expiringSoonBatches.length > 0 && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
               <p>
                 Có{' '}

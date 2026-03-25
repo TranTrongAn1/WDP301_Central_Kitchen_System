@@ -62,16 +62,16 @@ export default function AdminOrderList() {
   const getStatusConfig = (status: string) => {
     const s = (status || '').trim();
     const configMap: Record<string, { bg: string; text: string; label: string }> = {
-      Awaiting_Payment: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', label: 'Chờ thanh toán' },
-      Pending: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', label: 'Chờ duyệt' },
-      Approved: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', label: 'Đã duyệt' },
-      Transferred_To_Kitchen: { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400', label: 'Đã chuyển bếp' },
-      Ready_For_Shipping: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sẵn sàng giao' },
-      In_Transit: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400', label: 'Đang giao' },
-      Received: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400', label: 'Đã nhận' },
-      Cancelled: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400', label: 'Đã hủy' },
+      Awaiting_Payment: { bg: 'bg-slate-500 dark:bg-slate-600', text: 'text-white', label: 'Chờ thanh toán' },
+      Pending: { bg: 'bg-amber-500 dark:bg-amber-600', text: 'text-white', label: 'Chờ duyệt' },
+      Approved: { bg: 'bg-blue-500 dark:bg-blue-600', text: 'text-white', label: 'Đã duyệt' },
+      Transferred_To_Kitchen: { bg: 'bg-indigo-500 dark:bg-indigo-600', text: 'text-white', label: 'Đã chuyển bếp' },
+      Ready_For_Shipping: { bg: 'bg-emerald-500 dark:bg-emerald-600', text: 'text-white', label: 'Sẵn sàng giao' },
+      In_Transit: { bg: 'bg-purple-500 dark:bg-purple-600', text: 'text-white', label: 'Đang giao' },
+      Received: { bg: 'bg-emerald-500 dark:bg-emerald-600', text: 'text-white', label: 'Đã nhận' },
+      Cancelled: { bg: 'bg-red-500 dark:bg-red-600', text: 'text-white', label: 'Đã hủy' },
     };
-    return configMap[s] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', label: s };
+    return configMap[s] || { bg: 'bg-slate-500 dark:bg-slate-600', text: 'text-white', label: s };
   };
 
   const filteredOrders = orders
@@ -174,7 +174,7 @@ export default function AdminOrderList() {
             className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 ${
               darkMode
                 ? 'bg-muted border-border text-foreground hover:bg-muted/80'
-                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                : 'bg-gray-50 border-gray-200 text-gray-900'
             }`}
           >
             <ArrowUpDown className="w-4 h-4" />

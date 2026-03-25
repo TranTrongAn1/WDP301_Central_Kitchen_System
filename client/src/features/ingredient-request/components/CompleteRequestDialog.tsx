@@ -334,7 +334,7 @@ export function CompleteRequestDialog({
                 className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
                   darkMode
                     ? 'border-gray-700 bg-[#252530] hover:bg-gray-800 text-gray-400'
-                    : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-600'
+                    : 'border-amber-200 bg-amber-100 hover:bg-amber-200 text-amber-600'
                 }`}
               >
                 {uploadingImage ? (
