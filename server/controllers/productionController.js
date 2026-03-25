@@ -374,6 +374,9 @@ const completeProductionItem = async (req, res, next) => {
             `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
           );
         }
+        ingredient.reservedQuantity -= qtyUsed;
+        // Đảm bảo không bị âm nếu bếp nhập hao hụt nhiều hơn mức hệ thống dự tính ban đầu
+        if (ingredient.reservedQuantity < 0) ingredient.reservedQuantity = 0;
         await ingredient.save({ session });
 
         usageRecords.push({
@@ -466,6 +469,9 @@ const completeProductionItem = async (req, res, next) => {
             `Data inconsistency: totalQuantity for ingredient '${ingredient.ingredientName}' would become negative`
           );
         }
+        ingredient.reservedQuantity -= consumedForIngredient;
+        // Đảm bảo không bị âm
+        if (ingredient.reservedQuantity < 0) ingredient.reservedQuantity = 0;
         await ingredient.save({ session });
       }
     }
