@@ -10,13 +10,13 @@ const ingredientUsageSchema = new mongoose.Schema(
     productionPlanId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ProductionPlan',
-      required: [true, 'Production Plan ID is required'],
+      required: false,
       index: true,
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
-      required: [true, 'Product ID is required'],
+      required: false,
       index: true,
     },
     ingredientId: {
@@ -34,7 +34,7 @@ const ingredientUsageSchema = new mongoose.Schema(
     quantityUsed: {
       type: Number,
       required: [true, 'Quantity used is required'],
-      min: [0, 'Quantity used cannot be negative'],
+      // min: [0, 'Quantity used cannot be negative'],
     },
     note: {
       type: String,

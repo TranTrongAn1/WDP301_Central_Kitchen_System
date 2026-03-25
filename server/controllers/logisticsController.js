@@ -12,6 +12,7 @@ const WalletTransaction = require('../models/WalletTransaction');
 const VehicleType = require('../models/VehicleType');
 const { getSettingNumber } = require('../utils/settingHelper');
 const Ingredient = require('../models/Ingredient');
+const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
 /**
  * @desc    Create new order from store
  * @route   POST /api/logistics/orders
@@ -463,7 +464,7 @@ const approveAndShipOrder = async (req, res, next) => {
     // STEP 4: Commit Transaction
     // ========================================
     await session.commitTransaction();
-
+    updateAllProductsStockStatus().catch(console.error);
     // Populate response data
     await order.populate([
       { path: 'storeId', select: 'storeName storeCode address' },

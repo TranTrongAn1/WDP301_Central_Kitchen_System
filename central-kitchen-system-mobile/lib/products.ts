@@ -18,6 +18,8 @@ export type Product = {
   shelfLifeDays?: number;
   image?: string;
   recipe?: RecipeIngredient[];
+  isActive?: boolean;
+  isOutOfStock?: boolean;
 };
 
 export type ProductsResponse = {
