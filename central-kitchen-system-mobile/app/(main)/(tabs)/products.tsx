@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -17,6 +17,10 @@ import { useCart } from "@/context/cart-context";
 import { useProducts } from "@/hooks/use-products";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
+// Hàm định dạng tiền tệ Việt Nam
+const formatPrice = (price?: number | null) =>
+  price != null ? `${price.toLocaleString("vi-VN")} đ` : "—";
+
 export default function ProductsTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -33,12 +37,31 @@ export default function ProductsTabScreen() {
     }, 1);
   };
 
+  // ✅ XỬ LÝ LỌC VÀ SẮP XẾP SẢN PHẨM CỰC KỲ TỐI ƯU ✅
+  const processedItems = useMemo(() => {
+    if (!items) return [];
+
+    // 1. Lọc bỏ các sản phẩm đã ngừng kinh doanh (isActive = false)
+    const activeItems = items.filter((item) => item.isActive !== false);
+
+    // 2. Phân loại sản phẩm còn hàng và hết hàng
+    const availableItems = activeItems.filter(item => !item.isOutOfStock);
+    const outOfStockItems = activeItems.filter(item => item.isOutOfStock);
+
+    // (Tùy chọn) Sắp xếp mỗi nhóm theo tên để dễ tìm kiếm
+    availableItems.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    outOfStockItems.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+    // 3. Ghép 2 nhóm lại, sản phẩm còn hàng đứng trước
+    return [...availableItems, ...outOfStockItems];
+  }, [items]);
+
+  // Áp dụng tìm kiếm trên danh sách đã được sắp xếp
   const filteredItems = searchQuery.trim()
-    ? items.filter(
-        (p) =>
-          p.name?.toLowerCase().includes(searchQuery.toLowerCase().trim())
-      )
-    : items;
+    ? processedItems.filter((p) =>
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    )
+    : processedItems;
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 24 + insets.top }]}>
@@ -75,36 +98,57 @@ export default function ProductsTabScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.grid}>
-        {filteredItems.map((item) => (
-          <Pressable
-            key={item._id}
-            style={styles.card}
-            onPress={() => router.push(`/product/${item._id}`)}
-          >
-            <View style={styles.imageWrap}>
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.imagePlaceholderText}>📦</Text>
+        {filteredItems.map((item) => {
+          // KIỂM TRA TRẠNG THÁI HẾT HÀNG
+          const isOutOfStock = item.isOutOfStock === true;
+
+          return (
+            <Pressable
+              key={item._id}
+              style={[styles.card, isOutOfStock && styles.cardOutOfStock]}
+              // Khóa sự kiện chuyển trang nếu hết hàng
+              onPress={() => !isOutOfStock && router.push(`/product/${item._id}`)}
+              disabled={isOutOfStock}
+            >
+              {/* DẢI BĂNG BÁO HẾT HÀNG */}
+              {isOutOfStock && (
+                <View style={styles.outOfStockOverlay}>
+                  <Text style={styles.outOfStockText}>TẠM HẾT HÀNG</Text>
                 </View>
               )}
-            </View>
-            <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
-            <Text style={styles.cardPrice}>
-              {item.price != null ? `${item.price.toLocaleString("vi-VN")} đ` : "—"}
-            </Text>
-            <Pressable
-              style={styles.addBtn}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleAddToCart(item);
-              }}
-            >
-              <Text style={styles.addBtnText}>Thêm vào giỏ</Text>
+
+              <View style={styles.imageWrap}>
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+                ) : (
+                  // ✅ HÌNH ẢNH THAY THẾ KHI SẢN PHẨM KHÔNG CÓ ẢNH (PLACEHOLDER) ✅
+                  <View style={styles.imagePlaceholder}>
+                    <Text style={{ fontSize: 32 }}>📦</Text>
+                    <Text style={styles.imagePlaceholderLabel}>Không có ảnh</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.cardPrice}>
+                {formatPrice(item.price)}
+              </Text>
+
+              {/* NÚT THÊM VÀO GIỎ */}
+              <Pressable
+                style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled]}
+                disabled={isOutOfStock} // Khóa nút bấm
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleAddToCart(item);
+                }}
+              >
+                <Text style={[styles.addBtnText, isOutOfStock && styles.addBtnTextDisabled]}>
+                  {isOutOfStock ? "Hết hàng" : "Thêm vào giỏ"}
+                </Text>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        ))}
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -198,6 +242,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FFE1E1",
     ...cardShadowSmall,
+    overflow: "hidden", // Đảm bảo overlay không bị tràn ra viền cong
+  },
+  // Hiệu ứng làm mờ khi hết hàng
+  cardOutOfStock: {
+    opacity: 0.55,
+    backgroundColor: "#F9F9F9",
+  },
+  // Dải băng thông báo vắt ngang
+  outOfStockOverlay: {
+    position: "absolute",
+    top: "35%", // Nằm đè lên hình ảnh
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    zIndex: 10,
+    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outOfStockText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   imageWrap: {
     width: "100%",
@@ -216,8 +284,14 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255, 225, 225, 0.3)", // Một màu nền nhẹ nhàng
   },
-  imagePlaceholderText: { fontSize: 32 },
+  imagePlaceholderLabel: {
+    fontSize: 11,
+    color: "#FFE1E1",
+    marginTop: 6,
+    fontWeight: "600",
+  },
   cardName: {
     fontSize: 14,
     fontWeight: "600",
@@ -236,9 +310,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+  // Khóa nút "Thêm vào giỏ"
+  addBtnDisabled: {
+    backgroundColor: "#E0E0E0",
+  },
   addBtnText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 13,
+  },
+  addBtnTextDisabled: {
+    color: "#888888",
   },
 });

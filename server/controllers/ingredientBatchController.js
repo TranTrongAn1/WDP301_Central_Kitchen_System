@@ -2,7 +2,8 @@ const asyncHandler = require('express-async-handler');
 const IngredientBatch = require('../models/IngredientBatch');
 const Ingredient = require('../models/Ingredient');
 const mongoose = require('mongoose');
-
+const IngredientUsage = require('../models/IngredientUsage');
+const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
 /**
  * @desc    Get batches by ingredient ID
  * @route   GET /api/ingredients/:id/batches
@@ -126,56 +127,67 @@ const updateBatch = asyncHandler(async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  // ... (giữ nguyên phần đầu hàm)
+  
+  // Đừng quên import 2 cái này ở đầu file nhé:
+  // const IngredientUsage = require('../models/IngredientUsage');
+  // const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
+
   try {
     // Update batch fields
     if (currentQuantity !== undefined) {
-      if (currentQuantity < 0) {
-        throw new Error('Current quantity cannot be negative');
-      }
+      if (currentQuantity < 0) throw new Error('Current quantity cannot be negative');
       batch.currentQuantity = currentQuantity;
       quantityDifference = currentQuantity - oldQuantity;
 
       // Auto-deactivate if quantity becomes 0
-      if (currentQuantity === 0) {
-        batch.isActive = false;
-      }
+      if (currentQuantity === 0) batch.isActive = false;
     }
 
     if (price !== undefined) {
-      if (price < 0) {
-        throw new Error('Price cannot be negative');
-      }
+      if (price < 0) throw new Error('Price cannot be negative');
       batch.price = price;
     }
 
-    if (isActive !== undefined) {
-      batch.isActive = isActive;
-    }
+    if (isActive !== undefined) batch.isActive = isActive;
 
-    // Save batch within transaction
     await batch.save({ session });
 
-    // If currentQuantity was updated, update the parent Ingredient's totalQuantity
+    // Cập nhật Ingredient gốc nếu có thay đổi số lượng
     if (currentQuantity !== undefined && quantityDifference !== 0) {
       const ingredient = await Ingredient.findById(batch.ingredientId).session(session);
       
-      if (!ingredient) {
-        throw new Error('Parent ingredient not found');
-      }
+      if (!ingredient) throw new Error('Parent ingredient not found');
 
       ingredient.totalQuantity += quantityDifference;
-
-      // Ensure totalQuantity doesn't go negative
-      if (ingredient.totalQuantity < 0) {
-        throw new Error('Cannot update: would result in negative total quantity for ingredient');
-      }
+      if (ingredient.totalQuantity < 0) throw new Error('Cannot update: would result in negative total quantity for ingredient');
 
       await ingredient.save({ session });
+
+      // GHI LOG LỊCH SỬ CHỈNH SỬA KHO (ADJUSTMENT) 
+      // Quy ước: Nếu quantityDifference < 0 là hao hụt/xuất kho. Nếu > 0 là nhập thêm/chỉnh sửa dư.
+      // Vì bảng IngredientUsage của bạn thiết kế để ghi nhận 'sử dụng', ta sẽ lưu giá trị tuyệt đối của số lượng bị mất.
+      // (Bạn nên kiểm tra lại Schema IngredientUsage xem có bắt buộc các field nào khác không nhé)
+      const usageRecord = new IngredientUsage({
+        ingredientId: batch.ingredientId,
+        ingredientBatchId: batch._id,
+        // Lưu số dương nếu trừ kho (hao hụt), lưu số âm nếu cộng kho (sửa nhầm)
+        quantityUsed: -quantityDifference, 
+        note: req.body.note || 'Điều chỉnh kho thủ công bởi Quản lý/Bếp trưởng',
+        // productionPlanId: null -> Để trống để biết đây không phải do nấu ăn
+      });
+      await usageRecord.save({ session });
     }
 
     // Commit transaction
     await session.commitTransaction();
     session.endSession();
+
+    // GỌI HÀM QUÉT MENU (Chạy ngầm sau khi Transaction thành công)
+    if (quantityDifference !== 0) {
+      const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
+      updateAllProductsStockStatus().catch(console.error);
+    }
 
     // Fetch updated batch with populated fields
     const updatedBatch = await IngredientBatch.findById(batch._id)

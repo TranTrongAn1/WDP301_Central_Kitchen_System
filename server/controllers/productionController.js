@@ -554,7 +554,7 @@ const completeProductionItem = async (req, res, next) => {
 
     // Commit transaction
     await session.commitTransaction();
-
+    updateAllProductsStockStatus().catch(console.error);
     // ========================================
     // STEP 6: Populate and Return Response
     // ========================================

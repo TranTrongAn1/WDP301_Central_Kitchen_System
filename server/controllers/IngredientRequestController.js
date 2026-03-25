@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const IngredientRequest = require('../models/IngredientRequests');
 const IngredientBatch = require('../models/IngredientBatch');
 const Ingredient = require('../models/Ingredient');
-
+const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
 
 exports.createRequest = async (req, res) => {
   try {
@@ -166,7 +166,8 @@ exports.completeRequest = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
-
+    //Hàng mới về, quét lại Menu để bật bán lại các món đã hết 
+    updateAllProductsStockStatus().catch(console.error);
     res.status(200).json({ 
       success: true, 
       message: "Đã chốt hàng, lưu biên lai, tạo Lô kho mới và cập nhật Tồn kho thành công!" 

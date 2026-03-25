@@ -35,7 +35,7 @@ const productSchema = new mongoose.Schema(
     },
     weight: {
       type: Number,
-      default: 0.5, // Mặc định 1 sản phẩm (hộp/cái) nặng 0.5 kg
+      default: 0.5, 
       min: [0, 'Weight cannot be negative'],
       description: 'Weight of one unit of the product in KG for logistics calculation',
     },
@@ -52,7 +52,6 @@ const productSchema = new mongoose.Schema(
         'Image must be a valid URL',
       ],
     },
-    // Recipe: Array of ingredients with quantities
     recipe: [
       {
         ingredientId: {
@@ -67,7 +66,6 @@ const productSchema = new mongoose.Schema(
         },
       },
     ],
-    // Bundle Items: Array of child products for combo products
     bundleItems: [
       {
         childProductId: {
@@ -85,6 +83,12 @@ const productSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      description: 'Quyết định kinh doanh: Sản phẩm có còn được bán/hiển thị trên hệ thống không'
+    },
+    isOutOfStock: {
+      type: Boolean,
+      default: false,
+      description: 'Trạng thái kho: True nếu tạm thời hết nguyên liệu để sản xuất'
     },
   },
   {
@@ -104,10 +108,11 @@ productSchema.pre('save', function () {
   }
 });
 
-// Index for faster queries (sku already has unique index)
+// Index for faster queries
 productSchema.index({ categoryId: 1 });
 productSchema.index({ name: 1 });
 productSchema.index({ isActive: 1 });
+productSchema.index({ isOutOfStock: 1 }); 
 
 const Product = mongoose.model('Product', productSchema);
 
