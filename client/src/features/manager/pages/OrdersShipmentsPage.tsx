@@ -289,7 +289,7 @@ const OrdersShipmentsPage = () => {
         <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
           <Card className="border border-border/70 bg-card/80">
             <CardContent className={cn('flex items-center gap-3', compactMode ? 'p-3' : 'p-4')}>
-              <div className="rounded-lg bg-blue-500/10 p-2 text-blue-600">
+              <div className="rounded-lg bg-blue-500/20 p-2 text-blue-600">
                 <ClipboardList className="h-5 w-5" />
               </div>
               <div>
@@ -300,7 +300,7 @@ const OrdersShipmentsPage = () => {
           </Card>
           <Card className="border border-border/70 bg-card/80">
             <CardContent className={cn('flex items-center gap-3', compactMode ? 'p-3' : 'p-4')}>
-              <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600">
+              <div className="rounded-lg bg-emerald-500/20 p-2 text-emerald-600">
                 <Truck className="h-5 w-5" />
               </div>
               <div>
@@ -407,7 +407,7 @@ const OrdersShipmentsPage = () => {
                               {order.orderCode}
                             </span>
                           </div>
-                          <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-500/5 border-blue-200">
+                          <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-blue-800 bg-blue-100 border-blue-200">
                             {getOrderStatusLabel(order.status)}
                           </span>
                         </div>

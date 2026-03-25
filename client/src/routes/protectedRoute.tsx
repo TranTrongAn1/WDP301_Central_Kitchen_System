@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/shared/zustand/authStore';
+import { useAuthStore, normalizeUserRole } from '@/shared/zustand/authStore';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import type { UserRole } from '@/shared/types/auth';
 
@@ -23,10 +23,16 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (allowedRoles && allowedRoles.length > 0 && user) {
-    const hasPermission = allowedRoles.includes(user.role as UserRole);
+    const effectiveRole = normalizeUserRole(user.role);
+    const hasPermission =
+      effectiveRole !== null && allowedRoles.includes(effectiveRole);
 
     if (!hasPermission) {
       const redirectPath = getRedirectRoute();
+      // Tránh vòng lặp: trước đây getRedirectRoute() fallback '/dashboard' khi role lệch → kẹt màn hình
+      if (redirectPath === '/login' || redirectPath === location.pathname) {
+        return <Navigate to="/login" replace state={{ clearAuth: true }} />;
+      }
       return <Navigate to={redirectPath} replace />;
     }
   }
@@ -49,7 +55,8 @@ export const RoleGuard = ({
     return <Navigate to={fallbackPath} replace />;
   }
 
-  if (user && !allowedRoles.includes(user.role as UserRole)) {
+  const er = user ? normalizeUserRole(user.role) : null;
+  if (user && (!er || !allowedRoles.includes(er))) {
     const redirectPath = getRedirectRoute();
     return <Navigate to={redirectPath} replace />;
   }

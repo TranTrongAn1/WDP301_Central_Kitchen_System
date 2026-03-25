@@ -318,22 +318,27 @@ const StoreManagment = () => {
                                         animate={{ opacity: 1, scale: 1 }}
                                         className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-all hover:shadow-md group"
                                     >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isActive
-                                                    ? 'bg-gradient-to-br from-orange-400 to-amber-500'
-                                                    : 'bg-gray-400'
-                                                    }`}>
-                                                    <StoreIcon className="w-6 h-6 text-white" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-semibold">{storeName}</h4>
-                                                    <p className="text-sm text-muted-foreground">{store.store_code || store.storeCode}</p>
+                                        <div className="mb-3 flex gap-3">
+                                            <div className={`w-12 h-12 shrink-0 rounded-lg flex items-center justify-center ${isActive
+                                                ? 'bg-gradient-to-br from-orange-400 to-amber-500'
+                                                : 'bg-gray-400'
+                                                }`}>
+                                                <StoreIcon className="w-6 h-6 text-white" />
+                                            </div>
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-semibold break-words">{storeName}</h4>
+                                                        <p className="text-sm text-muted-foreground">{store.store_code || store.storeCode}</p>
+                                                    </div>
+                                                    <Badge
+                                                        variant={isActive ? 'success' : 'secondary'}
+                                                        className="shrink-0 whitespace-nowrap self-start"
+                                                    >
+                                                        {isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+                                                    </Badge>
                                                 </div>
                                             </div>
-                                <Badge variant={isActive ? 'success' : 'secondary'}>
-                                                {isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
-                                            </Badge>
                                         </div>
 
                                         <div className="space-y-2">

@@ -38,6 +38,7 @@ const ProductionPlansPage = () => {
     const [note, setNote] = useState('');
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [maxProductsPerPlan, setMaxProductsPerPlan] = useState<number | null>(null);
+    const [dateError, setDateError] = useState<string | null>(null);
 
     const ITEMS_PER_PAGE = 6;
     const [currentPage, setCurrentPage] = useState(1);
@@ -208,6 +209,7 @@ const ProductionPlansPage = () => {
         setPlanDate('');
         setNote('');
         setSelectedOrderIds([]);
+        setDateError(null);
     };
 
     const closeCreateModal = () => {
@@ -593,7 +595,9 @@ const ProductionPlansPage = () => {
                                 !canCreatePlan ||
                                 !planCode ||
                                 !planName ||
-                                selectedOrderIds.length === 0
+                                selectedOrderIds.length === 0 ||
+                                !!dateError ||
+                                (!!planDate && planDate < new Date().toISOString().slice(0, 10))
                             }
                         >
                             {createLoading ? 'Đang tạo...' : 'Tạo kế hoạch'}
@@ -623,8 +627,26 @@ const ProductionPlansPage = () => {
                         <Input
                             type="date"
                             value={planDate}
-                            onChange={(e) => setPlanDate(e.target.value)}
+                            onChange={(e) => {
+                                const selectedDate = e.target.value;
+                                const today = new Date().toISOString().slice(0, 10);
+                                if (selectedDate < today) {
+                                    setDateError('Ngày sản xuất không thể là ngày trong quá khứ');
+                                    setPlanDate(selectedDate);
+                                } else {
+                                    setDateError(null);
+                                    setPlanDate(selectedDate);
+                                }
+                            }}
+                            min={new Date().toISOString().slice(0, 10)}
+                            className={dateError ? 'border-red-500 focus:ring-red-500' : ''}
                         />
+                        {dateError && (
+                            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {dateError}
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label className="text-sm font-medium mb-1 block">Ghi chú (không bắt buộc)</label>

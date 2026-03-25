@@ -253,7 +253,7 @@ const InventoryReportsPage = () => {
                 <Card>
                     <CardContent className="p-6">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
+                            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-500/20">
                                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                             </div>
                             <div>

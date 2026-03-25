@@ -32,16 +32,16 @@ interface FeedbackExtended extends Feedback {
 }
 
 const ISSUE_TAGS = [
-  { value: 'Vận chuyển thiếu hàng', label: 'Thiếu hàng', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' },
-  { value: 'Hàng hư hỏng', label: 'Hàng hư hỏng', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' },
-  { value: 'Giao chậm', label: 'Giao chậm', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' },
-  { value: 'Sai sản phẩm', label: 'Sai sản phẩm', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' },
-  { value: 'Khác', label: 'Khác', color: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700' },
+  { value: 'Vận chuyển thiếu hàng', label: 'Thiếu hàng', color: 'bg-red-500 text-white border border-red-600' },
+  { value: 'Hàng hư hỏng', label: 'Hàng hư hỏng', color: 'bg-red-500 text-white border border-red-600' },
+  { value: 'Giao chậm', label: 'Giao chậm', color: 'bg-amber-500 text-white border border-amber-600' },
+  { value: 'Sai sản phẩm', label: 'Sai sản phẩm', color: 'bg-amber-500 text-white border border-amber-600' },
+  { value: 'Khác', label: 'Khác', color: 'bg-slate-500 text-white border border-slate-600' },
 ];
 
 const POSITIVE_TAGS = [
-  { value: 'Vận chuyển tốt', label: 'Vận chuyển tốt', color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' },
-  { value: 'Thái độ phục vụ tốt', label: 'Thái độ phục vụ tốt', color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' },
+  { value: 'Vận chuyển tốt', label: 'Vận chuyển tốt', color: 'bg-emerald-500 text-white border border-emerald-600' },
+  { value: 'Thái độ phục vụ tốt', label: 'Thái độ phục vụ tốt', color: 'bg-emerald-500 text-white border border-emerald-600' },
 ];
 
 const ALL_TAGS = [...ISSUE_TAGS, ...POSITIVE_TAGS];
@@ -411,8 +411,8 @@ export default function AdminIssuesPage() {
               onClick={clearFilters}
               className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 ${
                 darkMode
-                  ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
-                  : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                  ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'
+                  : 'bg-red-500 text-white border border-red-600 hover:bg-red-600'
               }`}
             >
               <X className="w-4 h-4" />
@@ -547,12 +547,12 @@ export default function AdminIssuesPage() {
                         }`}>
                           {fb.rating}/5
                         </span>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
                           fbIsIssue
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            ? 'bg-red-500 text-white border-red-600'
                             : fb.rating >= 4
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              ? 'bg-emerald-500 text-white border-emerald-600'
+                              : 'bg-amber-500 text-white border-amber-600'
                         }`}>
                           {fbIsIssue ? 'Khiếu nại' : fb.rating >= 4 ? 'Tích cực' : 'Trung bình'}
                         </span>
@@ -608,10 +608,8 @@ export default function AdminIssuesPage() {
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${
                             tagInfo?.color ||
                             (isIssueTag
-                              ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
-                              : darkMode
-                                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                                : 'bg-gray-100 text-gray-700 border-gray-200')
+                              ? 'bg-red-500 text-white border border-red-600'
+                              : 'bg-slate-500 text-white border border-slate-600')
                           }`}
                         >
                           {isIssueTag ? (

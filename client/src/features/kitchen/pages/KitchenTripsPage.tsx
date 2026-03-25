@@ -83,28 +83,28 @@ export default function KitchenTripsPage() {
     const s = (status || '').trim();
     if (s === 'Planning' || s === 'Pending') {
       return (
-        <Badge className="bg-amber-500/10 text-amber-700 border border-amber-300 text-xs">
+        <Badge className="bg-amber-500 text-white border border-amber-600 text-xs">
           Đang lập kế hoạch
         </Badge>
       );
     }
     if (s === 'Waiting_For_Loading') {
       return (
-        <Badge className="bg-amber-500/15 text-amber-700 border border-amber-300 text-xs">
+        <Badge className="bg-amber-500 text-white border border-amber-600 text-xs">
           Đang chờ bốc hàng
         </Badge>
       );
     }
     if (s === 'In_Transit' || s === 'In Transit') {
       return (
-        <Badge className="bg-blue-500/10 text-blue-700 border border-blue-300 text-xs">
+        <Badge className="bg-blue-100 text-blue-800 border border-blue-200 dark:border-blue-700 text-xs">
           Đang giao cho cửa hàng
         </Badge>
       );
     }
     if (s === 'Completed') {
       return (
-        <Badge className="bg-gray-500/10 text-gray-700 border border-gray-300 text-xs">
+        <Badge className="bg-gray-100 text-gray-800 border border-gray-200 dark:border-gray-700 text-xs">
           Đã hoàn thành
         </Badge>
       );

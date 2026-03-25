@@ -1,6 +1,20 @@
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import LoginForm from '@/features/auth/components/LoginForm';
+import { useAuthStore } from '@/shared/zustand/authStore';
 
 const LoginPage = () => {
+  const location = useLocation();
+  const { logout, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const st = location.state as { clearAuth?: boolean } | null;
+    if (st?.clearAuth && isAuthenticated) {
+      logout();
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, isAuthenticated, logout]);
+
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-background">
       {/* Background gradient effects */}

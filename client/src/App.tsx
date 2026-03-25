@@ -58,19 +58,10 @@ import OrderDetail from './features/coordinator/pages/OrderDetail';
 import ShipmentDetail from './features/coordinator/pages/ShipmentDetail';
 import IngredientRequestListPage from './features/ingredient-request/pages/IngredientRequestListPage';
 import AdminFeedbackPage from './features/admin/pages/AdminFeedbackPage';
-import AdminIssuesPage from './features/admin/pages/AdminIssuesPage';
 const AuthHandler = () => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, getRedirectRoute } = useAuthStore();
   if (isAuthenticated && user) {
-    const roleRoutes: Record<string, string> = {
-      Admin: '/admin/dashboard',
-      Manager: '/manager/dashboard',
-      KitchenStaff: '/kitchen/dashboard',
-      StoreStaff: '/store/dashboard',
-      Coordinator: '/coordinator/dashboard',
-    };
-    const redirectPath = roleRoutes[user.role] || '/dashboard';
-    return <Navigate to={redirectPath} replace />;
+    return <Navigate to={getRedirectRoute()} replace />;
   }
   return <Navigate to="/login" replace />;
 };
@@ -121,9 +112,6 @@ function App() {
               <Route path="/admin/finished-goods" element={<Inventory />} />
               <Route path="/admin/finished-goods/:storeId" element={<InventoryDetail />} />
 
-              {/* Issues & Returns */}
-              <Route path="/admin/issues" element={<AdminIssuesPage />} />
-
               {/* Transfers */}
               <Route path="/admin/transfers" element={<OrdersShipmentsPage />} />
 
@@ -156,9 +144,6 @@ function App() {
               <Route path="/manager/inventory" element={<InventoryReportsPage />} />
               <Route path="/manager/finished-goods" element={<Inventory />} />
               <Route path="/manager/finished-goods/:storeId" element={<InventoryDetail />} />
-
-              {/* Issues & Returns */}
-              <Route path="/manager/issues" element={<AdminIssuesPage />} />
 
               {/* Orders & Shipments */}
               <Route path="/manager/orders" element={<Order />} />
