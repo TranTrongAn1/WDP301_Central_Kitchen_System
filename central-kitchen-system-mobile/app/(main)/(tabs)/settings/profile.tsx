@@ -19,7 +19,7 @@ import { useNotification } from '@/context/notification-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { useWallet } from '@/hooks/use-wallet';
-import { paymentApi } from '@/lib/api';
+import { paymentApi, walletApi } from '@/lib/api';
 
 const formatValue = (value: string | null | undefined) => value ?? '--';
 
@@ -85,6 +85,7 @@ export default function ProfileScreen() {
   const [depositAmount, setDepositAmount] = useState('100000');
   const [depositQrCode, setDepositQrCode] = useState<string | null>(null);
   const [creatingDepositLink, setCreatingDepositLink] = useState(false);
+  const [checkingDepositResult, setCheckingDepositResult] = useState(false);
 
   const openDepositModal = () => {
     setDepositModalVisible(true);
@@ -92,9 +93,47 @@ export default function ProfileScreen() {
   };
 
   const closeDepositModal = () => {
-    if (creatingDepositLink) return;
+    if (creatingDepositLink || checkingDepositResult) return;
     setDepositModalVisible(false);
     setDepositQrCode(null);
+  };
+
+  const waitForDepositConfirmation = async (
+    amount: number,
+    initialTransactionIds: Set<string>,
+  ) => {
+    if (!token || !user?.storeId) return false;
+
+    const maxAttempts = 20;
+    const delayMs = 2000;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+      try {
+        const walletRes = await walletApi.getByStoreId(user.storeId, token);
+        const nextTransactions = walletRes.data?.transactions ?? [];
+
+        const hasConfirmedDeposit = nextTransactions.some((tx) => {
+          if (!tx?._id || initialTransactionIds.has(tx._id)) return false;
+          if (tx.type !== 'Deposit') return false;
+          return Number(tx.amount) === amount;
+        });
+
+        if (hasConfirmedDeposit) {
+          await refetchWallet();
+          showToast('Nạp tiền thành công.');
+          setDepositModalVisible(false);
+          setDepositQrCode(null);
+          return true;
+        }
+      } catch {
+        // Ignore transient polling failures and continue next attempts.
+      }
+    }
+
+    await refetchWallet();
+    return false;
   };
 
   const handleOpenDepositCheckout = async () => {
@@ -111,6 +150,9 @@ export default function ProfileScreen() {
 
     setCreatingDepositLink(true);
     try {
+      const initialTransactionIds = new Set(
+        transactions.map((tx) => tx._id).filter((id): id is string => Boolean(id)),
+      );
       const res = await paymentApi.createDepositLink(user.storeId, amount, token);
       const checkoutUrl = res.data?.checkoutUrl ?? null;
       const qrCode = res.data?.qrCode ?? null;
@@ -126,10 +168,17 @@ export default function ProfileScreen() {
       } else {
         showToast('Đã tạo QR nạp tiền. Vui lòng quét mã để thanh toán.');
       }
+
+      setCheckingDepositResult(true);
+      const isDepositSuccess = await waitForDepositConfirmation(amount, initialTransactionIds);
+      if (!isDepositSuccess) {
+        showToast('Chưa ghi nhận nạp tiền. Vui lòng kiểm tra lại sau.', 'error');
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Không thể tạo link nạp tiền.';
       showToast(msg, 'error');
     } finally {
+      setCheckingDepositResult(false);
       setCreatingDepositLink(false);
     }
   };
@@ -284,7 +333,7 @@ export default function ProfileScreen() {
               placeholder="100000"
               keyboardType="numeric"
               style={styles.amountInput}
-              editable={!creatingDepositLink}
+              editable={!creatingDepositLink && !checkingDepositResult}
             />
 
             <Text style={styles.currentBalanceText}>
@@ -299,21 +348,33 @@ export default function ProfileScreen() {
             ) : null}
 
             <Pressable
-              style={[styles.secondaryButton, creatingDepositLink && styles.buttonDisabled]}
+              style={[
+                styles.secondaryButton,
+                (creatingDepositLink || checkingDepositResult) && styles.buttonDisabled,
+              ]}
               onPress={handleOpenDepositCheckout}
-              disabled={creatingDepositLink}
+              disabled={creatingDepositLink || checkingDepositResult}
             >
-              {creatingDepositLink ? (
+              {creatingDepositLink || checkingDepositResult ? (
                 <ActivityIndicator color="#9B0F0F" />
               ) : (
                 <Text style={styles.secondaryButtonText}>Thanh toán</Text>
               )}
             </Pressable>
 
+            {checkingDepositResult ? (
+              <Text style={styles.waitingDepositText}>
+                Đang xác nhận giao dịch nạp tiền...
+              </Text>
+            ) : null}
+
             <Pressable
-              style={[styles.secondaryButton, creatingDepositLink && styles.buttonDisabled]}
+              style={[
+                styles.secondaryButton,
+                (creatingDepositLink || checkingDepositResult) && styles.buttonDisabled,
+              ]}
               onPress={closeDepositModal}
-              disabled={creatingDepositLink}
+              disabled={creatingDepositLink || checkingDepositResult}
             >
               <Text style={styles.secondaryButtonText}>Hủy</Text>
             </Pressable>
@@ -579,6 +640,12 @@ const styles = StyleSheet.create({
   qrHint: {
     fontSize: 13,
     color: '#666',
+    textAlign: 'center',
+  },
+  waitingDepositText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#8C8C8C',
     textAlign: 'center',
   },
 });

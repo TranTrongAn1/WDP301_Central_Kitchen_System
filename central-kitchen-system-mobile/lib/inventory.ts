@@ -19,6 +19,31 @@ export type StoreInventoryResponse = {
   data: StoreInventoryLine[];
 };
 
+export type InventorySellItemInput = {
+  productId: string;
+  quantity: number;
+  batchId?: string;
+};
+
+export type InventorySellPayload = {
+  storeId: string;
+  items: InventorySellItemInput[];
+};
+
+export type InventorySoldDetail = {
+  productId: string;
+  batchId: string;
+  batchCode: string;
+  quantityDeducted: number;
+  isManualSelect: boolean;
+};
+
+export type InventorySellResponse = {
+  success: boolean;
+  message?: string;
+  data?: InventorySoldDetail[];
+};
+
 /** Aggregated view per product for Kho tab (read-only). */
 export type StoreInventoryProductSummary = {
   productId: string;
