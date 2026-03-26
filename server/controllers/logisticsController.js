@@ -188,10 +188,10 @@ const createOrder = async (req, res, next) => {
         ? parseFloat(taxRateSetting.value) * 100 
         : 0;
 
-      // Calculate full invoice total (subtotal + shipping + tax)
-      const subtotal = totalAmount + shippingCost;
-      const taxAmount = (subtotal * taxRate) / 100;
-      const fullInvoiceTotal = subtotal + taxAmount;
+      // Calculate full invoice total
+      const itemSubtotal = totalAmount;
+      const taxAmount = (itemSubtotal * taxRate) / 100;
+      const fullInvoiceTotal = itemSubtotal + taxAmount + shippingCost;
 
       // ========================================
       // STEP 8: Handle Wallet Payment (if specified)
@@ -268,7 +268,10 @@ const createOrder = async (req, res, next) => {
         storeId: order[0].storeId,
         invoiceDate,
         dueDate,
-        subtotal: totalAmount + shippingCost, // Subtotal includes shipping
+        subtotal: totalAmount,
+        shippingFee: shippingCost,
+        taxAmount: taxAmount,
+        totalAmount: fullInvoiceTotal,
         taxRate,
         paymentStatus: paymentMethod === 'Wallet' ? 'Paid' : 'Pending',
         paidAmount: paymentMethod === 'Wallet' ? fullInvoiceTotal : 0,

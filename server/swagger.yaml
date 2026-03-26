@@ -5217,6 +5217,10 @@ components:
           type: number
           example: 3000000
           description: 'Order subtotal before tax'
+        shippingFee:
+          type: number
+          example: 35000
+          description: 'Shipping fee separated from subtotal'
         taxRate:
           type: number
           example: 8

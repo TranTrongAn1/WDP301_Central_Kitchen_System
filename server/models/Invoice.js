@@ -51,6 +51,10 @@ const invoiceSchema = new mongoose.Schema(
       required: [true, 'Subtotal is required'],
       min: [0, 'Subtotal cannot be negative'],
     },
+    shippingFee: {
+      type: Number,
+      default: 0,
+    },
     taxRate: {
       type: Number,
       default: 0,
@@ -111,9 +115,9 @@ invoiceSchema.index({ dueDate: 1 });
 // Pre-save hook to calculate tax and total amounts
 invoiceSchema.pre('save', function () {
   // Calculate tax and total for new documents or when subtotal/taxRate changes
-  if (this.isNew || this.isModified('subtotal') || this.isModified('taxRate')) {
+  if (this.isNew || this.isModified('subtotal') || this.isModified('taxRate') || this.isModified('shippingFee')) {
     this.taxAmount = (this.subtotal * this.taxRate) / 100;
-    this.totalAmount = this.subtotal + this.taxAmount;
+    this.totalAmount = this.subtotal + this.taxAmount + (this.shippingFee || 0);
   }
   
   // Update payment status based on paid amount
