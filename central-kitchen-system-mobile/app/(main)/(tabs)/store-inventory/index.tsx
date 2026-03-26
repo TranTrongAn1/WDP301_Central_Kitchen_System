@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -31,6 +31,12 @@ export default function StoreInventoryListScreen() {
     const router = useRouter();
     const { items, isLoading, error, refetch } = useStoreInventory();
     const [searchQuery, setSearchQuery] = useState("");
+
+    useFocusEffect(
+        useCallback(() => {
+            refetch();
+        }, [refetch])
+    );
 
     const filteredItems = searchQuery.trim()
         ? items.filter(
