@@ -7,6 +7,7 @@ const Ingredient = require('../models/Ingredient');
 const IngredientBatch = require('../models/IngredientBatch');
 const IngredientUsage = require('../models/IngredientUsage');
 const { getSettingNumber } = require('../utils/settingHelper');
+const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
 const getProductionPlans = async (req, res, next) => {
   try {
     const { status, planDate } = req.query;
@@ -317,6 +318,13 @@ const completeProductionItem = async (req, res, next) => {
     // ========================================
     const product = await Product.findById(productId)
       .populate('recipe.ingredientId', 'ingredientName')
+      .populate({
+        path: 'bundleItems.childProductId',
+        populate: {
+          path: 'recipe.ingredientId',
+          select: 'ingredientName'
+        }
+      })
       .session(session);
     if (!product) {
       transactionAborted = true;
@@ -414,12 +422,50 @@ const completeProductionItem = async (req, res, next) => {
       }
     } else {
       // Auto FEFO mode: derive usage from product recipe and deduct earliest-expiring batches first.
+      const requiredIngredients = new Map();
+
+      // Direct Recipe
       for (const recipeItem of product.recipe || []) {
         const ingredientRef = recipeItem.ingredientId;
-        const ingredientId = ingredientRef?._id || ingredientRef;
-        const ingredientName = ingredientRef?.ingredientName || ingredientId?.toString() || 'Unknown Ingredient';
+        if (!ingredientRef) continue;
+        const ingredientIdStr = ingredientRef._id?.toString() || ingredientRef.toString();
+        const needed = Number(recipeItem.quantity || 0) * actualQty;
 
-        let totalNeeded = Number(recipeItem.quantity || 0) * actualQty;
+        if (needed > 0) {
+          const existing = requiredIngredients.get(ingredientIdStr) || { totalNeeded: 0, ingredientRef };
+          existing.totalNeeded += needed;
+          requiredIngredients.set(ingredientIdStr, existing);
+        }
+      }
+
+      // Bundle Recipe (Combo)
+      if (product.bundleItems && product.bundleItems.length > 0) {
+        for (const bundleItem of product.bundleItems) {
+          const childProduct = bundleItem.childProductId;
+          if (!childProduct || !childProduct.recipe) continue;
+          const bundleQty = Number(bundleItem.quantity || 1);
+
+          for (const childRecipeItem of childProduct.recipe || []) {
+            const ingredientRef = childRecipeItem.ingredientId;
+            if (!ingredientRef) continue;
+            const ingredientIdStr = ingredientRef._id?.toString() || ingredientRef.toString();
+            const needed = Number(childRecipeItem.quantity || 0) * bundleQty * actualQty;
+
+            if (needed > 0) {
+              const existing = requiredIngredients.get(ingredientIdStr) || { totalNeeded: 0, ingredientRef };
+              existing.totalNeeded += needed;
+              requiredIngredients.set(ingredientIdStr, existing);
+            }
+          }
+        }
+      }
+
+      for (const [ingredientIdStr, record] of requiredIngredients.entries()) {
+        const ingredientRef = record.ingredientRef;
+        const ingredientId = ingredientRef?._id || ingredientRef;
+        const ingredientName = ingredientRef?.ingredientName || ingredientIdStr || 'Unknown Ingredient';
+
+        let totalNeeded = record.totalNeeded;
         let consumedForIngredient = 0;
         if (totalNeeded <= 0) {
           continue;
@@ -572,12 +618,18 @@ const completeProductionItem = async (req, res, next) => {
 
     // Commit transaction
     await session.commitTransaction();
+    transactionAborted = true; // Mark transaction logically complete to avoid aborting in catch
     updateAllProductsStockStatus().catch(console.error);
     // ========================================
     // STEP 6: Populate and Return Response
     // ========================================
-    await plan.populate('details.productId', 'name sku price shelfLifeDays');
-    await finishedBatch[0].populate('productId', 'name sku categoryId');
+    try {
+      await plan.populate('details.productId', 'name sku price shelfLifeDays');
+      await finishedBatch[0].populate('productId', 'name sku categoryId');
+    } catch (populateError) {
+      console.error('Error populating response data in completeProductionItem:', populateError);
+      // Proceed to send the response with unpopulated data
+    }
 
     res.status(201).json({
       success: true,
@@ -589,7 +641,7 @@ const completeProductionItem = async (req, res, next) => {
       },
     });
   } catch (error) {
-    if (!transactionAborted) {
+    if (session.inTransaction()) {
       await session.abortTransaction();
     }
     next(error);
