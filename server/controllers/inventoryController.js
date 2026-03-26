@@ -31,7 +31,10 @@ const getStoreInventory = async (req, res, next) => {
       }
     }
 
-    const filter = { storeId };
+    const filter = {
+      storeId,
+      quantity: { $gt: 0 },
+    };
     if (productId) {
       filter.productId = productId;
     }
@@ -284,7 +287,9 @@ const updateOrderStatus = async (req, res, next) => {
 const getAllInventory = async (req, res, next) => {
   try {
     const { productId } = req.query;
-    const filter = {};
+    const filter = {
+      quantity: { $gt: 0 },
+    };
     if (productId) {
       filter.productId = productId;
     }

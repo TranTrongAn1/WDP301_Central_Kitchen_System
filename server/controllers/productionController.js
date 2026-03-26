@@ -78,7 +78,9 @@ const createProductionPlan = async (req, res, next) => {
     }
 
     // Fetch all referenced orders
-    const orders = await Order.find({ _id: { $in: orderIds } }).session(session);
+    const orders = await Order.find({ _id: { $in: orderIds } })
+      .populate('items.productId')
+      .session(session);
 
     // Verify every requested order was found
     if (orders.length !== orderIds.length) {
@@ -110,14 +112,30 @@ const createProductionPlan = async (req, res, next) => {
 
     for (const order of orders) {
       for (const item of order.items) {
-        const pid = item.productId.toString();
-        const qty = item.quantity || 0;
-        
-        // Cộng dồn cho từng món
-        quantityMap.set(pid, (quantityMap.get(pid) || 0) + qty);
-        
-        // Cộng dồn vào tổng số lượng của cả mẻ nấu
-        totalProductsCount += qty; 
+        const product = item.productId;
+        const orderQty = item.quantity || item.quantityRequested || 0;
+
+        if (!product || orderQty <= 0) {
+          continue;
+        }
+
+        if (product.bundleItems && product.bundleItems.length > 0) {
+          for (const bundleItem of product.bundleItems) {
+            const childProductId = bundleItem.childProductId?.toString();
+            const childQty = (bundleItem.quantity || 0) * orderQty;
+
+            if (!childProductId || childQty <= 0) {
+              continue;
+            }
+
+            quantityMap.set(childProductId, (quantityMap.get(childProductId) || 0) + childQty);
+            totalProductsCount += childQty;
+          }
+        } else {
+          const productIdKey = product._id?.toString() || product.toString();
+          quantityMap.set(productIdKey, (quantityMap.get(productIdKey) || 0) + orderQty);
+          totalProductsCount += orderQty;
+        }
       }
     }
 

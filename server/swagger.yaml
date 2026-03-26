@@ -3609,7 +3609,7 @@ paths:
       tags:
         - Inventory
       summary: Get all inventory across all stores (Admin/Manager)
-      description: Retrieve a grouped list of inventory items for all stores.
+      description: Retrieve a grouped list of inventory items for all stores. Only returns inventory items with quantity strictly greater than 0 (Out-of-stock batches are filtered out).
       security:
         - BearerAuth: []
       parameters:
@@ -3657,6 +3657,7 @@ paths:
       description: |
         View current inventory for a specific store with batch-level traceability.
         Includes a summary by product and detailed batch data.
+        Only returns inventory items with quantity strictly greater than 0 (Out-of-stock batches are filtered out).
       security:
         - BearerAuth: []
       parameters:
