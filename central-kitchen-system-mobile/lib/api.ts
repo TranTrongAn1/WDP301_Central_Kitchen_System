@@ -18,7 +18,11 @@ import type {
   IngredientResponse,
   IngredientsResponse,
 } from "@/lib/ingredients";
-import type { StoreInventoryResponse } from "@/lib/inventory";
+import type {
+  InventorySellPayload,
+  InventorySellResponse,
+  StoreInventoryResponse,
+} from "@/lib/inventory";
 import type {
   InvoiceResponse,
   InvoicesResponse,
@@ -238,6 +242,12 @@ export const storeInventoryApi = {
   getByStore: (storeId: string, token?: string | null) =>
     request<StoreInventoryResponse>(`/api/inventory/store/${storeId}`, {
       headers: withAuth(token),
+    }),
+  sell: (payload: InventorySellPayload, token?: string | null) =>
+    request<InventorySellResponse>("/api/inventory/sell", {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
     }),
 };
 

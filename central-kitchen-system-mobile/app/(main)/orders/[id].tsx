@@ -35,13 +35,49 @@ import { getOrderStatusLabel } from "@/lib/status-labels";
 
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("vi-VN", {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDateOnly(iso?: string) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatDateWithOptionalTime(iso?: string) {
+  if (!iso) return "—";
+  // Keep date-only strings in date format, show full time when timestamp is provided.
+  return iso.includes("T") ? formatDateTime(iso) : formatDateOnly(iso);
+}
+
+function getPaymentStatusLabel(status?: string) {
+  switch (status) {
+    case "Pending":
+      return "Chờ thanh toán";
+    case "Partial":
+      return "Thanh toán một phần";
+    case "Paid":
+      return "Đã thanh toán";
+    case "Overdue":
+      return "Quá hạn";
+    case "Cancelled":
+      return "Đã hủy";
+    default:
+      return status || "—";
+  }
 }
 
 function productName(item: OrderItem): string {
@@ -426,7 +462,7 @@ export default function OrderDetailScreen() {
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Ngày giao yêu cầu</Text>
-          <Text style={styles.value}>{order.requestedDeliveryDate ?? "—"}</Text>
+          <Text style={styles.value}>{formatDateWithOptionalTime(order.requestedDeliveryDate)}</Text>
         </View>
         {order.notes ? (
           <View style={styles.row}>
@@ -551,15 +587,15 @@ export default function OrderDetailScreen() {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Ngày hoá đơn</Text>
-            <Text style={styles.value}>{invoice.invoiceDate}</Text>
+            <Text style={styles.value}>{formatDateWithOptionalTime(invoice.invoiceDate)}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Hạn thanh toán</Text>
-            <Text style={styles.value}>{invoice.dueDate}</Text>
+            <Text style={styles.value}>{formatDateWithOptionalTime(invoice.dueDate)}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Trạng thái thanh toán</Text>
-            <Text style={styles.value}>{invoice.paymentStatus}</Text>
+            <Text style={styles.value}>{getPaymentStatusLabel(invoice.paymentStatus)}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Tạm tính</Text>
@@ -605,9 +641,15 @@ export default function OrderDetailScreen() {
       }
 
       <Text style={styles.sectionTitle}>Sản phẩm</Text>
-      {
-        (order.items ?? []).map((item, index) => (
-          <View key={index} style={[styles.itemRow, cardShadowSmall]}>
+      <View style={[styles.card, cardShadowSmall]}>
+        {(order.items ?? []).map((item, index) => (
+          <View
+            key={index}
+            style={[
+              styles.productRow,
+              index < (order.items?.length ?? 0) - 1 && styles.productRowDivider,
+            ]}
+          >
             <Text style={styles.itemName}>{productName(item)}</Text>
             <View style={styles.itemMeta}>
               <Text style={styles.itemQty}>SL: {item.quantityRequested ?? item.quantity ?? 0}</Text>
@@ -616,12 +658,12 @@ export default function OrderDetailScreen() {
               )}
             </View>
           </View>
-        ))
-      }
+        ))}
 
-      <View style={[styles.totalRow, cardShadowSmall]}>
-        <Text style={styles.totalLabel}>Tổng cộng</Text>
-        <Text style={styles.totalValue}>{pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
+        <View style={styles.productTotalRow}>
+          <Text style={styles.totalLabel}>Tổng cộng</Text>
+          <Text style={styles.totalValue}>{pricing.totalAmount.toLocaleString("vi-VN")} đ</Text>
+        </View>
       </View>
 
       {
@@ -1008,16 +1050,15 @@ const styles = StyleSheet.create({
     color: "#2A2A2A",
     marginBottom: 10,
   },
-  itemRow: {
+  productRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#FFE1E1",
+    paddingVertical: 10,
+  },
+  productRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#FFE1E1",
   },
   itemName: {
     fontSize: 14,
@@ -1032,16 +1073,14 @@ const styles = StyleSheet.create({
   },
   itemQty: { fontSize: 13, color: "#666" },
   itemSub: { fontSize: 13, fontWeight: "700", color: "#9B0F0F" },
-  totalRow: {
+  productTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
     marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#FFE1E1",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#FFE1E1",
   },
   totalLabel: {
     fontSize: 16,
