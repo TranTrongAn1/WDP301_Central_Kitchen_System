@@ -103,7 +103,7 @@ export default function IngredientRequestDetailScreen() {
           text: 'OK', 
           onPress: () => {
             setIsModalVisible(false);
-            router.replace('/kitchen/ingredient-requests' as any);
+            router.replace('/(tabs)/ingredient-requests' as any);
           } 
         }
       ]);
