@@ -113,24 +113,12 @@ export default function IngredientRequestListPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleApprove = async (id: string, type: 'URGENT' | 'PLANNED', request: IngredientRequest) => {
-    if (type === 'URGENT') {
-      // For URGENT: Open the complete dialog to enter actual cost, expiry date
-      setCompleteRequest(request);
-      setCompleteOpen(true);
-      return;
-    }
-    
-    // For PLANNED: Approve directly with expectedDeliveryDate
+  const handleApprove = async (id: string) => {
+    // Duyệt = duyệt thôi, không mở modal
     setActionId(id);
     try {
-      // Use neededByDate as default expectedDeliveryDate if not set
-      const expectedDate = request.neededByDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      await ingredientRequestApi.updateStatus(id, {
-        status: 'APPROVED',
-        expectedDeliveryDate: expectedDate,
-      });
-      toast.success('Đã duyệt phiếu kế hoạch');
+      await ingredientRequestApi.updateStatus(id, { status: 'APPROVED' });
+      toast.success('Đã duyệt phiếu');
       fetchList();
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Thao tác thất bại.';
@@ -551,12 +539,12 @@ export default function IngredientRequestListPage() {
                           {req.status === 'PENDING' && canApproveReject && (
                             <>
                               <button
-                                className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all ${
+                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${
                                   req.requestType === 'URGENT'
                                     ? 'border-red-500/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10'
                                     : 'border-green-500/50 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10'
                                 } ${darkMode ? 'bg-muted' : 'bg-white'}`}
-                                onClick={() => handleApprove(req._id, req.requestType, req)}
+                                onClick={() => handleApprove(req._id)}
                                 disabled={actionId === req._id}
                               >
                                 {actionId === req._id ? (
@@ -567,14 +555,19 @@ export default function IngredientRequestListPage() {
                                 Duyệt
                               </button>
                               <button
-                                className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all ${
+                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${
                                   darkMode
                                     ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
                                     : 'border-red-200 text-red-600 hover:bg-red-50'
-                                }`}
+                                } ${darkMode ? 'bg-muted' : 'bg-white'}`}
                                 onClick={() => handleReject(req._id)}
                                 disabled={actionId === req._id}
                               >
+                                {actionId === req._id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <X className="w-3 h-3" />
+                                )}
                                 Từ chối
                               </button>
                             </>
