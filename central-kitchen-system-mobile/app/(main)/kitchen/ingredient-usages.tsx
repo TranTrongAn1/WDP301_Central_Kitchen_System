@@ -420,12 +420,20 @@ export default function IngredientUsagesScreen() {
                         </View>
                         <View style={styles.metaRow}>
                             <Text style={styles.label}>Quantity used</Text>
-                            <Text style={styles.value}>{formatNumber(item.quantityUsed)}</Text>
+                            <Text style={[styles.value, { color: '#D91E18' }]}>{formatNumber(item.quantityUsed)}</Text>
                         </View>
                         <View style={styles.metaRow}>
                             <Text style={styles.label}>Recorded at</Text>
                             <Text style={styles.value}>{formatDateLabel(item.recordedAt || item.createdAt)}</Text>
                         </View>
+
+                        {/* 🚀 HIỂN THỊ GHI CHÚ NẾU CÓ */}
+                        {item.note ? (
+                            <View style={styles.noteBox}>
+                                <Text style={styles.noteLabel}>Ghi chú:</Text>
+                                <Text style={styles.noteText}>{item.note}</Text>
+                            </View>
+                        ) : null}
                     </View>
                 ))
             )}
@@ -630,6 +638,30 @@ const styles = StyleSheet.create({
         flexShrink: 1,
         textAlign: "right",
     },
+
+    // 🚀 STYLES DÀNH CHO CÁI GHI CHÚ
+    noteBox: {
+        marginTop: 10,
+        backgroundColor: '#FFF9F9',
+        padding: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#FFEAEA',
+    },
+    noteLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#D91E18',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    noteText: {
+        fontSize: 13,
+        color: '#444',
+        fontStyle: 'italic',
+        lineHeight: 18,
+    },
+
     emptyCard: {
         backgroundColor: "#fff",
         borderRadius: 12,
