@@ -24,8 +24,8 @@ router.get('/:id', protect, getBatchById);
 /**
  * @route   PUT /api/ingredient-batches/:id
  * @desc    Update ingredient batch
- * @access  Private (Admin, Kitchen_Manager, Manager only)
+ * @access  Private (Admin, KitchenStaff, Manager only)
  */
-router.put('/:id', protect, authorize('Admin', 'Kitchen_Manager', 'Manager'), updateBatch);
+router.put('/:id', protect, authorize('Admin', 'KitchenStaff', 'Manager'), updateBatch);
 
 module.exports = router;

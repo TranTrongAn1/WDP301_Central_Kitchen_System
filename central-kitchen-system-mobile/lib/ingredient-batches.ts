@@ -6,11 +6,21 @@ export type IngredientBatchStatusMeta = {
 
 export type IngredientBatch = IngredientBatchStatusMeta & {
   _id: string;
-  ingredientId: string;
-  supplierId: string;
+  ingredientId: {
+    _id: string;
+    ingredientName?: string;
+    unit?: string;
+    costPrice?: number;
+    totalQuantity?: number;
+  } | string;
+  supplierId: {
+    _id: string;
+    supplierName?: string;
+    contactPhone?: string;
+  } | string;
   batchCode: string;
-  expiryDate: string; // ISO date (YYYY-MM-DD)
-  receivedDate?: string; // ISO date
+  expiryDate: string;
+  receivedDate?: string; 
   initialQuantity: number;
   currentQuantity: number;
   price: number;
@@ -28,4 +38,3 @@ export type IngredientBatchResponse = {
   success: boolean;
   data: IngredientBatch;
 };
-
