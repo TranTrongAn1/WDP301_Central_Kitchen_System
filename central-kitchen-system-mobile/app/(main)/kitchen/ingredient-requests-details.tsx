@@ -43,13 +43,14 @@ export default function IngredientRequestDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   
   const [actualCost, setActualCost] = useState("");
+  
+  const [receivedDate, setReceivedDate] = useState<Date>(new Date());
+  const [showReceivedDatePicker, setShowReceivedDatePicker] = useState(false);
   const [expiryDate, setExpiryDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showExpiryDatePicker, setShowExpiryDatePicker] = useState(false);
   
   const { suppliers, isLoading: isLoadingSuppliers } = useSuppliers("Active");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
-  
-  // 🚀 THÊM STATE ĐÓNG/MỞ DROPDOWN
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const today = new Date();
@@ -92,6 +93,7 @@ export default function IngredientRequestDetailScreen() {
         status: 'COMPLETED',
         actualCost: cost || 0,
         expiryDate: expiryDate.toISOString(),
+        receivedDate: receivedDate.toISOString(), 
         supplierId: request.supplierId ? request.supplierId : selectedSupplierId,
         receiptImage: "", 
       };
@@ -114,11 +116,14 @@ export default function IngredientRequestDetailScreen() {
     }
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setExpiryDate(selectedDate);
-    }
+  const onExpiryDateChange = (event: any, selectedDate?: Date) => {
+    setShowExpiryDatePicker(false);
+    if (selectedDate) setExpiryDate(selectedDate);
+  };
+
+  const onReceivedDateChange = (event: any, selectedDate?: Date) => {
+    setShowReceivedDatePicker(false);
+    if (selectedDate) setReceivedDate(selectedDate);
   };
 
   if (!request) return <View style={styles.center}><Text>Dữ liệu trống</Text></View>;
@@ -126,7 +131,7 @@ export default function IngredientRequestDetailScreen() {
   const isUrgent = request.requestType === 'URGENT';
   const statusConfig = getStatusConfig(request.status);
   const canComplete = 
-    (isUrgent && request.status !== 'COMPLETED' && request.status !== 'REJECTED') || 
+    (isUrgent && request.status !== 'COMPLETED' && request.status !== 'REJECTED') && (request.status !== 'PENDING') || 
     (!isUrgent && request.status === 'APPROVED');
 
   return (
@@ -196,6 +201,13 @@ export default function IngredientRequestDetailScreen() {
                       <Text style={styles.detailValue}>{formatDate(request.expectedDeliveryDate)}</Text>
                   </View>
               )}
+              {/* 🚀 THÊM HIỂN THỊ NGÀY NHẬN HÀNG */}
+              {request.receivedDate && (
+                  <View style={styles.detailRow}>
+                      <Text style={styles.subLabel}>Ngày nhận hàng:</Text>
+                      <Text style={[styles.detailValue, { color: '#27AE60' }]}>{formatDate(request.receivedDate)}</Text>
+                  </View>
+              )}
               {request.note && (
                   <View style={{ marginTop: 8 }}>
                       <Text style={styles.subLabel}>Ghi chú:</Text>
@@ -223,114 +235,124 @@ export default function IngredientRequestDetailScreen() {
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Thông tin Nhập lô mới</Text>
-              <Pressable onPress={() => setIsModalVisible(false)} style={styles.closeModalBtn}>
-                <Text style={styles.closeModalText}>✕</Text>
-              </Pressable>
-            </View>
-
-            <Text style={styles.modalSubText}>
-              Bếp đang nhập <Text style={{fontWeight: 'bold', color: '#D91E18'}}>{request.quantityRequested} {request.unit}</Text> {request.ingredientId?.ingredientName || 'nguyên liệu'}.
-            </Text>
-
-            <Text style={styles.inputLabel}>Hạn sử dụng (Bắt buộc) <Text style={{color: 'red'}}>*</Text></Text>
-            <Pressable 
-              style={styles.datePickerBtn} 
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={{color: '#2A2A2A', fontSize: 15}}>{expiryDate.toLocaleDateString('vi-VN')}</Text>
-              <IconSymbol name="calendar" size={20} color="#8C8C8C" />
-            </Pressable>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={expiryDate}
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-                minimumDate={today}
-              />
-            )}
-
-            <Text style={styles.inputLabel}>Chi phí mua thực tế (VND)</Text>
-            <TextInput
-              style={styles.textInput}
-              keyboardType="numeric"
-              placeholder="VD: 150000"
-              value={actualCost}
-              onChangeText={setActualCost}
-            />
-
-            {/* 🚀 DROPDOWN NHÀ CUNG CẤP */}
-            {!request.supplierId && (
-              <View style={{ zIndex: 10 }}>
-                <Text style={styles.inputLabel}>Chọn Nhà cung cấp <Text style={{color: 'red'}}>*</Text></Text>
-                
-                {isLoadingSuppliers ? (
-                  <ActivityIndicator size="small" color="#D91E18" style={{ alignSelf: 'flex-start', marginVertical: 10 }} />
-                ) : (
-                  <>
-                    <Pressable 
-                      style={styles.dropdownTrigger} 
-                      onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                      <Text style={{color: selectedSupplierId ? '#2A2A2A' : '#8C8C8C', fontSize: 15}}>
-                        {selectedSupplierId 
-                          ? suppliers.find(s => s._id === selectedSupplierId)?.name 
-                          : 'Bấm để chọn nhà cung cấp...'}
-                      </Text>
-                      <IconSymbol name={isDropdownOpen ? "chevron.up" : "chevron.down"} size={20} color="#8C8C8C" />
-                    </Pressable>
-
-                    {isDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {/* nestedScrollEnabled giúp scroll trong danh sách mượt mà kể cả khi nằm trong Modal */}
-                        <ScrollView nestedScrollEnabled style={{ maxHeight: 160 }}>
-                          {suppliers.map((sup) => (
-                            <Pressable 
-                              key={sup._id} 
-                              style={[styles.dropdownItem, selectedSupplierId === sup._id && styles.dropdownItemSelected]}
-                              onPress={() => {
-                                setSelectedSupplierId(sup._id);
-                                setIsDropdownOpen(false); // Chọn xong tự đóng lại
-                              }}
-                            >
-                              <Text style={[styles.dropdownItemText, selectedSupplierId === sup._id && styles.dropdownItemTextSelected]} numberOfLines={2}>
-                                {sup.name}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </>
-                )}
+          <ScrollView contentContainerStyle={{ justifyContent: 'flex-end', flexGrow: 1 }}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Thông tin Nhập lô mới</Text>
+                <Pressable onPress={() => setIsModalVisible(false)} style={styles.closeModalBtn}>
+                  <Text style={styles.closeModalText}>✕</Text>
+                </Pressable>
               </View>
-            )}
 
-            <View style={styles.modalActions}>
-              <Pressable 
-                style={[styles.modalBtn, styles.cancelBtn]} 
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Hủy</Text>
-              </Pressable>
-              
-              <Pressable 
-                style={[styles.modalBtn, styles.submitBtn, submitting && { opacity: 0.5 }]} 
-                onPress={handleCompleteSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <Text style={styles.submitBtnText}>Xác nhận Tạo Lô</Text>
-                )}
-              </Pressable>
+              <Text style={styles.modalSubText}>
+                Bếp đang nhập <Text style={{fontWeight: 'bold', color: '#D91E18'}}>{request.quantityRequested} {request.unit}</Text> {request.ingredientId?.ingredientName || 'nguyên liệu'}.
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Ngày nhận <Text style={{color: 'red'}}>*</Text></Text>
+                  <Pressable style={styles.datePickerBtn} onPress={() => setShowReceivedDatePicker(true)}>
+                    <Text style={{color: '#2A2A2A', fontSize: 14}}>{receivedDate.toLocaleDateString('vi-VN')}</Text>
+                  </Pressable>
+                </View>
+                
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Hạn sử dụng <Text style={{color: 'red'}}>*</Text></Text>
+                  <Pressable style={styles.datePickerBtn} onPress={() => setShowExpiryDatePicker(true)}>
+                    <Text style={{color: '#2A2A2A', fontSize: 14}}>{expiryDate.toLocaleDateString('vi-VN')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {showReceivedDatePicker && (
+                <DateTimePicker
+                  value={receivedDate}
+                  mode="date"
+                  display="default"
+                  onChange={onReceivedDateChange}
+                  maximumDate={today} 
+                />
+              )}
+
+              {showExpiryDatePicker && (
+                <DateTimePicker
+                  value={expiryDate}
+                  mode="date"
+                  display="default"
+                  onChange={onExpiryDateChange}
+                  minimumDate={today} 
+                />
+              )}
+
+              <Text style={styles.inputLabel}>Chi phí mua thực tế (VND)</Text>
+              <TextInput
+                style={styles.textInput}
+                keyboardType="numeric"
+                placeholder="VD: 150000"
+                value={actualCost}
+                onChangeText={setActualCost}
+              />
+
+              {!request.supplierId && (
+                <View style={{ zIndex: 10 }}>
+                  <Text style={styles.inputLabel}>Chọn Nhà cung cấp <Text style={{color: 'red'}}>*</Text></Text>
+                  
+                  {isLoadingSuppliers ? (
+                    <ActivityIndicator size="small" color="#D91E18" style={{ alignSelf: 'flex-start', marginVertical: 10 }} />
+                  ) : (
+                    <>
+                      <Pressable 
+                        style={styles.dropdownTrigger} 
+                        onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                      >
+                        <Text style={{color: selectedSupplierId ? '#2A2A2A' : '#8C8C8C', fontSize: 15}}>
+                          {selectedSupplierId 
+                            ? suppliers.find(s => s._id === selectedSupplierId)?.name 
+                            : 'Bấm để chọn...'}
+                        </Text>
+                        <IconSymbol name={isDropdownOpen ? "chevron.up" : "chevron.down"} size={20} color="#8C8C8C" />
+                      </Pressable>
+
+                      {isDropdownOpen && (
+                        <View style={styles.dropdownList}>
+                          <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                            {suppliers.map((sup) => (
+                              <Pressable 
+                                key={sup._id} 
+                                style={[styles.dropdownItem, selectedSupplierId === sup._id && styles.dropdownItemSelected]}
+                                onPress={() => {
+                                  setSelectedSupplierId(sup._id);
+                                  setIsDropdownOpen(false);
+                                }}
+                              >
+                                <Text style={[styles.dropdownItemText, selectedSupplierId === sup._id && styles.dropdownItemTextSelected]} numberOfLines={2}>
+                                  {sup.name}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.modalActions}>
+                <Pressable style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setIsModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Hủy</Text>
+                </Pressable>
+                
+                <Pressable 
+                  style={[styles.modalBtn, styles.submitBtn, submitting && { opacity: 0.5 }]} 
+                  onPress={handleCompleteSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.submitBtnText}>Xác nhận Tạo Lô</Text>}
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </>
@@ -372,20 +394,11 @@ const styles = StyleSheet.create({
   modalSubText: { fontSize: 14, color: '#444', marginBottom: 20, lineHeight: 22 },
   inputLabel: { fontSize: 13, fontWeight: '700', color: '#2A2A2A', marginBottom: 8, marginTop: 10 },
   textInput: { borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, padding: 14, fontSize: 15, color: '#2A2A2A', backgroundColor: '#FFF' },
-  datePickerBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, padding: 14, backgroundColor: '#FFF' },
+  datePickerBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, padding: 14, backgroundColor: '#FFF' },
   
-  // 🚀 STYLE CHO DROPDOWN
-  dropdownTrigger: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, padding: 14, backgroundColor: '#FFF'
-  },
-  dropdownList: {
-    borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, backgroundColor: '#FFF',
-    marginTop: 6, overflow: 'hidden',
-  },
-  dropdownItem: {
-    padding: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5'
-  },
+  dropdownTrigger: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, padding: 14, backgroundColor: '#FFF' },
+  dropdownList: { borderWidth: 1, borderColor: '#FFE1E1', borderRadius: 12, backgroundColor: '#FFF', marginTop: 6, overflow: 'hidden' },
+  dropdownItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   dropdownItemSelected: { backgroundColor: '#FFF0F0' },
   dropdownItemText: { fontSize: 15, color: '#444' },
   dropdownItemTextSelected: { color: '#D91E18', fontWeight: '700' },
