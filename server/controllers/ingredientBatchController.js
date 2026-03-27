@@ -127,12 +127,6 @@ const updateBatch = asyncHandler(async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  // ... (giữ nguyên phần đầu hàm)
-  
-  // Đừng quên import 2 cái này ở đầu file nhé:
-  // const IngredientUsage = require('../models/IngredientUsage');
-  // const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
-
   try {
     // Update batch fields
     if (currentQuantity !== undefined) {
@@ -167,7 +161,6 @@ const updateBatch = asyncHandler(async (req, res) => {
       // GHI LOG LỊCH SỬ CHỈNH SỬA KHO (ADJUSTMENT) 
       // Quy ước: Nếu quantityDifference < 0 là hao hụt/xuất kho. Nếu > 0 là nhập thêm/chỉnh sửa dư.
       // Vì bảng IngredientUsage của bạn thiết kế để ghi nhận 'sử dụng', ta sẽ lưu giá trị tuyệt đối của số lượng bị mất.
-      // (Bạn nên kiểm tra lại Schema IngredientUsage xem có bắt buộc các field nào khác không nhé)
       const usageRecord = new IngredientUsage({
         ingredientId: batch.ingredientId,
         ingredientBatchId: batch._id,

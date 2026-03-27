@@ -141,7 +141,7 @@ exports.completeRequest = async (req, res) => {
       ingredientId: request.ingredientId,
       // NẾU KHÔNG CÓ SUPPLIER ID, BẠN PHẢI TRUYỀN ID CỦA 'NCC VÃNG LAI' VÀO ĐÂY ĐỂ TRÁNH LỖI (Tạm thời throw error nếu thiếu)
       supplierId: supplierId || request.supplierId, 
-      batchCode: `REQ-${request.requestType === 'URGENT' ? 'URG' : 'PLN'}-${request._id.toString().substring(0, 5).toUpperCase()}`, 
+      batchCode: `REQ-${request.requestType === 'URGENT' ? 'URG' : 'PLN'}-${request._id.toString().slice(-5).toUpperCase()}-${Date.now().toString().slice(-4)}`,
       expiryDate: new Date(expiryDate),
       initialQuantity: request.quantityRequested,
       currentQuantity: request.quantityRequested,

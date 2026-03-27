@@ -42,7 +42,7 @@ import type {
   DeliveryTripsResponse,
 } from "@/lib/trips";
 import type { WalletResponse } from "@/lib/wallet";
-
+import type { Supplier, SupplierResponse, SuppliersResponse } from "@/lib/suppliers";
 const API_REQUEST_TIMEOUT_MS = 20000; // 20 seconds
 
 type RequestOptions = RequestInit & {
@@ -340,9 +340,15 @@ export const ingredientBatchesApi = {
       headers: withAuth(token),
       body: JSON.stringify(payload),
     }),
+  // CẬP NHẬT HÀM UPDATE: Thêm field 'note' vào payload
   update: (
     id: string,
-    payload: Partial<Pick<IngredientBatch, "currentQuantity" | "price" | "isActive">>,
+    payload: {
+        currentQuantity?: number;
+        price?: number;
+        isActive?: boolean;
+        note?: string; // Thêm field lý do hao hụt
+    },
     token?: string | null,
   ) =>
     request<IngredientBatchResponse>(`/api/ingredient-batches/${id}`, {
@@ -616,13 +622,62 @@ export const ingredientRequestsApi = {
     const response = await fetch(
       `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests/${id}/complete`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers,
         body: JSON.stringify(data),
       }
     );
 
-    if (!response.ok) throw new Error("Lỗi khi hoàn tất yêu cầu");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Lỗi khi hoàn tất yêu cầu");
+    }
     return response.json();
   },
+};
+export const suppliersApi = {
+  getAll: (
+    params?: { status?: string; page?: number; limit?: number },
+    token?: string | null
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.page) search.set("page", String(params.page));
+    if (params?.limit) search.set("limit", String(params.limit));
+    const qs = search.toString();
+    
+    return request<SuppliersResponse>(
+      `/api/suppliers${qs ? `?${qs}` : ""}`,
+      { headers: withAuth(token), timeoutMs: 30000 }
+    );
+  },
+  
+  getById: (id: string, token?: string | null) =>
+    request<SupplierResponse>(`/api/suppliers/${id}`, {
+      headers: withAuth(token),
+      timeoutMs: 30000,
+    }),
+    
+  create: (payload: Partial<Supplier>, token?: string | null) =>
+    request<SupplierResponse>("/api/suppliers", {
+      method: "POST",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+    
+  update: (id: string, payload: Partial<Supplier>, token?: string | null) =>
+    request<SupplierResponse>(`/api/suppliers/${id}`, {
+      method: "PUT",
+      headers: withAuth(token),
+      body: JSON.stringify(payload),
+    }),
+    
+  delete: (id: string, token?: string | null) =>
+    request<{ success: boolean; message: string; data: any }>(
+      `/api/suppliers/${id}`, 
+      {
+        method: "DELETE",
+        headers: withAuth(token),
+      }
+    ),
 };
