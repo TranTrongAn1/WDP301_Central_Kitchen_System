@@ -2241,8 +2241,6 @@ const autoScheduleTrips = async (req, res, next) => {
     session.startTransaction();
 
     try {
-        // KHÔNG CẦN req.body NỮA! BE TỰ LÀM HẾT!
-
         // 1. Quét tìm những đơn hàng ĐÃ ĐƯỢC XẾP VÀO CHUYẾN (để né tụi nó ra, tránh xếp trùng)
         const activeTrips = await DeliveryTrip.find({ status: { $ne: 'Cancelled' } });
         const assignedOrderIds = activeTrips.flatMap(trip => trip.orders.map(id => id.toString()));
@@ -2341,7 +2339,6 @@ const autoScheduleTrips = async (req, res, next) => {
         for (const tripData of tripsToCreate) {
             const newTrip = new DeliveryTrip({
                 ...tripData
-                // createdBy: req.user._id 
             });
             await newTrip.save({ session });
             createdTrips.push(newTrip);
