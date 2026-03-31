@@ -5,19 +5,19 @@ import {
     ArrowLeft, Clock, CheckCircle2, AlertCircle, Loader2,
     Package, Play, X, Trash2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { Input } from '../components/ui/Input';
-import { Modal, ConfirmModal } from '../components/ui/Modal';
+import { Card, CardContent, CardHeader, CardTitle } from '../../manager/components/ui/Card';
+import { Button } from '../../manager/components/ui/Button';
+import { Badge } from '../../manager/components/ui/Badge';
+import { Input } from '../../manager/components/ui/Input';
+import { Modal, ConfirmModal } from '../../manager/components/ui/Modal';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '../components/ui/Select';
-import { ErrorState } from '../components/ui/ErrorState';
+} from '../../manager/components/ui/Select';
+import { ErrorState } from '../../manager/components/ui/ErrorState';
 import { productionPlanApi } from '@/api/ProductionPlanApi';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
 import { inventoryApi, type IngredientBatch } from '@/api/InventoryApi';

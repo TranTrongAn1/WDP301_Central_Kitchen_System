@@ -11,7 +11,7 @@ const PAGE_TITLE: Record<string, { name: string; desc: string }> = {
     "/coordinator/orders": { name: "Đơn hàng cửa hàng", desc: "Tiếp nhận & xử lý đơn từ cửa hàng" },
     "/coordinator/shipments": { name: "Chuyến giao hàng", desc: "Lập lịch & theo dõi chuyến giao" },
     "/coordinator/inventory": { name: "Kho thành phẩm cửa hàng", desc: "Theo dõi tồn kho thành phẩm tại cửa hàng" },
-    "/coordinator/issues": { name: "Sự cố & Đổi trả", desc: "Đối soát giao nhận, hư hỏng & thiếu hụt" },
+    "/coordinator/production": { name: "Kế hoạch", desc: "Kế hoạch sản xuất" },
 };
 
 export const CoordinatorLayout = () => {
@@ -57,14 +57,13 @@ export const CoordinatorLayout = () => {
         <div className={`flex h-screen w-full transition-colors duration-300 ${
             darkMode ? 'bg-[#1C1C21] text-foreground' : 'bg-gray-50 text-gray-900'
         }`}>
-            {/* Sidebar - same component used by DashboardLayout for Coordinator */}
+            {/* Sidebar */}
             <CoordinatorSidebar
                 isCollapsed={isSidebarCollapsed}
                 onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             />
 
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* HEADER - Đã đổi về màu Cam/Amber giống Admin */}
                 <header className={`h-[73px] flex items-center justify-between px-6 border-b z-40 sticky top-0 transition-all duration-300 ${
                     darkMode ? 'bg-[#1C1C21] border-gray-800' : 'bg-white border-orange-100'
                 }`}>

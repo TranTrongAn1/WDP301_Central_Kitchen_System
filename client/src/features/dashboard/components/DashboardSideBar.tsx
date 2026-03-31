@@ -211,13 +211,6 @@ export const DashboardSideBar = ({
           end: true,
         },
         {
-          icon: ShoppingCart,
-          label: "Phiếu xin mua",
-          subLabel: "Xin mua nguyên liệu",
-          path: "/admin/ingredient-requests",
-          end: true,
-        },
-        {
           icon: Truck,
           label: "Nhà cung cấp",
           subLabel: "Nhà cung cấp",

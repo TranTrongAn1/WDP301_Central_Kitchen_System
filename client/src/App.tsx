@@ -13,8 +13,8 @@ import AdminDashboard from '@/features/admin/pages/AdminDashboard';
 import ManagerDashboard from '@/features/manager/pages/ManagerDashboard';
 import CategoryPage from '@/features/manager/pages/CategoryPage';
 import IngredientPage from '@/features/manager/pages/IngredientPage';
-import ProductionPlansPage from '@/features/manager/pages/ProductionPlansPage';
-import ProductionPlanDetailPage from '@/features/manager/pages/ProductionPlanDetailPage';
+import ProductionPlansPage from '@/features/coordinator/pages/ProductionPlansPage';
+import ProductionPlanDetailPage from '@/features/coordinator/pages/ProductionPlanDetailPage';
 import BatchesPage from '@/features/manager/pages/BatchesPage';
 import BatchDetailPage from '@/features/manager/pages/BatchDetailPage';
 import InventoryReportsPage from '@/features/manager/pages/InventoryReportsPage';
@@ -105,7 +105,6 @@ function App() {
 
               {/* Ingredients */}
               <Route path="/admin/ingredients" element={<IngredientPage />} />
-              <Route path="/admin/ingredient-requests" element={<IngredientRequestListPage />} />
 
               {/* Inventory */}
               <Route path="/admin/inventory" element={<InventoryReportsPage />} />
