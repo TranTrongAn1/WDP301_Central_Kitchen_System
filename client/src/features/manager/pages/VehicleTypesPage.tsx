@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Loader2, Plus, Pencil, Trash2, AlertTriangle, 
-  MoreVertical, X, Info 
+  MoreVertical,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
