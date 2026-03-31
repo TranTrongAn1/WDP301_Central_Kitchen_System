@@ -6,13 +6,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { setApiErrorHandlers } from "@/lib/api-error-handler";
 import { useAuth } from "@/hooks/use-auth";
+import { setApiErrorHandlers } from "@/lib/api-error-handler";
+import { Ionicons } from "@expo/vector-icons";
 
-const TOAST_DURATION_MS = 3500;
+const TOAST_DURATION_MS = 2000;
 
 export type ToastType = "success" | "error";
 
@@ -80,16 +81,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     <NotificationContext.Provider value={value}>
       {children}
       {toast.visible && (
-        <View
-          style={[
-            styles.toast,
-            { top: insets.top + 8 },
-            toast.type === "error" ? styles.toastError : styles.toastSuccess,
-          ]}
-        >
-          <Text style={styles.toastText} numberOfLines={3}>
-            {toast.message}
-          </Text>
+        <View style={styles.toastContainer}>
+          <View
+            style={[
+              styles.toast,
+              toast.type === "error" ? styles.toastError : styles.toastSuccess,
+            ]}
+          >
+            <Text style={styles.toastText} numberOfLines={3}>
+              {toast.message}
+            </Text>
+            <Pressable
+              onPress={() => setToast((prev) => ({ ...prev, visible: false }))}
+              style={styles.closeBtn}
+            >
+              <Ionicons name="close" size={20} color="#fff" />
+            </Pressable>
+          </View>
         </View>
       )}
     </NotificationContext.Provider>
@@ -103,23 +111,33 @@ export function useNotification() {
 }
 
 const styles = StyleSheet.create({
-  toast: {
+  toastContainer: {
     position: "absolute",
-    left: 16,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+    pointerEvents: "box-none",
+  },
+  toast: {
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: "80%",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    zIndex: 9999,
     ...(Platform.OS === "web"
       ? { boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }
       : {
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-          elevation: 4,
-        }),
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+      }),
   },
   toastSuccess: {
     backgroundColor: "#2E7D32",
@@ -131,5 +149,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  closeBtn: {
+    padding: 2,
+    marginLeft: 4,
   },
 });
