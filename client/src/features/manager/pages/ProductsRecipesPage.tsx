@@ -151,9 +151,20 @@ const ProductsRecipesPage = () => {
     };
 
     const getCategoryName = (product: Product) => {
-    if (typeof product.categoryId === 'string') return 'Chưa phân loại';
-    return product.categoryId?.name || 'Chưa phân loại';
-    };
+    // 1. Lấy ID (chấp nhận cả dạng string hoặc object chứa _id)
+    const catId = typeof product.categoryId === 'object' 
+        ? product.categoryId?._id 
+        : product.categoryId;
+
+    if (!catId) return 'Chưa phân loại';
+
+    // 2. Tìm trong state 'categories' (cái mà bạn đã fetch ở useEffect)
+    // Lưu ý: Kiểm tra field name trong state của bạn là 'categoryName' hay 'name'
+    const foundCategory = categories.find(c => c._id === catId);
+
+    // 3. Trả về categoryName từ state đã fetch
+    return foundCategory?.categoryName || foundCategory?.categoryName || 'Chưa phân loại';
+};
 
 const openCreate = () => {
         if (isManagerReadOnly) return;
