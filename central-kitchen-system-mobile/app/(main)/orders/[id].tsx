@@ -25,7 +25,7 @@ import {
 } from "@/hooks/use-feedback";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 import { triggerWalletRefresh } from "@/hooks/use-wallet";
-import { invoicesApi, logisticsOrdersApi, paymentApi } from "@/lib/api";
+import { invoicesApi, logisticsOrdersApi, paymentApi, feedbackApi } from "@/lib/api";
 import { invalidateData } from "@/lib/data-sync";
 import { FEEDBACK_TAGS, type FeedbackImageFile } from "@/lib/feedback";
 import type { Invoice } from "@/lib/invoices";
@@ -300,12 +300,12 @@ export default function OrderDetailScreen() {
     );
   };
 
-const handleSubmitFeedback = async () => {
+  const handleSubmitFeedback = async () => {
   if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
   setFeedbackSubmitting(true);
 
   try {
-    // --- BƯỚC 1: UPLOAD ẢNH LÊN CLOUDINARY ---
+    // --- BƯỚC 1: UPLOAD ẢNH (Giữ nguyên) ---
     let finalUrls: string[] = [];
     if (feedbackImages.length > 0) {
       const uploadPromises = feedbackImages.map(img => uploadToCloudinary(img));
@@ -313,74 +313,107 @@ const handleSubmitFeedback = async () => {
       finalUrls = results.filter((url): url is string => url !== null);
     }
 
-    // --- BƯỚC 2: GỬI DATA CHO BACKEND ---
-    await createFeedback({
+    // --- BƯỚC 2: GỬI DATA ---
+    const payload = {
       rating: feedbackRating,
       content: feedbackContent.trim() || undefined,
       tags: feedbackTags.length ? feedbackTags : undefined,
-      // Lưu ý: Đổi tên field thành 'images' (mảng string URL) nếu Backend yêu cầu URL
-      images: finalUrls.length ? finalUrls : undefined, 
-    });
-    console.log("url: ", createFeedback)
-    // Reset form như cũ
-    setFeedbackContent("");
-    setFeedbackRating(5);
-    setFeedbackTags([]);
-    setFeedbackImages([]);
-    showToast("Đã gửi đánh giá.");
+      images: finalUrls.length ? finalUrls : undefined,
+    };
+
+    // QUAN TRỌNG: Dùng 'createFeedback' lấy từ useFeedback(orderId)
+    // thay vì dùng trực tiếp feedbackApi.create
+    const result = await createFeedback(payload); 
+
+    if (result) {
+      // Reset form tạm thời
+      setFeedbackContent("");
+      setFeedbackRating(5);
+      setFeedbackTags([]);
+      setFeedbackImages([]);
+      
+      showToast("Đã gửi đánh giá thành công.");
+      
+      // Nếu hook useFeedback chưa tự fetch lại, bạn có thể ép load lại đơn hàng:
+      // await load(); 
+    }
   } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 400) {
         showToast(err.message ?? "Đơn chưa nhận hoặc đã có đánh giá.", "error");
-      } else if (err.status !== 401 && err.status !== 500) {
-        showToast(err instanceof Error ? err.message : "Không gửi được đánh giá.", "error");
+      } else {
+        showToast("Không gửi được đánh giá.", "error");
       }
     } finally {
       setFeedbackSubmitting(false);
     }
   };
 
-const handleUpdateFeedback = async () => {
-  if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
-  setFeedbackSubmitting(true);
-  try {
-    let finalUrls: string[] = [];
-    
-    // Nếu feedbackImages chứa các file mới chọn từ thư viện
-    if (feedbackImages.length > 0) {
-      const uploadPromises = feedbackImages.map(img => uploadToCloudinary(img));
-      const results = await Promise.all(uploadPromises);
-      finalUrls = results.filter((url): url is string => url !== null);
-    }
+  const handleUpdateFeedback = async () => {
+    if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
+    setFeedbackSubmitting(true);
+    console.log("--- Bắt đầu Update ---");
 
-    await updateFeedback({
-      rating: feedbackRating,
-      content: feedbackContent.trim() || undefined,
-      tags: feedbackTags.length ? feedbackTags : undefined,
-      images: finalUrls.length ? finalUrls : undefined,
-    });
-   console.log("--- Bắt đầu Update ---"); 
+    try {
+      // --- BƯỚC 1: XỬ LÝ ẢNH (Upload ảnh mới nếu cần) ---
+      let finalUrls: string[] = [];
+
+      if (feedbackImages.length > 0) {
+        const uploadPromises = feedbackImages.map(async (img: any) => {
+          // 1. Kiểm tra nếu img là string (đã là link https từ trước)
+          if (typeof img === 'string') {
+            if (img.startsWith('http')) return img;
+            return img; // Hoặc xử lý logic string khác của bạn
+          }
+
+          // 2. Kiểm tra nếu img là object (FeedbackImageFile)
+          // Ép kiểu sang bất kỳ để truy cập .uri mà không bị báo lỗi 'never'
+          const imageObj = img as { uri?: string };
+
+          if (imageObj.uri) {
+            if (imageObj.uri.startsWith('http')) return imageObj.uri;
+            // Nếu là file local (uri) thì mới upload lên Cloudinary
+            return await uploadToCloudinary(img);
+          }
+
+          return null;
+        });
+
+        const results = await Promise.all(uploadPromises);
+        finalUrls = results.filter((url): url is string => url !== null);
+      }
+
+      // --- BƯỚC 2: GỬI DATA JSON CHO BACKEND ---
+      const payload = {
+        rating: feedbackRating,
+        content: feedbackContent.trim() || undefined,
+        tags: feedbackTags.length ? feedbackTags : undefined,
+        images: finalUrls, // Gửi mảng URL cuối cùng
+      };
+
+      console.log("Payload gửi đi (Update):", payload);
+
+      const result = await updateFeedback(payload);
+      console.log("Kết quả từ Server trả về: ", result);
+
+if (result) {
+  // Reset các state tạm thời
+  setFeedbackEditMode(false);
+  setFeedbackImages([]); 
   
-  try {
-    const result = await updateFeedback({
-      rating: feedbackRating,
-      content: feedbackContent,
-      images: finalUrls,
-    });
-
-    console.log("Kết quả từ Server trả về: ", result);
+  // Thông báo thành công
+  showToast("Đã cập nhật đánh giá.");
+  
+  // 3. (Tùy chọn) Nếu giao diện vẫn chưa nhảy ảnh, hãy ép tải lại toàn bộ trang
+  // load(); 
+}
     } catch (e) {
-    console.log("Lỗi rồi: ", e);
-  }
-    setFeedbackEditMode(false);
-    setFeedbackImages([]);
-    showToast("Đã cập nhật đánh giá.");
-  } catch (e) {
+      console.log("Lỗi khi update: ", e);
       const err = e as Error & { status?: number };
       if (err.status === 403) {
         showToast("Bạn không có quyền sửa đánh giá này.", "error");
-      } else if (err.status !== 401 && err.status !== 500) {
-        showToast(err instanceof Error ? err.message : "Không cập nhật được.", "error");
+      } else {
+        showToast("Không cập nhật được.", "error");
       }
     } finally {
       setFeedbackSubmitting(false);
@@ -815,22 +848,33 @@ const handleUpdateFeedback = async () => {
                   <Text style={styles.feedbackPickImageText}>+ Chọn ảnh</Text>
                 </Pressable>
               </View>
-              {feedbackImages.length > 0 ? (
+              {/* Hiển thị danh sách ảnh (Gộp cả ảnh cũ từ DB và ảnh mới đang chọn) */}
+              {(feedbackImages.length > 0) && (
                 <View style={styles.feedbackImages}>
-                  {feedbackImages.map((img, idx) => (
-                    <View key={`${img.uri}-${idx}`} style={styles.feedbackImageItem}>
-                      <Image source={{ uri: img.uri }} style={styles.feedbackThumb} />
-                      <Pressable
-                        style={styles.feedbackRemoveImageBtn}
-                        onPress={() => removeFeedbackImage(idx)}
-                        disabled={feedbackSubmitting}
-                      >
-                        <Text style={styles.feedbackRemoveImageText}>✕</Text>
-                      </Pressable>
-                    </View>
-                  ))}
+                  {feedbackImages.map((img, idx) => {
+                    // Kiểm tra xem img là object (từ picker) hay là string (từ Cloudinary)
+                    const imageUri = typeof img === 'string' ? img : img.uri;
+
+                    return (
+                      <View key={`${imageUri}-${idx}`} style={styles.feedbackImageItem}>
+                        <Image
+                          source={{ uri: imageUri }}
+                          style={styles.feedbackThumb}
+                          // Thêm dòng này để debug nếu ảnh không hiện
+                          onError={(e) => console.log('Lỗi load ảnh:', e.nativeEvent.error)}
+                        />
+                        <Pressable
+                          style={styles.feedbackRemoveImageBtn}
+                          onPress={() => removeFeedbackImage(idx)}
+                          disabled={feedbackSubmitting}
+                        >
+                          <Text style={styles.feedbackRemoveImageText}>✕</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
                 </View>
-              ) : null}
+              )}
               <Pressable
                 style={[styles.feedbackSubmitBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}
                 onPress={handleSubmitFeedback}
@@ -882,11 +926,15 @@ const handleUpdateFeedback = async () => {
                 <View style={styles.feedbackActions}>
                   <Pressable
                     style={styles.feedbackActionBtn}
+                    // Trong nút Sửa (Edit)
                     onPress={() => {
                       setFeedbackRating(feedback.rating);
                       setFeedbackContent(feedback.content ?? "");
                       setFeedbackTags(feedback.tags ?? []);
-                      setFeedbackImages([]);
+
+                      // Dùng as any để ép kiểu bỏ qua kiểm tra của TypeScript
+                      setFeedbackImages((feedback.images ?? []) as any);
+
                       setFeedbackEditMode(true);
                     }}
                   >
@@ -958,22 +1006,31 @@ const handleUpdateFeedback = async () => {
                   <Text style={styles.feedbackPickImageText}>+ Chọn ảnh</Text>
                 </Pressable>
               </View>
-              {feedbackImages.length > 0 ? (
-                <View style={styles.feedbackImages}>
-                  {feedbackImages.map((img, idx) => (
-                    <View key={`${img.uri}-${idx}`} style={styles.feedbackImageItem}>
-                      <Image source={{ uri: img.uri }} style={styles.feedbackThumb} />
-                      <Pressable
-                        style={styles.feedbackRemoveImageBtn}
-                        onPress={() => removeFeedbackImage(idx)}
-                        disabled={feedbackSubmitting}
-                      >
-                        <Text style={styles.feedbackRemoveImageText}>✕</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
+            {feedbackImages.length > 0 ? (
+  <View style={styles.feedbackImages}>
+    {feedbackImages.map((img, idx) => {
+      // 1. Kiểm tra: nếu img là string thì dùng luôn, nếu là object thì lấy .uri
+      const finalUri = typeof img === 'string' ? img : img.uri;
+
+      return (
+        <View key={`${finalUri}-${idx}`} style={styles.feedbackImageItem}>
+          <Image 
+            source={{ uri: finalUri }} 
+            style={styles.feedbackThumb} 
+            onError={(e) => console.log("Lỗi hiển thị ảnh:", e.nativeEvent.error)}
+          />
+          <Pressable
+            style={styles.feedbackRemoveImageBtn}
+            onPress={() => removeFeedbackImage(idx)}
+            disabled={feedbackSubmitting}
+          >
+            <Text style={styles.feedbackRemoveImageText}>✕</Text>
+          </Pressable>
+        </View>
+      );
+    })}
+  </View>
+) : null}
               <View style={styles.feedbackEditActions}>
                 <Pressable
                   style={[styles.feedbackUpdateBtn, feedbackSubmitting && styles.feedbackBtnDisabled]}

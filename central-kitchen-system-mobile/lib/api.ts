@@ -510,22 +510,27 @@ export const feedbackApi = {
     request<FeedbackResponse>(`/api/feedback/${orderId}`, {
       headers: withAuth(token),
     }),
-  create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) => {
-    const body = createFeedbackFormData(payload);
-    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
-      method: "POST",
-      headers: withAuth(token),
-      body,
-    });
-  },
-  update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) => {
-    const body = createFeedbackFormData(payload);
-    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
-      method: "PUT",
-      headers: withAuth(token),
-      body,
-    });
-  },
+create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) => {
+  return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+    method: "POST",
+    headers: {
+      ...withAuth(token),
+      "Content-Type": "application/json",
+    },
+    // Gửi thẳng JSON, Backend (Controller mới) sẽ đọc trường payload.images
+    body: JSON.stringify(payload), 
+  });
+},
+update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) => {
+  return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+    method: "PUT", 
+    headers: {
+      ...withAuth(token),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+},
   delete: (orderId: string, token?: string | null) =>
     request<{ success: boolean; message?: string; data?: Record<string, unknown> }>(
       `/api/feedback/${orderId}`,
