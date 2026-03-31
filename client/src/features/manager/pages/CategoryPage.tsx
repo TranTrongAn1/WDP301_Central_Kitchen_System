@@ -370,13 +370,6 @@ export default function CategoryPage() {
                                       <p className="text-xs text-muted-foreground mb-1">Cập nhật lần cuối</p>
                                       <p className="font-semibold">{new Date(category.updatedAt).toLocaleString('vi-VN')}</p>
                                     </motion.div>
-                                    <motion.div
-                                      whileHover={{ scale: 1.02 }}
-                                      className="p-4 rounded-xl bg-background/50 dark:bg-white/5 border border-border/30"
-                                    >
-                                      <p className="text-xs text-muted-foreground mb-1">ID</p>
-                                      <p className="font-mono text-xs">{category._id}</p>
-                                    </motion.div>
                                   </div>
                                 </div>
                               </motion.div>

@@ -499,10 +499,6 @@ const ProductDetailPage = () => {
                                 <span className="text-muted-foreground">Cập nhật lần cuối</span>
                                 <span>{new Date(product.updatedAt).toLocaleDateString()}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Mã sản phẩm</span>
-                                <span className="font-mono text-xs">{product._id}</span>
-                            </div>
                         </CardContent>
                     </Card>
                 </div>

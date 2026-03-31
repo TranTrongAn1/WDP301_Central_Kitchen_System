@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { 
+  Loader2, Plus, Pencil, Trash2, AlertTriangle, 
+  X, Ban, MoreVertical, MapPin, Mail, Phone 
+} from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { Label } from '../components/ui/Label';
 import { supplierApi, type Supplier, type CreateSupplierRequest } from '@/api/SupplierApi';
 import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 import toast from 'react-hot-toast';
@@ -13,18 +18,18 @@ export default function SuppliersPage() {
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  
   const [modalOpen, setModalOpen] = useState<'create' | 'edit' | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ supplier: Supplier, type: 'soft' | 'permanent' } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null); 
+  
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const [form, setForm] = useState<CreateSupplierRequest>({
-    name: '',
-    contactPerson: '',
-    phone: '',
-    email: '',
-    address: '',
+  const [form, setForm] = useState<Partial<Supplier>>({
+    name: '', address: '', phone: '', email: '', status: 'Active',
   });
+  
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [permanentDeletingId, setPermanentDeletingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchSuppliers = async () => {
     try {
@@ -33,8 +38,7 @@ export default function SuppliersPage() {
       const data = (res as any)?.data ?? res ?? [];
       setSuppliers(Array.isArray(data) ? data : []);
     } catch {
-      toast.error('Không tải được danh sách nhà cung cấp.');
-      setSuppliers([]);
+      toast.error('Không tải được danh sách.');
     } finally {
       setLoading(false);
     }
@@ -42,208 +46,233 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     fetchSuppliers();
+    const closeMenu = () => setOpenMenuId(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
   }, []);
 
   const openCreate = () => {
     if (isManagerReadOnly) return;
     setEditing(null);
-    setForm({ name: '', contactPerson: '', phone: '', email: '', address: '' });
+    setForm({ name: '', address: '', phone: '', email: '', status: 'Active' });
     setModalOpen('create');
   };
 
   const openEdit = (s: Supplier) => {
     if (isManagerReadOnly) return;
     setEditing(s);
-    setForm({
-      name: s.name,
-      contactPerson: s.contactPerson ?? '',
-      phone: s.phone,
-      email: s.email,
-      address: s.address,
-    });
+    setForm({ name: s.name, address: s.address, phone: s.phone, email: s.email, status: s.status });
     setModalOpen('edit');
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isManagerReadOnly) {
-      toast.error('Manager chỉ được xem, không được chỉnh sửa nhà cung cấp.');
-      return;
-    }
-    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
-      toast.error('Điền đủ Tên, SĐT, Email.');
-      return;
-    }
     setSaving(true);
     try {
       if (editing) {
         await supplierApi.update(editing._id, form);
-        toast.success('Đã cập nhật nhà cung cấp.');
+        toast.success('Đã cập nhật');
       } else {
-        await supplierApi.create(form);
-        toast.success('Đã thêm nhà cung cấp.');
+        await supplierApi.create(form as CreateSupplierRequest);
+        toast.success('Đã thêm mới');
       }
       setModalOpen(null);
-      setEditing(null);
       fetchSuppliers();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Lỗi lưu.');
+      toast.error(err?.response?.data?.message || 'Lỗi xử lý');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (isManagerReadOnly) {
-      toast.error('Manager không được phép xóa nhà cung cấp.');
-      return;
-    }
-    if (!window.confirm('Xóa nhà cung cấp này? (soft-delete)')) return;
-    setDeletingId(id);
+  const handleConfirmAction = async () => {
+    if (!confirmModal) return;
+    setProcessingId(confirmModal.supplier._id);
     try {
-      await supplierApi.delete(id);
-      toast.success('Đã xóa.');
-      setSuppliers((prev) => prev.filter((s) => s._id !== id));
+      if (confirmModal.type === 'soft') {
+        await supplierApi.update(confirmModal.supplier._id, { status: 'Inactive' });
+        toast.success('Đã dừng hoạt động');
+      } else {
+        await supplierApi.deletePermanent(confirmModal.supplier._id);
+        toast.success('Đã xóa vĩnh viễn');
+      }
+      setConfirmModal(null);
+      fetchSuppliers();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Không xóa được.');
+      toast.error('Thao tác thất bại');
     } finally {
-      setDeletingId(null);
+      setProcessingId(null);
     }
   };
 
-  const handleDeletePermanent = async (id: string) => {
-    if (isManagerReadOnly) {
-      toast.error('Manager không được phép xóa vĩnh viễn nhà cung cấp.');
-      return;
-    }
-    if (!window.confirm('XÓA VĨNH VIỄN nhà cung cấp? Không thể khôi phục.')) return;
-    setPermanentDeletingId(id);
-    try {
-      await supplierApi.deletePermanent(id);
-      toast.success('Đã xóa vĩnh viễn.');
-      setSuppliers((prev) => prev.filter((s) => s._id !== id));
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Không xóa được.');
-    } finally {
-      setPermanentDeletingId(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[320px] gap-2 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin" /> Đang tải...
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 p-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Nhà cung cấp</h1>
-          <p className="text-sm text-muted-foreground mt-1">Tổng: {suppliers.length}</p>
+          <h1 className="text-2xl font-bold">Nhà cung cấp</h1>
+          <p className="text-sm text-muted-foreground">Quản lý đối tác cung ứng nguyên liệu</p>
         </div>
-        <Button onClick={openCreate} disabled={isManagerReadOnly}>
-          <Plus className="w-4 h-4 mr-2" /> Thêm nhà cung cấp
+        <Button onClick={openCreate} disabled={isManagerReadOnly} className="bg-orange-500 hover:bg-orange-600">
+          <Plus className="mr-2 h-4 w-4" /> Thêm nhà cung cấp
         </Button>
       </div>
 
-      <Card>
+      <Card className="overflow-visible"> {/* Để overflow-visible cho dropdown không bị cắt */}
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="border-b bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Tên</th>
-                  <th className="px-4 py-3 font-semibold">Liên hệ</th>
-                  <th className="px-4 py-3 font-semibold">SĐT / Email</th>
-                  <th className="px-4 py-3 font-semibold">Địa chỉ</th>
-                  <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {suppliers.map((s) => (
-                  <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
-                    <td className="px-4 py-3">{s.contactPerson || '—'}</td>
-                    <td className="px-4 py-3">{s.phone} · {s.email}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{s.address || '—'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(s)}
-                        disabled={isManagerReadOnly}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        disabled={isManagerReadOnly || deletingId === s._id}
-                        onClick={() => handleDelete(s._id)}
-                      >
-                        {deletingId === s._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          disabled={permanentDeletingId === s._id}
-                          onClick={() => handleDeletePermanent(s._id)}
-                          title="Xóa vĩnh viễn (chỉ Admin)"
-                        >
-                          {permanentDeletingId === s._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                        </Button>
-                      )}
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                <th className="px-6 py-4 font-semibold">Tên đơn vị</th>
+                <th className="px-6 py-4 font-semibold text-center">Liên lạc</th>
+                <th className="px-6 py-4 font-semibold">Địa chỉ</th>
+                <th className="px-6 py-4 font-semibold text-center">Trạng thái</th>
+                <th className="px-6 py-4 font-semibold text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {suppliers.map((s, index) => {
+                const isInactive = s.status === 'Inactive';
+                // Nếu là 2 dòng cuối cùng, đẩy dropdown lên trên
+                const isLastRows = index >= suppliers.length - 2 && suppliers.length > 2;
+
+                return (
+                  <tr key={s._id} className={`hover:bg-slate-50/50 transition-colors`}>
+                    <td className={`px-6 py-4 font-medium text-slate-900 ${isInactive ? 'opacity-40' : ''}`}>{s.name}</td>
+                    <td className={`px-6 py-4 ${isInactive ? 'opacity-40' : ''}`}>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center text-slate-600"><Phone className="w-3 h-3 mr-2" /> {s.phone}</div>
+                        <div className="flex items-center text-slate-400 text-xs"><Mail className="w-3 h-3 mr-2" /> {s.email}</div>
                       </div>
                     </td>
+                    <td className={`px-6 py-4 ${isInactive ? 'opacity-40' : ''}`}>
+                      {/* TOOLTIP ĐỊA CHỈ */}
+                      <div className="group relative flex items-start text-slate-500 max-w-[250px] cursor-help">
+                        <MapPin className="w-3 h-3 mr-2 mt-1 flex-shrink-0" />
+                        <span className="truncate">{s.address}</span>
+                        
+                        {/* Bubble Tooltip */}
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-xl animate-in fade-in slide-in-from-bottom-1">
+                          {s.address}
+                          <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-800" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className={`px-6 py-4 text-center ${isInactive ? 'opacity-40' : ''}`}>
+                      <Badge className={s.status === 'Active' ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-600"}>
+                        {s.status === 'Active' ? 'Đang dùng' : 'Tắt'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right relative">
+                      {/* Nút thao tác không bị mờ */}
+                      <Button
+                        variant="ghost" size="sm"
+                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === s._id ? null : s._id); }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+
+                      {/* DROPDOWN MENU */}
+                      {openMenuId === s._id && (
+                        <div className={`absolute right-10 ${isLastRows ? 'bottom-full mb-2' : 'top-12'} z-[100] w-40 rounded-md border bg-white shadow-xl animate-in fade-in zoom-in duration-100 text-left`}>
+                          <div className="py-1">
+                            <button onClick={() => openEdit(s)} className="flex w-full items-center px-4 py-2 hover:bg-slate-100 transition-colors">
+                              <Pencil className="mr-2 h-4 w-4 text-blue-500" /> Sửa
+                            </button>
+                            {s.status === 'Active' && (
+                              <button 
+                                onClick={() => setConfirmModal({ supplier: s, type: 'soft' })}
+                                className="flex w-full items-center px-4 py-2 text-orange-600 hover:bg-orange-50 transition-colors"
+                              >
+                                <Ban className="mr-2 h-4 w-4" /> Ngưng dùng
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button 
+                                onClick={() => setConfirmModal({ supplier: s, type: 'permanent' })}
+                                className="flex w-full items-center px-4 py-2 text-red-600 hover:bg-red-50 border-t"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Xóa vĩnh viễn
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {suppliers.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground">Chưa có nhà cung cấp.</div>
-          )}
+                );
+              })}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
 
+      {/* MODAL THÊM / SỬA */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !saving && setModalOpen(null)}>
-          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
             <CardContent className="p-6">
-              <h2 className="text-lg font-bold mb-4">{editing ? 'Sửa nhà cung cấp' : 'Thêm nhà cung cấp'}</h2>
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tên *</label>
-                  <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">{editing ? 'Sửa nhà cung cấp' : 'Thêm nhà cung cấp'}</h2>
+                <X className="cursor-pointer text-slate-400 hover:text-slate-600" onClick={() => setModalOpen(null)} />
+              </div>
+              <form onSubmit={handleSave} className="space-y-4 text-left">
+                <div className="space-y-1">
+                  <Label>Tên đơn vị *</Label>
+                  <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="VD: Công ty thực phẩm sạch" required />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Người liên hệ</label>
-                  <Input value={form.contactPerson} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Số điện thoại *</Label>
+                    <Input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} placeholder="09xxxxxxx" required />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Email *</Label>
+                    <Input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} placeholder="ncc@example.com" required />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Số điện thoại *</label>
-                  <Input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} required />
+                <div className="space-y-1">
+                  <Label>Địa chỉ chi tiết *</Label>
+                  <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} placeholder="Số nhà, tên đường..." required />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email *</label>
-                  <Input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Địa chỉ *</label>
-                  <Input value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} required />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setModalOpen(null)} disabled={saving}>Hủy</Button>
-                  <Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</Button>
+                
+                <div className="flex gap-2 pt-4">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>Hủy</Button>
+                  <Button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white" disabled={saving}>
+                    {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                    {saving ? 'Đang lưu...' : 'Lưu dữ liệu'}
+                  </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="p-6 text-center">
+              <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${confirmModal.type === 'soft' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
+                {confirmModal.type === 'soft' ? <Ban className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+              </div>
+              <h3 className="text-lg font-bold">{confirmModal.type === 'soft' ? 'Ngưng hợp tác?' : 'Xóa vĩnh viễn?'}</h3>
+              <p className="text-sm text-slate-500 mt-2">Xác nhận thực hiện hành động này cho <b>{confirmModal.supplier.name}</b>?</p>
+              <div className="flex gap-3 mt-6">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmModal(null)}>Hủy</Button>
+                <Button 
+                  className={`flex-1 ${confirmModal.type === 'soft' ? 'bg-orange-500' : 'bg-red-600'}`}
+                  onClick={handleConfirmAction} disabled={!!processingId}
+                >
+                  {processingId ? <Loader2 className="animate-spin h-4 w-4" /> : 'Xác nhận'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

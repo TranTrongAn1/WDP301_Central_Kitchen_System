@@ -26,6 +26,7 @@ export interface UpdateSupplierRequest {
     phone?: string;
     email?: string;
     address?: string;
+    status?: 'Active' | 'Inactive';
 }
 
 export interface ApiResponse<T> {
