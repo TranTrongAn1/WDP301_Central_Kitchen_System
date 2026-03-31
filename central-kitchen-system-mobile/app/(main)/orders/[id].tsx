@@ -32,7 +32,7 @@ import type { Invoice } from "@/lib/invoices";
 import { getOrderPricingBreakdown } from "@/lib/order-pricing";
 import type { Order, OrderItem } from "@/lib/orders";
 import { getOrderStatusLabel } from "@/lib/status-labels";
-
+import { uploadToCloudinary } from "../../utils/cloudinary"
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
   const date = new Date(iso);
@@ -300,22 +300,35 @@ export default function OrderDetailScreen() {
     );
   };
 
-  const handleSubmitFeedback = async () => {
-    if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
-    setFeedbackSubmitting(true);
-    try {
-      await createFeedback({
-        rating: feedbackRating,
-        content: feedbackContent.trim() || undefined,
-        tags: feedbackTags.length ? feedbackTags : undefined,
-        imageFiles: feedbackImages.length ? feedbackImages : undefined,
-      });
-      setFeedbackContent("");
-      setFeedbackRating(5);
-      setFeedbackTags([]);
-      setFeedbackImages([]);
-      showToast("Đã gửi đánh giá.");
-    } catch (e) {
+const handleSubmitFeedback = async () => {
+  if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
+  setFeedbackSubmitting(true);
+
+  try {
+    // --- BƯỚC 1: UPLOAD ẢNH LÊN CLOUDINARY ---
+    let finalUrls: string[] = [];
+    if (feedbackImages.length > 0) {
+      const uploadPromises = feedbackImages.map(img => uploadToCloudinary(img));
+      const results = await Promise.all(uploadPromises);
+      finalUrls = results.filter((url): url is string => url !== null);
+    }
+
+    // --- BƯỚC 2: GỬI DATA CHO BACKEND ---
+    await createFeedback({
+      rating: feedbackRating,
+      content: feedbackContent.trim() || undefined,
+      tags: feedbackTags.length ? feedbackTags : undefined,
+      // Lưu ý: Đổi tên field thành 'images' (mảng string URL) nếu Backend yêu cầu URL
+      images: finalUrls.length ? finalUrls : undefined, 
+    });
+    console.log("url: ", createFeedback)
+    // Reset form như cũ
+    setFeedbackContent("");
+    setFeedbackRating(5);
+    setFeedbackTags([]);
+    setFeedbackImages([]);
+    showToast("Đã gửi đánh giá.");
+  } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 400) {
         showToast(err.message ?? "Đơn chưa nhận hoặc đã có đánh giá.", "error");
@@ -327,20 +340,42 @@ export default function OrderDetailScreen() {
     }
   };
 
-  const handleUpdateFeedback = async () => {
-    if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
-    setFeedbackSubmitting(true);
-    try {
-      await updateFeedback({
-        rating: feedbackRating,
-        content: feedbackContent.trim() || undefined,
-        tags: feedbackTags.length ? feedbackTags : undefined,
-        imageFiles: feedbackImages.length ? feedbackImages : undefined,
-      });
-      setFeedbackEditMode(false);
-      setFeedbackImages([]);
-      showToast("Đã cập nhật đánh giá.");
+const handleUpdateFeedback = async () => {
+  if (!orderId || !token || feedbackRating < 1 || feedbackRating > 5) return;
+  setFeedbackSubmitting(true);
+  try {
+    let finalUrls: string[] = [];
+    
+    // Nếu feedbackImages chứa các file mới chọn từ thư viện
+    if (feedbackImages.length > 0) {
+      const uploadPromises = feedbackImages.map(img => uploadToCloudinary(img));
+      const results = await Promise.all(uploadPromises);
+      finalUrls = results.filter((url): url is string => url !== null);
+    }
+
+    await updateFeedback({
+      rating: feedbackRating,
+      content: feedbackContent.trim() || undefined,
+      tags: feedbackTags.length ? feedbackTags : undefined,
+      images: finalUrls.length ? finalUrls : undefined,
+    });
+   console.log("--- Bắt đầu Update ---"); 
+  
+  try {
+    const result = await updateFeedback({
+      rating: feedbackRating,
+      content: feedbackContent,
+      images: finalUrls,
+    });
+
+    console.log("Kết quả từ Server trả về: ", result);
     } catch (e) {
+    console.log("Lỗi rồi: ", e);
+  }
+    setFeedbackEditMode(false);
+    setFeedbackImages([]);
+    showToast("Đã cập nhật đánh giá.");
+  } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 403) {
         showToast("Bạn không có quyền sửa đánh giá này.", "error");
