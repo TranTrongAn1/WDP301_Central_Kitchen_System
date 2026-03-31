@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: "Tổng quan", path: "/coordinator/dashboard", end: true },
   { icon: ClipboardList, label: "Đơn cửa hàng", path: "/coordinator/orders", end: false },
   { icon: Truck, label: "Chuyến giao", path: "/coordinator/shipments", end: false },
-  { icon: Package, label: "Kế hoạch sản xuất", path: "/coordinator/production", end: false },
+  { icon: Package, label: "Kế hoạch sản xuất", path: "/coordinator/production", end: true },
   { icon: ShoppingCart, label: "Phiếu xin mua", path: "/coordinator/ingredient-requests", end: true },
 ];
 
