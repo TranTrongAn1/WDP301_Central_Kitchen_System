@@ -70,9 +70,9 @@ function AuthGate() {
       // Điều hướng theo role: Kitchen → Đơn sản xuất, Store → Bán hàng
       const role = user?.role;
       if (role === "KitchenStaff") {
-        router.replace("/(tabs)/kitchen-orders");
+        router.replace("/(main)/(tabs)/kitchen-orders");
       } else {
-        router.replace("/(tabs)/products");
+        router.replace("/(main)/(tabs)/products");
       }
     }
   }, [isLoading, logout, router, segments, token, user]);
