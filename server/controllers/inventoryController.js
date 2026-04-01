@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const StoreInventory = require('../models/StoreInventory');
 const Store = require('../models/Store');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
 const getStoreInventory = async (req, res, next) => {
   try {
     const { storeId } = req.params;
@@ -136,8 +137,30 @@ const sellProducts = async (req, res, next) => {
     }
 
     const soldDetails = [];
+    const flattenedItems = [];
 
     for (const item of items) {
+      if (!item.productId || !item.quantity || item.quantity <= 0) {
+        res.status(400);
+        throw new Error('Each item must include productId and quantity > 0');
+      }
+
+      const product = await Product.findById(item.productId).populate('bundleItems.childProductId').session(session);
+
+      if (product && product.bundleItems && product.bundleItems.length > 0) {
+        for (const child of product.bundleItems) {
+          flattenedItems.push({ 
+            productId: child.childProductId._id.toString(), 
+            quantity: child.quantity * item.quantity, 
+            batchId: null 
+          });
+        }
+      } else {
+        flattenedItems.push(item);
+      }
+    }
+
+    for (const item of flattenedItems) {
       const { productId, quantity, batchId } = item || {};
 
       if (!productId || !quantity || quantity <= 0) {
