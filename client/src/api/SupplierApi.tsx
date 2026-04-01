@@ -55,4 +55,9 @@ export const supplierApi = {
     /** Xóa vĩnh viễn – chỉ Admin */
     deletePermanent: (id: string) =>
         apiClient.delete<ApiResponse<null>>(`/suppliers/${id}/permanent`),
+    /** * Kích hoạt lại nhà cung cấp 
+     * Method: PATCH theo cấu hình Route mới
+     */
+    reactivate: (id: string) =>
+        apiClient.patch<ApiResponse<Supplier>>(`/suppliers/${id}/reactivate`),
 };

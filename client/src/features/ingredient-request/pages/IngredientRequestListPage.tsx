@@ -40,13 +40,12 @@ function StatusBadge({ status }: { status: IngredientRequestStatus }) {
   };
   const c = map[status] ?? { variant: 'secondary', label: status, icon: 'help' };
   return (
-    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
-      status === 'PENDING' ? 'bg-amber-500 text-white border-amber-600' :
-      status === 'APPROVED' ? 'bg-blue-500 text-white border-blue-600' :
-      status === 'REJECTED' ? 'bg-red-500 text-white border-red-600' :
-      status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600' :
-      'bg-slate-500 text-white border-slate-600'
-    }`}>
+    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${status === 'PENDING' ? 'bg-amber-500 text-white border-amber-600' :
+        status === 'APPROVED' ? 'bg-blue-500 text-white border-blue-600' :
+          status === 'REJECTED' ? 'bg-red-500 text-white border-red-600' :
+            status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600' :
+              'bg-slate-500 text-white border-slate-600'
+      }`}>
       <span className="material-symbols-outlined text-[12px]">{c.icon}</span>
       {c.label}
     </div>
@@ -56,11 +55,10 @@ function StatusBadge({ status }: { status: IngredientRequestStatus }) {
 function RequestTypeBadge({ type }: { type: 'URGENT' | 'PLANNED' }) {
   const isUrgent = type === 'URGENT';
   return (
-    <div className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border w-fit uppercase tracking-tight flex items-center gap-1 ${
-      isUrgent
+    <div className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border w-fit uppercase tracking-tight flex items-center gap-1 ${isUrgent
         ? 'bg-red-500 text-white border-red-600'
         : 'bg-amber-500 text-white border-amber-600'
-    }`}>
+      }`}>
       <span className="material-symbols-outlined text-[10px]">{isUrgent ? 'priority_high' : 'event'}</span>
       {isUrgent ? 'Mua Gấp' : 'Kế Hoạch'}
     </div>
@@ -290,11 +288,10 @@ export default function IngredientRequestListPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Tìm kiếm nguyên liệu, mã phiếu..."
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm ${
-                darkMode
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm ${darkMode
                   ? 'bg-muted border-border text-white placeholder-muted-foreground'
                   : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-              } focus:ring-2 focus:ring-primary/25 outline-none`}
+                } focus:ring-2 focus:ring-primary/25 outline-none`}
             />
             {searchTerm && (
               <button
@@ -312,8 +309,7 @@ export default function IngredientRequestListPage() {
               <button
                 key={type}
                 onClick={() => setTypeFilter(type)}
-                className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                  typeFilter === type
+                className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${typeFilter === type
                     ? type === 'URGENT'
                       ? 'bg-red-500/10 border-red-300 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                       : type === 'PLANNED'
@@ -322,7 +318,7 @@ export default function IngredientRequestListPage() {
                     : darkMode
                       ? 'bg-muted border-border text-muted-foreground hover:border-border/80'
                       : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {type === 'ALL' ? 'Tất cả' : type === 'URGENT' ? 'Mua gấp' : 'Kế hoạch'}
               </button>
@@ -332,15 +328,14 @@ export default function IngredientRequestListPage() {
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2 ${
-              showFilters
+            className={`px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2 ${showFilters
                 ? darkMode
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'bg-orange-50 border-orange-300 text-orange-800'
                 : darkMode
                   ? 'bg-muted border-border text-foreground'
                   : 'bg-gray-50 border-gray-200 text-gray-700'
-            }`}
+              }`}
           >
             <Filter className="w-4 h-4" />
             Lọc theo trạng thái
@@ -366,27 +361,25 @@ export default function IngredientRequestListPage() {
                 <button
                   key={opt.value}
                   onClick={() => setStatusFilter(opt.value)}
-                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                    statusFilter === opt.value
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${statusFilter === opt.value
                       ? 'bg-primary/15 border-orange-400/50 text-orange-800 dark:bg-primary/20 dark:text-primary dark:border-primary/40'
                       : darkMode
                         ? 'bg-muted border-border text-muted-foreground hover:border-border/80'
                         : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   {opt.label}
                   {opt.value !== 'ALL' && (
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                      statusFilter === opt.value
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${statusFilter === opt.value
                         ? 'bg-orange-200 text-orange-900 dark:bg-primary/30 dark:text-primary'
                         : darkMode
                           ? 'bg-gray-700 text-gray-400'
                           : 'bg-gray-200 text-gray-600'
-                    }`}>
+                      }`}>
                       {opt.value === 'PENDING' ? stats.pending :
-                       opt.value === 'APPROVED' ? stats.approved :
-                       opt.value === 'COMPLETED' ? stats.completed :
-                       opt.value === 'REJECTED' ? stats.rejected : 0}
+                        opt.value === 'APPROVED' ? stats.approved :
+                          opt.value === 'COMPLETED' ? stats.completed :
+                            opt.value === 'REJECTED' ? stats.rejected : 0}
                     </span>
                   )}
                 </button>
@@ -492,33 +485,30 @@ export default function IngredientRequestListPage() {
                       {/* Timeline */}
                       <td className="px-4 py-4">
                         <div className="flex flex-col gap-2 items-center">
-                          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${
-                            req.neededByDate
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${req.neededByDate
                               ? darkMode
                                 ? 'bg-orange-500/10 text-orange-400 border-orange-500/30'
                                 : 'bg-orange-50 text-orange-600 border-orange-200'
                               : darkMode
                                 ? 'bg-gray-700 text-gray-500 border-gray-600'
                                 : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}>
+                            }`}>
                             <Clock className="w-3.5 h-3.5" />
                             CẦN: {req.neededByDate ? formatDate(req.neededByDate) : '--'}
                           </div>
                           {req.expectedDeliveryDate && (
-                            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${
-                              darkMode
+                            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${darkMode
                                 ? 'bg-teal-500/10 text-teal-400 border-teal-500/30'
                                 : 'bg-teal-50 text-teal-700 border-teal-200'
-                            }`}>
+                              }`}>
                               <TruckIcon className="w-3.5 h-3.5" />
                               GIAO: {formatDate(req.expectedDeliveryDate)}
                             </div>
                           )}
-                          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${
-                            darkMode
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${darkMode
                               ? 'bg-gray-700 text-gray-400 border-gray-600'
                               : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}>
+                            }`}>
                             <Calendar className="w-3.5 h-3.5" />
                             TẠO: {formatDate(req.createdAt)}
                           </div>
@@ -527,9 +517,42 @@ export default function IngredientRequestListPage() {
 
                       {/* Note */}
                       <td className="px-4 py-4">
-                        <p className={`text-sm italic max-w-[200px] truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {req.note || <span className={`${darkMode ? 'text-gray-600' : 'text-gray-300'}`}>—</span>}
-                        </p>
+                        <div className="group relative flex items-center max-w-[200px]">
+                          <p
+                            className={`text-sm italic truncate cursor-help ${darkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}
+                          >
+                            {req.note || <span className={`${darkMode ? 'text-gray-600' : 'text-gray-300'}`}>—</span>}
+                          </p>
+
+                          {/* BUBBLE TOOLTIP KHI HOVER */}
+                          {req.note && (
+                            <div className={`absolute bottom-full left-0 mb-2 hidden group-hover:block z-[100] w-64 p-3 rounded-xl shadow-2xl animate-in fade-in zoom-in slide-in-from-bottom-2 border ${darkMode
+                                ? 'bg-slate-800 text-slate-200 border-slate-700'
+                                : 'bg-white text-slate-700 border-slate-200'
+                              }`}>
+                              <div className="flex items-start gap-2">
+                                <div className={`p-1 rounded-md shrink-0 ${darkMode ? 'bg-orange-500/20' : 'bg-orange-50'}`}>
+                                  <ClipboardList className={`w-3.5 h-3.5 ${darkMode ? 'text-orange-400' : 'text-orange-600'}`} />
+                                </div>
+                                <div className="space-y-1">
+                                  <p className={`text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                    Ghi chú chi tiết
+                                  </p>
+                                  <p className="text-xs leading-relaxed whitespace-normal break-words font-medium">
+                                    {req.note}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Mũi tên nhọn phía dưới bubble */}
+                              <div className={`absolute top-full left-4 border-8 border-transparent ${darkMode ? 'border-t-slate-800' : 'border-t-white'
+                                }`} />
+                              <div className={`absolute top-[calc(100%+1px)] left-4 border-8 border-transparent ${darkMode ? 'border-t-slate-700' : 'border-t-slate-200'
+                                } -z-10`} />
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -539,11 +562,10 @@ export default function IngredientRequestListPage() {
                           {req.status === 'PENDING' && canApproveReject && (
                             <>
                               <button
-                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${
-                                  req.requestType === 'URGENT'
+                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${req.requestType === 'URGENT'
                                     ? 'border-red-500/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10'
                                     : 'border-green-500/50 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10'
-                                } ${darkMode ? 'bg-muted' : 'bg-white'}`}
+                                  } ${darkMode ? 'bg-muted' : 'bg-white'}`}
                                 onClick={() => handleApprove(req._id)}
                                 disabled={actionId === req._id}
                               >
@@ -555,11 +577,10 @@ export default function IngredientRequestListPage() {
                                 Duyệt
                               </button>
                               <button
-                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${
-                                  darkMode
+                                className={`px-4 py-2 text-xs font-bold border rounded-lg transition-all flex items-center gap-1.5 ${darkMode
                                     ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
                                     : 'border-red-200 text-red-600 hover:bg-red-50'
-                                } ${darkMode ? 'bg-muted' : 'bg-white'}`}
+                                  } ${darkMode ? 'bg-muted' : 'bg-white'}`}
                                 onClick={() => handleReject(req._id)}
                                 disabled={actionId === req._id}
                               >
@@ -586,11 +607,10 @@ export default function IngredientRequestListPage() {
 
                           {/* COMPLETED */}
                           {req.status === 'COMPLETED' && (
-                            <div className={`flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg border ${
-                              darkMode
+                            <div className={`flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg border ${darkMode
                                 ? 'bg-green-500/10 text-green-400 border-green-500/30'
                                 : 'bg-green-50 text-green-600 border-green-200'
-                            }`}>
+                              }`}>
                               <CheckCircle2 className="w-3 h-3" />
                               Hoàn tất
                             </div>

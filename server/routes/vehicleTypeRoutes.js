@@ -7,6 +7,7 @@ const {
   getVehicleTypeById,
   updateVehicleType,
   deleteVehicleType,
+  reactivateVehicleType,
 } = require('../controllers/vehicleTypeController');
 
 const { protect, authorize } = require('../middleware/authMiddleware');
@@ -26,5 +27,5 @@ router.post('/', authorize('Admin', 'Manager'), createVehicleType);
 router.get('/:id', getVehicleTypeById);
 router.put('/:id', authorize('Admin', 'Manager'), updateVehicleType);
 router.delete('/:id', authorize('Admin', 'Manager'), deleteVehicleType);
-
+router.patch('/:id/reactivate', authorize('Admin', 'Manager'), reactivateVehicleType);
 module.exports = router;

@@ -221,7 +221,6 @@ export function CompleteRequestDialog({
               {suppliers.map((s) => (
                 <option key={s._id} value={s._id}>{s.name}</option>
               ))}
-              <option value="external" className={darkMode ? 'text-green-400 font-bold' : 'text-green-600 font-bold'}>+ Mua lẻ bên ngoài</option>
             </select>
           </div>
 
@@ -266,6 +265,7 @@ export function CompleteRequestDialog({
               value={receivedDate}
               onChange={(e) => setReceivedDate(e.target.value)}
               required
+              min={new Date().toISOString().split("T")[0]}
               className={darkMode ? 'bg-[#252530] border-gray-700 text-white' : ''}
             />
           </div>

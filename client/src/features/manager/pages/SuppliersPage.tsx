@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Loader2, Plus, Pencil, Trash2, AlertTriangle, 
-  X, Ban, MoreVertical, MapPin, Mail, Phone 
+  X, Ban, MoreVertical, MapPin, Mail, Phone, CheckCircle 
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -20,7 +20,8 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   
   const [modalOpen, setModalOpen] = useState<'create' | 'edit' | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{ supplier: Supplier, type: 'soft' | 'permanent' } | null>(null);
+  // Cập nhật type để hỗ trợ 'reactivate'
+  const [confirmModal, setConfirmModal] = useState<{ supplier: Supplier, type: 'soft' | 'permanent' | 'reactivate' } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null); 
   
   const [editing, setEditing] = useState<Supplier | null>(null);
@@ -91,7 +92,11 @@ export default function SuppliersPage() {
     try {
       if (confirmModal.type === 'soft') {
         await supplierApi.update(confirmModal.supplier._id, { status: 'Inactive' });
-        toast.success('Đã dừng hoạt động');
+        toast.success('Đã ngưng hoạt động');
+      } else if (confirmModal.type === 'reactivate') {
+        // GỌI API KÍCH HOẠT LẠI
+        await supplierApi.reactivate(confirmModal.supplier._id);
+        toast.success('Đã kích hoạt lại nhà cung cấp');
       } else {
         await supplierApi.deletePermanent(confirmModal.supplier._id);
         toast.success('Đã xóa vĩnh viễn');
@@ -99,7 +104,7 @@ export default function SuppliersPage() {
       setConfirmModal(null);
       fetchSuppliers();
     } catch (err: any) {
-      toast.error('Thao tác thất bại');
+      toast.error(err?.response?.data?.message || 'Thao tác thất bại');
     } finally {
       setProcessingId(null);
     }
@@ -123,7 +128,7 @@ export default function SuppliersPage() {
         </Button>
       </div>
 
-      <Card className="overflow-visible"> {/* Để overflow-visible cho dropdown không bị cắt */}
+      <Card className="overflow-visible">
         <CardContent className="p-0">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 border-b">
@@ -138,7 +143,6 @@ export default function SuppliersPage() {
             <tbody className="divide-y">
               {suppliers.map((s, index) => {
                 const isInactive = s.status === 'Inactive';
-                // Nếu là 2 dòng cuối cùng, đẩy dropdown lên trên
                 const isLastRows = index >= suppliers.length - 2 && suppliers.length > 2;
 
                 return (
@@ -151,12 +155,9 @@ export default function SuppliersPage() {
                       </div>
                     </td>
                     <td className={`px-6 py-4 ${isInactive ? 'opacity-40' : ''}`}>
-                      {/* TOOLTIP ĐỊA CHỈ */}
                       <div className="group relative flex items-start text-slate-500 max-w-[250px] cursor-help">
                         <MapPin className="w-3 h-3 mr-2 mt-1 flex-shrink-0" />
                         <span className="truncate">{s.address}</span>
-                        
-                        {/* Bubble Tooltip */}
                         <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-xl animate-in fade-in slide-in-from-bottom-1">
                           {s.address}
                           <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-800" />
@@ -169,7 +170,6 @@ export default function SuppliersPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right relative">
-                      {/* Nút thao tác không bị mờ */}
                       <Button
                         variant="ghost" size="sm"
                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === s._id ? null : s._id); }}
@@ -177,14 +177,22 @@ export default function SuppliersPage() {
                         <MoreVertical className="h-4 w-4" />
                       </Button>
 
-                      {/* DROPDOWN MENU */}
                       {openMenuId === s._id && (
                         <div className={`absolute right-10 ${isLastRows ? 'bottom-full mb-2' : 'top-12'} z-[100] w-40 rounded-md border bg-white shadow-xl animate-in fade-in zoom-in duration-100 text-left`}>
                           <div className="py-1">
-                            <button onClick={() => openEdit(s)} className="flex w-full items-center px-4 py-2 hover:bg-slate-100 transition-colors">
+                            <button onClick={() => openEdit(s)} className="flex w-full items-center px-4 py-2 hover:bg-slate-100 transition-colors text-slate-700">
                               <Pencil className="mr-2 h-4 w-4 text-blue-500" /> Sửa
                             </button>
-                            {s.status === 'Active' && (
+                            
+                            {/* NÚT KÍCH HOẠT LẠI (NẾU ĐANG TẮT) */}
+                            {isInactive ? (
+                              <button 
+                                onClick={() => setConfirmModal({ supplier: s, type: 'reactivate' })}
+                                className="flex w-full items-center px-4 py-2 text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" /> Kích hoạt lại
+                              </button>
+                            ) : (
                               <button 
                                 onClick={() => setConfirmModal({ supplier: s, type: 'soft' })}
                                 className="flex w-full items-center px-4 py-2 text-orange-600 hover:bg-orange-50 transition-colors"
@@ -192,10 +200,11 @@ export default function SuppliersPage() {
                                 <Ban className="mr-2 h-4 w-4" /> Ngưng dùng
                               </button>
                             )}
+
                             {isAdmin && (
                               <button 
                                 onClick={() => setConfirmModal({ supplier: s, type: 'permanent' })}
-                                className="flex w-full items-center px-4 py-2 text-red-600 hover:bg-red-50 border-t"
+                                className="flex w-full items-center px-4 py-2 text-red-600 hover:bg-red-50 border-t mt-1"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Xóa vĩnh viễn
                               </button>
@@ -254,20 +263,34 @@ export default function SuppliersPage() {
         </div>
       )}
 
-      {/* CONFIRM MODAL */}
+      {/* CONFIRM MODAL (Hỗ trợ cả ngưng dùng, xóa và kích hoạt lại) */}
       {confirmModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-sm">
+          <Card className="w-full max-w-sm shadow-2xl animate-in zoom-in duration-200">
             <CardContent className="p-6 text-center">
-              <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${confirmModal.type === 'soft' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
-                {confirmModal.type === 'soft' ? <Ban className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+              <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 
+                ${confirmModal.type === 'soft' ? 'bg-orange-100 text-orange-600' : 
+                  confirmModal.type === 'reactivate' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                {confirmModal.type === 'soft' ? <Ban className="h-6 w-6" /> : 
+                 confirmModal.type === 'reactivate' ? <CheckCircle className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
               </div>
-              <h3 className="text-lg font-bold">{confirmModal.type === 'soft' ? 'Ngưng hợp tác?' : 'Xóa vĩnh viễn?'}</h3>
-              <p className="text-sm text-slate-500 mt-2">Xác nhận thực hiện hành động này cho <b>{confirmModal.supplier.name}</b>?</p>
+              
+              <h3 className="text-lg font-bold">
+                {confirmModal.type === 'soft' ? 'Ngưng hợp tác?' : 
+                 confirmModal.type === 'reactivate' ? 'Kích hoạt lại?' : 'Xóa vĩnh viễn?'}
+              </h3>
+              
+              <p className="text-sm text-slate-500 mt-2">
+                {confirmModal.type === 'reactivate' 
+                  ? `Nhà cung cấp "${confirmModal.supplier.name}" sẽ được phép hoạt động trở lại.`
+                  : `Xác nhận thực hiện hành động này cho "${confirmModal.supplier.name}"?`}
+              </p>
+
               <div className="flex gap-3 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => setConfirmModal(null)}>Hủy</Button>
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmModal(null)}>Quay lại</Button>
                 <Button 
-                  className={`flex-1 ${confirmModal.type === 'soft' ? 'bg-orange-500' : 'bg-red-600'}`}
+                  className={`flex-1 ${confirmModal.type === 'soft' ? 'bg-orange-500' : 
+                                    confirmModal.type === 'reactivate' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600'}`}
                   onClick={handleConfirmAction} disabled={!!processingId}
                 >
                   {processingId ? <Loader2 className="animate-spin h-4 w-4" /> : 'Xác nhận'}
