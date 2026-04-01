@@ -34,23 +34,19 @@ export default function VehicleTypesPage() {
   
   const [saving, setSaving] = useState(false);
 
-  const fetchList = async () => {
-    try {
-      setLoading(true);
-      
-      /** * Ép kiểu hàm getAll sang 'any' để truyền được tham số 
-       * mà không cần sửa định nghĩa trong file VehicleApi.ts
-       */
-      const res = await (vehicleApi.getAll as any)({ all: true });
-      
-      const data = res?.data ?? res ?? [];
-      setList(Array.isArray(data) ? data : []);
-    } catch {
-      toast.error('Không tải được danh sách loại xe.');
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchList = async () => {
+  try {
+    setLoading(true);
+    const res = await vehicleApi.getAll(); 
+    
+    const data = (res as any)?.data ?? res ?? [];
+    setList(Array.isArray(data) ? data : []);
+  } catch {
+    toast.error('Không tải được danh sách loại xe.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchList();
