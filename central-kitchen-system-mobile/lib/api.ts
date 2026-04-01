@@ -8,9 +8,8 @@ import type {
   UpdateFeedbackPayload,
 } from "@/lib/feedback";
 import type {
-  IngredientBatch,
   IngredientBatchResponse,
-  IngredientBatchesResponse,
+  IngredientBatchesResponse
 } from "@/lib/ingredient-batches";
 import type { IngredientUsagesResponse } from "@/lib/ingredient-usages";
 import type {
@@ -36,13 +35,13 @@ import type {
   ProductionPlansResponse,
 } from "@/lib/production-plans";
 import type { Product, ProductsResponse } from "@/lib/products";
+import type { Supplier, SupplierResponse, SuppliersResponse } from "@/lib/suppliers";
 import type { SystemSettingResponse, SystemSettingsResponse } from "@/lib/system-settings";
 import type {
   DeliveryTripResponse,
   DeliveryTripsResponse,
 } from "@/lib/trips";
 import type { WalletResponse } from "@/lib/wallet";
-import type { Supplier, SupplierResponse, SuppliersResponse } from "@/lib/suppliers";
 const API_REQUEST_TIMEOUT_MS = 20000; // 20 seconds
 
 type RequestOptions = RequestInit & {
@@ -251,6 +250,24 @@ export const storeInventoryApi = {
     }),
 };
 
+export const finishedBatchesApi = {
+  getById: (
+    id: string,
+    token?: string | null,
+  ) =>
+    request<{
+      success: boolean;
+      data: {
+        _id: string;
+        productionPlanId?: string | { _id?: string; planCode?: string } | null;
+        planCode?: string;
+      };
+    }>(`/api/batches/${id}`, {
+      headers: withAuth(token),
+      timeoutMs: 30000,
+    }),
+};
+
 export const productionPlansApi = {
   getAll: (
     params?: { status?: string; planDate?: string },
@@ -344,10 +361,10 @@ export const ingredientBatchesApi = {
   update: (
     id: string,
     payload: {
-        currentQuantity?: number;
-        price?: number;
-        isActive?: boolean;
-        note?: string; // Thêm field lý do hao hụt
+      currentQuantity?: number;
+      price?: number;
+      isActive?: boolean;
+      note?: string; // Thêm field lý do hao hụt
     },
     token?: string | null,
   ) =>
@@ -510,27 +527,27 @@ export const feedbackApi = {
     request<FeedbackResponse>(`/api/feedback/${orderId}`, {
       headers: withAuth(token),
     }),
-create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) => {
-  return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
-    method: "POST",
-    headers: {
-      ...withAuth(token),
-      "Content-Type": "application/json",
-    },
-    // Gửi thẳng JSON, Backend (Controller mới) sẽ đọc trường payload.images
-    body: JSON.stringify(payload), 
-  });
-},
-update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) => {
-  return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
-    method: "PUT", 
-    headers: {
-      ...withAuth(token),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-},
+  create: (orderId: string, payload: CreateFeedbackPayload, token?: string | null) => {
+    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      method: "POST",
+      headers: {
+        ...withAuth(token),
+        "Content-Type": "application/json",
+      },
+      // Gửi thẳng JSON, Backend (Controller mới) sẽ đọc trường payload.images
+      body: JSON.stringify(payload),
+    });
+  },
+  update: (orderId: string, payload: UpdateFeedbackPayload, token?: string | null) => {
+    return request<FeedbackResponse>(`/api/feedback/${orderId}`, {
+      method: "PUT",
+      headers: {
+        ...withAuth(token),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  },
   delete: (orderId: string, token?: string | null) =>
     request<{ success: boolean; message?: string; data?: Record<string, unknown> }>(
       `/api/feedback/${orderId}`,
@@ -650,36 +667,36 @@ export const suppliersApi = {
     if (params?.page) search.set("page", String(params.page));
     if (params?.limit) search.set("limit", String(params.limit));
     const qs = search.toString();
-    
+
     return request<SuppliersResponse>(
       `/api/suppliers${qs ? `?${qs}` : ""}`,
       { headers: withAuth(token), timeoutMs: 30000 }
     );
   },
-  
+
   getById: (id: string, token?: string | null) =>
     request<SupplierResponse>(`/api/suppliers/${id}`, {
       headers: withAuth(token),
       timeoutMs: 30000,
     }),
-    
+
   create: (payload: Partial<Supplier>, token?: string | null) =>
     request<SupplierResponse>("/api/suppliers", {
       method: "POST",
       headers: withAuth(token),
       body: JSON.stringify(payload),
     }),
-    
+
   update: (id: string, payload: Partial<Supplier>, token?: string | null) =>
     request<SupplierResponse>(`/api/suppliers/${id}`, {
       method: "PUT",
       headers: withAuth(token),
       body: JSON.stringify(payload),
     }),
-    
+
   delete: (id: string, token?: string | null) =>
     request<{ success: boolean; message: string; data: any }>(
-      `/api/suppliers/${id}`, 
+      `/api/suppliers/${id}`,
       {
         method: "DELETE",
         headers: withAuth(token),
