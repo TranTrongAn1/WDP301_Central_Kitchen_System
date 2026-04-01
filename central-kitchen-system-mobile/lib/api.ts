@@ -596,7 +596,7 @@ export const ingredientRequestsApi = {
     }
 
     const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/ingredient-requests?status=${status}`,
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests?status=${status}`,
       {
         method: "GET",
         headers,
@@ -622,7 +622,7 @@ export const ingredientRequestsApi = {
     }
 
     const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/ingredient-requests`,
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests`,
       {
         method: "POST",
         headers,
@@ -642,7 +642,7 @@ export const ingredientRequestsApi = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/ingredient-requests/${id}/complete`,
+      `${process.env.EXPO_PUBLIC_API_URL}/api/ingredient-requests/${id}/complete`,
       {
         method: "PUT",
         headers,
