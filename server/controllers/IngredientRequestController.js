@@ -162,7 +162,7 @@ exports.completeRequest = async (req, res) => {
       ingredientId: request.ingredientId,
       ingredientBatchId: newBatch._id,
       quantityUsed: -request.quantityRequested, 
-      note: note || `Nhập kho từ phiếu yêu cầu: ${request._id}. NCC: ${supplierName || 'N/A'}`,
+      note: note || `Nhập kho từ phiếu yêu cầu. NCC: ${supplierName || 'N/A'}`,
       recordedAt: new Date()
     });
 
