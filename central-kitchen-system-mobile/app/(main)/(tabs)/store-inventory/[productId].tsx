@@ -333,6 +333,11 @@ export default function StoreInventoryDetailScreen() {
                                     <Text style={styles.batchValue}>{batch.batchCode}</Text>
                                 </View>
 
+                                <View style={styles.batchRow}>
+                                    <Text style={styles.batchLabel}>Mã kế hoạch</Text>
+                                    <Text style={styles.batchValue}>{batch.planCode ?? "—"}</Text>
+                                </View>
+
                                 {batch.mfgDate && (
                                     <View style={styles.batchRow}>
                                         <Text style={styles.batchLabel}>Ngày sản xuất</Text>

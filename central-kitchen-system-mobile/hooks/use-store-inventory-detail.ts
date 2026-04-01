@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { storeInventoryApi } from "@/lib/api";
+import { finishedBatchesApi, productionPlansApi, storeInventoryApi } from "@/lib/api";
 import type { StoreInventoryLine } from "@/lib/inventory";
 
 export type ProductBatch = {
     _id: string;
     batchCode: string;
+    planCode: string | null;
     mfgDate: string | null;
     expDate: string | null;
     quantity: number;
@@ -114,6 +115,7 @@ export const useStoreInventoryDetail = (productId: string | null) => {
                         batchMap.set(batchId, {
                             _id: batchId,
                             batchCode: (record.batchId as any).batchCode || `Batch-${batchId}`,
+                            planCode: null,
                             mfgDate: (record.batchId as any).mfgDate || null,
                             expDate: record.batchId.expDate || null,
                             quantity: record.quantity ?? 0,
@@ -124,12 +126,61 @@ export const useStoreInventoryDetail = (productId: string | null) => {
             }
 
             // Sort batches by expiry date (earliest first, null last)
-            const batchesArray = Array.from(batchMap.values()).sort((a, b) => {
-                if (!a.expDate && !b.expDate) return 0;
-                if (!a.expDate) return 1;
-                if (!b.expDate) return -1;
-                return new Date(a.expDate).getTime() - new Date(b.expDate).getTime();
-            });
+            const planCodeByBatchId = new Map<string, string>();
+            const planCodeByPlanId = new Map<string, string>();
+
+            await Promise.allSettled(
+                Array.from(batchMap.keys()).map(async (batchId) => {
+                    const batchResp = await finishedBatchesApi.getById(batchId, token);
+                    const batchData = batchResp?.data;
+                    if (!batchData) return;
+
+                    // Some API responses may already include planCode when productionPlanId is populated.
+                    if (typeof batchData.planCode === "string" && batchData.planCode.trim()) {
+                        planCodeByBatchId.set(batchId, batchData.planCode.trim());
+                        return;
+                    }
+
+                    if (
+                        typeof batchData.productionPlanId === "object" &&
+                        batchData.productionPlanId?.planCode
+                    ) {
+                        planCodeByBatchId.set(batchId, batchData.productionPlanId.planCode);
+                        return;
+                    }
+
+                    const planId =
+                        typeof batchData.productionPlanId === "string"
+                            ? batchData.productionPlanId
+                            : batchData.productionPlanId?._id;
+                    if (!planId) return;
+
+                    let planCode = planCodeByPlanId.get(planId);
+                    if (!planCode) {
+                        const planResp = await productionPlansApi.getById(planId, token);
+                        planCode = planResp?.data?.planCode ?? "";
+                        if (planCode) {
+                            planCodeByPlanId.set(planId, planCode);
+                        }
+                    }
+
+                    if (planCode) {
+                        planCodeByBatchId.set(batchId, planCode);
+                    }
+                })
+            );
+
+            const batchesArray = Array.from(batchMap.values())
+                .map((batch) => ({
+                    ...batch,
+                    planCode: planCodeByBatchId.get(batch._id) ?? null,
+                }))
+                .sort((a, b) => {
+                    if (!a.expDate && !b.expDate) return 0;
+                    if (!a.expDate) return 1;
+                    if (!b.expDate) return -1;
+                    return new Date(a.expDate).getTime() - new Date(b.expDate).getTime();
+                });
 
             setData({
                 product: productInfo,

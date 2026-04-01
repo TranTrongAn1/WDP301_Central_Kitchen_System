@@ -520,7 +520,7 @@ const receiveOrder = async (req, res, next) => {
     // ========================================
     const order = await Order.findById(orderId)
       .populate('storeId')
-      .populate('items.productId')
+      .populate({ path: 'items.productId', select: 'name sku bundleItems' })
       .populate('items.batchId')
       .session(session);
 
@@ -577,20 +577,49 @@ const receiveOrder = async (req, res, next) => {
     // STEP 3: Update Store Inventory for This Order
     // ========================================
     const inventoryUpdates = [];
+    const itemsToReceive = [];
 
+    // Normalize products (unpack combos)
     for (const item of order.items) {
-      if (!item.batchId) {
-        // Skip items without batch assignment (shouldn't happen in production)
-        continue;
+      const product = item.productId;
+      if (product && product.bundleItems && product.bundleItems.length > 0) {
+        for (const child of product.bundleItems) {
+          const qty = child.quantity * item.quantity;
+          const childBatch = await Batch.findOne({ 
+            productId: child.childProductId, 
+            status: 'Active' 
+          }).sort({ expDate: 1 }).session(session);
+          
+          if (childBatch) {
+            itemsToReceive.push({
+              productId: child.childProductId,
+              productName: 'Child Product (from Combo)',
+              batchId: childBatch._id,
+              batchCode: childBatch.batchCode,
+              quantity: qty
+            });
+          }
+        }
+      } else {
+        if (!item.batchId) continue;
+        itemsToReceive.push({
+          productId: product._id,
+          productName: product.name,
+          batchId: item.batchId?._id,
+          batchCode: item.batchId?.batchCode,
+          quantity: item.quantity
+        });
       }
+    }
 
-      const { productId, batchId, quantity } = item;
+    for (const target of itemsToReceive) {
+      const { productId, batchId, quantity, productName, batchCode } = target;
 
       // Find existing inventory record for this store + product + batch
       const existingInventory = await StoreInventory.findOne({
         storeId: order.storeId._id,
-        productId: productId._id,
-        batchId: batchId._id,
+        productId: productId,
+        batchId: batchId,
       }).session(session);
 
       if (existingInventory) {
@@ -601,10 +630,10 @@ const receiveOrder = async (req, res, next) => {
         await existingInventory.save({ session });
 
         inventoryUpdates.push({
-          productId: productId._id,
-          productName: productId.name,
-          batchId: batchId._id,
-          batchCode: batchId.batchCode,
+          productId: productId,
+          productName: productName,
+          batchId: batchId,
+          batchCode: batchCode,
           quantityAdded: quantity,
           previousQuantity,
           newQuantity: existingInventory.quantity,
@@ -616,8 +645,8 @@ const receiveOrder = async (req, res, next) => {
           [
             {
               storeId: order.storeId._id,
-              productId: productId._id,
-              batchId: batchId._id,
+              productId: productId,
+              batchId: batchId,
               quantity: quantity,
               lastUpdated: new Date(),
             },
@@ -626,10 +655,10 @@ const receiveOrder = async (req, res, next) => {
         );
 
         inventoryUpdates.push({
-          productId: productId._id,
-          productName: productId.name,
-          batchId: batchId._id,
-          batchCode: batchId.batchCode,
+          productId: productId,
+          productName: productName,
+          batchId: batchId,
+          batchCode: batchCode,
           quantityAdded: quantity,
           previousQuantity: 0,
           newQuantity: quantity,
@@ -1142,28 +1171,64 @@ const startShipping = async (req, res, next) => {
     // STEP 5: Deduct Quantities from FinishedBatches
     // Products physically leave the Central Kitchen at this point.
     // ========================================
-    const ordersWithItems = await Order.find({
-      _id: { $in: trip.orders },
-    }).session(session);
+    const ordersWithItems = await Order.find({ _id: { $in: trip.orders } })
+      .populate({ path: 'items.productId', select: 'name weight bundleItems' })
+      .session(session);
 
     for (const order of ordersWithItems) {
       for (const item of order.items) {
-        if (!item.batchId) continue;
+        const product = item.productId;
 
-        const batch = await Batch.findById(item.batchId).session(session);
-        if (!batch) {
-          console.warn(
-            `Warning: Batch ${item.batchId} not found during stock deduction for order ${order.orderNumber}`
-          );
-          continue;
-        }
+        if (product && product.bundleItems && product.bundleItems.length > 0) {
+          // Unpack Combos and apply FEFO
+          for (const child of product.bundleItems) {
+            let requiredQty = child.quantity * item.quantity;
+            
+            const activeBatches = await Batch.find({ 
+              productId: child.childProductId, 
+              status: 'Active' 
+            }).sort({ expDate: 1 }).session(session);
 
-        batch.currentQuantity -= item.quantity;
-        if (batch.currentQuantity <= 0) {
-          batch.currentQuantity = 0;
-          batch.status = 'SoldOut';
+            for (const batch of activeBatches) {
+              if (requiredQty <= 0) break;
+              
+              const deductAmount = Math.min(batch.currentQuantity, requiredQty);
+              batch.currentQuantity -= deductAmount;
+              requiredQty -= deductAmount;
+
+              if (batch.currentQuantity <= 0) {
+                batch.currentQuantity = 0;
+                batch.status = 'SoldOut';
+              }
+              await batch.save({ session });
+            }
+
+            if (requiredQty > 0) {
+              transactionAborted = true;
+              await session.abortTransaction();
+              res.status(400);
+              throw new Error(`Insufficient child product ${child.childProductId} batches for combo in order ${order.orderNumber}`);
+            }
+          }
+        } else {
+          // Normal products
+          if (!item.batchId) continue;
+
+          const batch = await Batch.findById(item.batchId).session(session);
+          if (!batch) {
+            console.warn(
+              `Warning: Batch ${item.batchId} not found during stock deduction for order ${order.orderNumber}`
+            );
+            continue;
+          }
+
+          batch.currentQuantity -= item.quantity;
+          if (batch.currentQuantity <= 0) {
+            batch.currentQuantity = 0;
+            batch.status = 'SoldOut';
+          }
+          await batch.save({ session });
         }
-        await batch.save({ session });
       }
     }
 
