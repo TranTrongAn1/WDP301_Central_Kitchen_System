@@ -13,7 +13,6 @@ import {
     MapPin,
     DollarSign,
     Trash2,
-    Plus,
     X,
     CheckCircle2,
 } from 'lucide-react';
