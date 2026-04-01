@@ -13,7 +13,6 @@ import {
     MapPin,
     DollarSign,
     Trash2,
-    Plus,
     X,
     CheckCircle2,
 } from 'lucide-react';
@@ -602,9 +601,8 @@ const handleStartShipping = async () => {
                         <button
                             type="button"
                             onClick={handleOpenAddOrders}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wide hover:bg-emerald-700 flex items-center gap-1"
+                    
                         >
-                            <Plus className="w-4 h-4" /> Thêm đơn hàng
                         </button>
                     )}
                     {trip.status === 'Planning' && (
@@ -613,7 +611,7 @@ const handleStartShipping = async () => {
                             onClick={async () => {
                                 if (!id) return;
 
-                                // 🚀 THÊM CHỐT CHẶN Ở ĐÂY: KHÔNG CÓ XE CẤM ĐƯA RA BÃI BỐC HÀNG
+                                // THÊM CHỐT CHẶN Ở ĐÂY: KHÔNG CÓ XE CẤM ĐƯA RA BÃI BỐC HÀNG
                                 if (!(trip as any)?.vehicleType) {
                                     toast.error('Vui lòng gán phương tiện vận chuyển trước khi cho bốc hàng!');
                                     return; 
