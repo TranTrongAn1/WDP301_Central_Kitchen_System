@@ -38,6 +38,19 @@ function parseQuantityText(value: string): number {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function roundUpTo3(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.ceil(value * 1000) / 1000;
+}
+
+function formatRoundUp3(value: number): string {
+    const rounded = roundUpTo3(value);
+    return rounded.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3,
+    });
+}
+
 export default function ProductionRecipeScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -268,7 +281,7 @@ export default function ProductionRecipeScreen() {
                                             !isComplete && styles.summaryIncomplete,
                                         ]}
                                     >
-                                        {totalUsed.toFixed(2)} / {item.totalRequired.toFixed(2)} {item.unit}
+                                        {formatRoundUp3(totalUsed)} / {formatRoundUp3(item.totalRequired)} {item.unit}
                                     </Text>
                                 </View>
                             );
@@ -292,13 +305,13 @@ export default function ProductionRecipeScreen() {
                                 <View style={styles.quantityCol}>
                                     <Text style={styles.quantityLabel}>Trên đơn vị</Text>
                                     <Text style={styles.quantityValue}>
-                                        {item.perUnitQuantity} {item.unit}
+                                        {formatRoundUp3(item.perUnitQuantity)} {item.unit}
                                     </Text>
                                 </View>
                                 <View style={styles.quantityCol}>
                                     <Text style={styles.quantityLabel}>Tổng cần</Text>
                                     <Text style={styles.quantityValue}>
-                                        {item.totalRequired} {item.unit}
+                                        {formatRoundUp3(item.totalRequired)} {item.unit}
                                     </Text>
                                 </View>
                             </View>
@@ -401,7 +414,7 @@ export default function ProductionRecipeScreen() {
                                                                                 ) : null}
                                                                             </View>
                                                                             <Text style={styles.dropdownItemMeta}>
-                                                                                Còn lại: {batch.remainingQuantity} {batch.unit}
+                                                                                Còn lại: {formatRoundUp3(batch.remainingQuantity)} {batch.unit}
                                                                             </Text>
                                                                             <Text
                                                                                 style={[

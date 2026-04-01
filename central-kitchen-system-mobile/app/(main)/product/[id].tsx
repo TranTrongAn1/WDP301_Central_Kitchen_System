@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { productsApi } from '@/lib/api';
-import type { Product } from '@/lib/products';
 import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/hooks/use-auth';
+import { productsApi } from '@/lib/api';
+import type { Product } from '@/lib/products';
 
 const formatValue = (value: number | string | null | undefined) =>
   value === null || value === undefined ? '--' : String(value);
@@ -29,6 +29,7 @@ export default function ProductDetailScreen() {
   const isStoreStaff = user?.role === 'StoreStaff';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bundleNames, setBundleNames] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -51,6 +52,40 @@ export default function ProductDetailScreen() {
 
     fetchDetail();
   }, [id, token]);
+
+  useEffect(() => {
+    const loadBundleNames = async () => {
+      if (!item?.bundleItems || item.bundleItems.length === 0) {
+        setBundleNames([]);
+        return;
+      }
+
+      const names = await Promise.all(
+        item.bundleItems.map(async (bundle) => {
+          const child = bundle.childProductId;
+          const quantity = Number(bundle.quantity) || 0;
+          const quantityLabel = quantity > 0 ? `x${quantity}` : '';
+
+          if (typeof child === 'object' && child) {
+            const childName = child.name?.trim() || child.sku?.trim() || child._id;
+            return `${childName} ${quantityLabel}`.trim();
+          }
+
+          try {
+            const response = await productsApi.getById(child, token);
+            const childName = response.data?.name?.trim() || child;
+            return `${childName} ${quantityLabel}`.trim();
+          } catch {
+            return `${child} ${quantityLabel}`.trim();
+          }
+        }),
+      );
+
+      setBundleNames(names);
+    };
+
+    loadBundleNames();
+  }, [item, token]);
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top }]}>
@@ -89,6 +124,17 @@ export default function ProductDetailScreen() {
               <Text style={styles.label}>Hạn sử dụng (ngày)</Text>
               <Text style={styles.value}>{formatValue(item.shelfLifeDays)}</Text>
             </View>
+
+            {bundleNames.length > 0 ? (
+              <View style={styles.rowLast}>
+                <Text style={styles.label}>Các loại bánh trong combo</Text>
+                {bundleNames.map((name, index) => (
+                  <Text key={`${name}-${index}`} style={styles.bundleValue}>
+                    {name}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
           {isStoreStaff ? (
             <Pressable
@@ -151,6 +197,9 @@ const styles = StyleSheet.create({
   row: {
     marginBottom: 12,
   },
+  rowLast: {
+    marginBottom: 0,
+  },
   label: {
     fontSize: 12,
     color: '#8C8C8C',
@@ -160,6 +209,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#2A2A2A',
+  },
+  bundleValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2A2A2A',
+    marginBottom: 4,
   },
   error: {
     color: '#D91E18',
