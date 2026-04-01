@@ -445,7 +445,7 @@ const approveAndShipOrder = async (req, res, next) => {
     // ========================================
     // STEP 2: Update Order Status to Approved
     // ========================================
-    // 💡 Lưu ý: Trạng thái tiếp theo của bạn có thể là Approved hoặc Ready_For_Shipping tùy workflow
+
     order.status = 'Approved'; 
     order.approvedBy = req.user ? req.user._id : null;
     order.approvedDate = new Date(); // Đổi từ approvedAt thành approvedDate cho khớp với DB của bạn ở trên
