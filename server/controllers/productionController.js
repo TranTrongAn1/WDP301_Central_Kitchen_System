@@ -598,6 +598,9 @@ const completeProductionItem = async (req, res, next) => {
     // STEP 5b: Link Finished Batch to Orders + mark Ready_For_Shipping
     // ========================================
     if (plan.orders && plan.orders.length > 0) {
+      // 1. Only assign batchId to direct (normal) products.
+      // Combo child products don't need batchId explicitly linked in the order item 
+      // because startShipping handles combo unpacking automatically.
       const relatedOrders = await Order.find({
         _id: { $in: plan.orders },
         'items.productId': productId,
@@ -609,8 +612,17 @@ const completeProductionItem = async (req, res, next) => {
             item.batchId = finishedBatch[0]._id;
           }
         }
-        order.status = 'Ready_For_Shipping';
+        // DO NOT update status here. Just save the batchId.
         await order.save({ session });
+      }
+
+      // 2. Only transition Orders to 'Ready_For_Shipping' when the ENTIRE Plan is Completed
+      if (plan.status === 'Completed') {
+        await Order.updateMany(
+          { _id: { $in: plan.orders }, status: 'Transferred_To_Kitchen' },
+          { $set: { status: 'Ready_For_Shipping' } },
+          { session }
+        );
       }
     }
 
