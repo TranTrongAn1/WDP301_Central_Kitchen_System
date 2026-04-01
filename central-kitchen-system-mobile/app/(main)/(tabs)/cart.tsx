@@ -61,13 +61,20 @@ export default function CartTabScreen() {
 
     const handleQuantityTextChange = (productId: string, value: string) => {
         const digitsOnly = value.replace(/[^0-9]/g, "");
+
         setQuantityDrafts((prev) => ({ ...prev, [productId]: digitsOnly }));
 
         if (!digitsOnly) return;
 
         const parsed = Number.parseInt(digitsOnly, 10);
-        if (Number.isFinite(parsed) && parsed > 0) {
-            updateQuantity(productId, parsed);
+        let finalValue = digitsOnly;
+        if (Number.isFinite(parsed) && parsed > 1000) {
+        finalValue = "1000";
+    }
+        setQuantityDrafts((prev) => ({ ...prev, [productId]: finalValue }));
+        const finalQty = Number.parseInt(finalValue, 10);
+        if (Number.isFinite(finalQty) && finalQty > 0) {
+            updateQuantity(productId, finalQty);
         }
     };
 
@@ -147,6 +154,7 @@ export default function CartTabScreen() {
                                     onChangeText={(v) => handleQuantityTextChange(item.productId, v)}
                                     onBlur={() => handleQuantityBlur(item.productId, item.quantity)}
                                     keyboardType="number-pad"
+                                    maxLength={4} // Giới hạn tối đa 4 ký tự (vừa đủ cho số 1000)
                                     selectTextOnFocus
                                 />
                                 <Pressable style={styles.removeBtn} onPress={() => removeItem(item.productId)}>

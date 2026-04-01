@@ -22,7 +22,7 @@ const AdminPaymentPage = () => {
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState<number>(0);
   const [depositLoading, setDepositLoading] = useState(false);
-
+const MAX_DEPOSIT = 500000000;
   const fetchStores = async () => {
     try {
       setLoading(true);
@@ -63,29 +63,46 @@ const AdminPaymentPage = () => {
     setIsDepositOpen(true);
   };
 
-  const handleDeposit = async () => {
-    if (!selectedStore || depositAmount <= 0) {
-      toast.error('Vui lòng nhập số tiền nạp hợp lệ.');
-      return;
-    }
-    try {
-      setDepositLoading(true);
-      await paymentApi.deposit({
-        storeId: selectedStore._id,
-        amount: depositAmount,
-      });
-      toast.success('Nạp tiền vào ví cửa hàng thành công.');
-      setIsDepositOpen(false);
-      // Refresh wallet
-      const w = await paymentApi.getWallet(selectedStore._id);
-      setWallet(w);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Không thể nạp tiền vào ví.');
-    } finally {
-      setDepositLoading(false);
-    }
-  };
+const handleDeposit = async () => {
+  if (!selectedStore || depositAmount <= 0) {
+    toast.error('Vui lòng nhập số tiền nạp hợp lệ.');
+    return;
+  }
+  
+  // Validate giới hạn 500 triệu
+  if (depositAmount > MAX_DEPOSIT) {
+    toast.error(`Số tiền nạp không được vượt quá ${formatCurrency(MAX_DEPOSIT)}`);
+    return;
+  }
 
+  try {
+    setDepositLoading(true);
+    await paymentApi.deposit({
+      storeId: selectedStore._id,
+      amount: depositAmount,
+    });
+    toast.success('Nạp tiền vào ví cửa hàng thành công.');
+    setIsDepositOpen(false);
+    const w = await paymentApi.getWallet(selectedStore._id);
+    setWallet(w);
+  } catch (error: any) {
+    toast.error(error?.response?.data?.message || 'Không thể nạp tiền vào ví.');
+  } finally {
+    setDepositLoading(false);
+  }
+};
+const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Loại bỏ tất cả ký tự không phải số
+  const rawValue = e.target.value.replace(/\D/g, '');
+  const numValue = Number(rawValue);
+
+  if (numValue > MAX_DEPOSIT) {
+    setDepositAmount(MAX_DEPOSIT);
+    toast.error('Tối đa 500.000.000 VNĐ');
+  } else {
+    setDepositAmount(numValue);
+  }
+};
   useEffect(() => {
     fetchStores();
   }, []);
@@ -284,16 +301,29 @@ const AdminPaymentPage = () => {
         }
       >
         <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block">Số tiền (VND)</label>
-            <Input
-              type="number"
-              min={0}
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(Number(e.target.value) || 0)}
-            />
-          </div>
+    <div>
+      <label className="text-sm font-medium mb-1 block">Số tiền (VND)</label>
+      <div className="relative">
+        <Input
+          type="text" // Chuyển sang text để hiển thị format
+          value={depositAmount === 0 ? '' : depositAmount.toLocaleString('vi-VN')}
+          onChange={handleAmountChange}
+          placeholder="Ví dụ: 20.000.000"
+          className="pr-12 font-medium text-lg"
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm border-l pl-2">
+          VNĐ
         </div>
+      </div>
+      
+      {/* Hiển thị gợi ý hoặc cảnh báo */}
+      <div className="mt-2 flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">
+          Tối đa: <span className="font-semibold text-orange-600">500.000.000đ</span>
+        </p>
+      </div>
+    </div>
+  </div>
       </Modal>
     </div>
   );
