@@ -120,7 +120,7 @@ const ProductionPlansPage = () => {
             );
         }
         return (
-                <Badge variant="secondary">
+            <Badge variant="secondary">
                 <AlertCircle className="w-3 h-3 mr-1" />
                 Đã lên kế hoạch
             </Badge>
@@ -424,11 +424,10 @@ const ProductionPlansPage = () => {
                                             setCurrentPage(page as number);
                                             window.scrollTo({ top: 0, behavior: 'smooth' });
                                         }}
-                                        className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${
-                                            currentPage === page
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
-                                        }`}
+                                        className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-semibold transition-all ${currentPage === page
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                                            }`}
                                     >
                                         {page}
                                     </button>
@@ -455,7 +454,14 @@ const ProductionPlansPage = () => {
             </div>
         );
     };
+    const getTotalSelectedProducts = () => {
+        return approvedOrders
+            .filter(order => selectedOrderIds.includes(order._id))
+            .reduce((sum, order) => sum + (order.items?.length ?? 0), 0);
+    };
 
+    const selectedProductsCount = getTotalSelectedProducts();
+    const isOverLimit = maxProductsPerPlan ? selectedProductsCount > maxProductsPerPlan : false;
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -535,7 +541,7 @@ const ProductionPlansPage = () => {
                         </CardContent>
                     </Card>
 
-                        <Card>
+                    <Card>
                         <CardHeader>
                             <CardTitle>Thống kê sản xuất</CardTitle>
                         </CardHeader>
@@ -597,6 +603,7 @@ const ProductionPlansPage = () => {
                                 !planName ||
                                 selectedOrderIds.length === 0 ||
                                 !!dateError ||
+                                isOverLimit || // THÊM DÒNG NÀY: Chặn nếu vượt limit
                                 (!!planDate && planDate < new Date().toISOString().slice(0, 10))
                             }
                         >
@@ -659,10 +666,29 @@ const ProductionPlansPage = () => {
                     </div>
 
                     <div className="border-t pt-4 space-y-3">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <h4 className="font-medium mb-1">Đơn đã duyệt để đưa vào kế hoạch</h4>
+                                <p className="text-xs text-muted-foreground">
+                                    Chọn các đơn hàng để đưa vào kế hoạch sản xuất.
+                                </p>
+                            </div>
+                            {/* Hiển thị số lượng đếm sản phẩm ở đây */}
+                            <div className={`text-sm font-semibold ${isOverLimit ? 'text-red-500' : 'text-orange-600'}`}>
+                                Đã chọn: {selectedProductsCount} {maxProductsPerPlan ? `/ ${maxProductsPerPlan}` : ''} sản phẩm
+                            </div>
+                        </div>
+
+                        {isOverLimit && (
+                            <p className="text-xs text-red-500 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Số lượng sản phẩm vượt quá định mức cho phép của bếp ({maxProductsPerPlan}).
+                            </p>
+                        )}
                         <h4 className="font-medium mb-1">Đơn đã duyệt để đưa vào kế hoạch</h4>
                         <p className="text-xs text-muted-foreground">
                             Chọn các đơn hàng <strong>đã duyệt</strong> để đưa vào kế hoạch sản xuất
-                            {maxProductsPerPlan ? ` (tối đa khoảng ${maxProductsPerPlan} sản phẩm cho 1 kế hoạch).` : '.'}
+                            {maxProductsPerPlan ? ` (tối đa ${maxProductsPerPlan} sản phẩm cho 1 kế hoạch).` : '.'}
                         </p>
 
                         {approvedOrders.length === 0 ? (
