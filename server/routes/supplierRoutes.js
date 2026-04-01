@@ -52,5 +52,5 @@ router.delete('/:id', protect, authorize('Admin'), deleteSupplier);
  * @access  Private (Admin only)
  */
 router.delete('/:id/permanent', protect, authorize('Admin'), permanentDeleteSupplier);
-router.patch('/:id/reactivate', authorize('Admin', 'Manager'), reactivateSupplier);
+router.patch('/:id/reactivate',protect, authorize('Admin', 'Manager'), reactivateSupplier);
 module.exports = router;
