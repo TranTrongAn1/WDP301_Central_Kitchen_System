@@ -4,6 +4,7 @@ const IngredientRequest = require('../models/IngredientRequests');
 const IngredientBatch = require('../models/IngredientBatch');
 const Ingredient = require('../models/Ingredient');
 const { updateAllProductsStockStatus } = require('../utils/inventoryUtils');
+const IngredientUsage = require('../models/IngredientUsage');
 
 exports.createRequest = async (req, res) => {
   try {
@@ -98,37 +99,32 @@ exports.updateRequestStatus = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
+
 exports.completeRequest = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { id } = req.params;
-    // Dùng đúng tên biến: expiryDate
-    const { actualCost, expiryDate, supplierId, supplierName, receiptImage } = req.body;
+    // Thêm note vào destructuring từ req.body
+    const { actualCost, expiryDate, supplierId, supplierName, receiptImage, note } = req.body;
 
-    // VALIDATE BẮT BUỘC: Phải có Hạn sử dụng
+    // 1. VALIDATE BẮT BUỘC
     if (!expiryDate) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ success: false, message: "An toàn thực phẩm: Bắt buộc phải nhập Hạn sử dụng (Expiry Date)." });
+      return res.status(400).json({ success: false, message: "An toàn thực phẩm: Bắt buộc phải nhập Hạn sử dụng." });
     }
 
     const request = await IngredientRequest.findById(id).session(session);
     
-    if (!request) {
+    if (!request || request.status !== 'APPROVED') {
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({ success: false, message: "Không tìm thấy phiếu yêu cầu" });
+      return res.status(400).json({ success: false, message: "Yêu cầu không tồn tại hoặc chưa được duyệt (APPROVED)." });
     }
 
-    if (request.status !== 'APPROVED') {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ success: false, message: "Chỉ có thể hoàn tất phiếu đã được APPROVED" });
-    }
-
-    // 4.1 Cập nhật thông tin phiếu mua hàng
+    // 2. CẬP NHẬT PHIẾU YÊU CẦU
     request.status = 'COMPLETED';
     request.actualCost = actualCost || 0;
     if (supplierName) request.supplierName = supplierName;
@@ -136,11 +132,18 @@ exports.completeRequest = async (req, res) => {
     if (supplierId) request.supplierId = supplierId;
     await request.save({ session });
 
-    // 4.2 TẠO LÔ MỚI (Khớp 100% với Schema IngredientBatch của bạn)
+    // 3. TẠO LÔ MỚI (IngredientBatch)
+    // Kiểm tra supplierId trước khi tạo để tránh rollback lãng phí
+    const finalSupplierId = supplierId || request.supplierId;
+    if (!finalSupplierId) {
+       await session.abortTransaction();
+       session.endSession();
+       return res.status(400).json({ success: false, message: "Lỗi: Thiếu ID nhà cung cấp cho lô hàng." });
+    }
+
     const newBatch = new IngredientBatch({
       ingredientId: request.ingredientId,
-      // NẾU KHÔNG CÓ SUPPLIER ID, BẠN PHẢI TRUYỀN ID CỦA 'NCC VÃNG LAI' VÀO ĐÂY ĐỂ TRÁNH LỖI (Tạm thời throw error nếu thiếu)
-      supplierId: supplierId || request.supplierId, 
+      supplierId: finalSupplierId, 
       batchCode: `REQ-${request.requestType === 'URGENT' ? 'URG' : 'PLN'}-${request._id.toString().slice(-5).toUpperCase()}-${Date.now().toString().slice(-4)}`,
       expiryDate: new Date(expiryDate),
       initialQuantity: request.quantityRequested,
@@ -149,33 +152,47 @@ exports.completeRequest = async (req, res) => {
       isActive: true
     });
 
-    if (!newBatch.supplierId) {
-       await session.abortTransaction();
-       session.endSession();
-       return res.status(400).json({ success: false, message: "Lỗi Schema: Bắt buộc phải chọn Nhà cung cấp (supplierId) cho lô hàng mới." });
-    }
-
     await newBatch.save({ session });
 
-    // 4.3 CỰC KỲ QUAN TRỌNG: CỘNG TỒN KHO VÀO INGREDIENT GỐC
+    // 4. GHI NHẬN VÀO BẢNG USAGE (Lịch sử nhập lô)
+    // Việc dùng số ÂM cho nhập kho là một cách hay để phân biệt với Xuất kho (số DƯƠNG)
+    const usage = new IngredientUsage({
+      productionPlanId: null, 
+      productId: null,        
+      ingredientId: request.ingredientId,
+      ingredientBatchId: newBatch._id,
+      quantityUsed: -request.quantityRequested, 
+      note: note || `Nhập kho từ phiếu yêu cầu: ${request._id}. NCC: ${supplierName || 'N/A'}`,
+      recordedAt: new Date()
+    });
+
+    await usage.save({ session });
+
+    // 5. CẬP NHẬT TỔN KHO TỔNG (Ingredient)
     const ingredient = await Ingredient.findById(request.ingredientId).session(session);
     if (ingredient) {
       ingredient.totalQuantity += request.quantityRequested;
       await ingredient.save({ session });
     }
 
+    // 6. HOÀN TẤT TRANSACTION
     await session.commitTransaction();
     session.endSession();
-    //Hàng mới về, quét lại Menu để bật bán lại các món đã hết 
-    updateAllProductsStockStatus().catch(console.error);
+
+    // Side effect: Cập nhật trạng thái sản phẩm ngoài transaction
+    updateAllProductsStockStatus().catch(err => console.error("Lỗi cập nhật stock status:", err));
+
     res.status(200).json({ 
       success: true, 
-      message: "Đã chốt hàng, lưu biên lai, tạo Lô kho mới và cập nhật Tồn kho thành công!" 
+      message: "Đã chốt hàng, tạo lô và ghi nhận lịch sử sử dụng thành công!" 
     });
+
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inAtomicityStatus !== 0) { // Kiểm tra nếu transaction còn mở thì mới abort
+        await session.abortTransaction();
+    }
     session.endSession();
-    console.error("Lỗi khi hoàn tất phiếu:", error);
+    console.error("Lỗi hệ thống:", error);
     res.status(500).json({ success: false, message: error.message || "Lỗi server khi nhập kho" });
   }
 };

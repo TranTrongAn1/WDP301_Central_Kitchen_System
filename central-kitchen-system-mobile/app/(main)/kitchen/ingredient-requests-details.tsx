@@ -132,7 +132,7 @@ export default function IngredientRequestDetailScreen() {
   const statusConfig = getStatusConfig(request.status);
   const canComplete = 
     (isUrgent && request.status !== 'COMPLETED' && request.status !== 'REJECTED') && (request.status !== 'PENDING') || 
-    (!isUrgent && request.status === 'APPROVED');
+    (isUrgent && request.status === 'APPROVED');
 
   return (
     <>
