@@ -187,9 +187,27 @@ const getMe = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Logout user / Xóa phiên làm việc
+ * @route   POST /api/auth/logout
+ * @access  Private
+ */
+const logout = async (req, res, next) => {
+  try {
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+      data: {},
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
   register,
   login,
   getMe,
+  logout, 
 };
