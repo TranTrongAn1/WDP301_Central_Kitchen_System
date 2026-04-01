@@ -70,6 +70,12 @@ const vehicleApi = {
   delete: (id: string): Promise<ApiResponse<null>> => {
     return apiClient.delete(`/vehicle-types/${id}`);
   },
+  /** * Kích hoạt lại nhà cung cấp 
+     * Method: PATCH theo cấu hình Route mới
+     */
+reactivate: (id: string): Promise<ApiResponse<VehicleType>> => {
+    return apiClient.patch(`/vehicle-types/${id}/reactivate`);
+  },
 };
 
 export default vehicleApi;

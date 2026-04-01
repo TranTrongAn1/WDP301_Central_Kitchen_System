@@ -246,7 +246,32 @@ const permanentDeleteSupplier = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Reactivate supplier (Set status to Active)
+ * @route   PATCH /api/suppliers/:id/reactivate
+ * @access  Private (Admin, Manager)
+ */
+const reactivateSupplier = async (req, res, next) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
 
+    if (!supplier) {
+      res.status(404);
+      return next(new Error('Supplier not found'));
+    }
+
+    supplier.status = 'Active';
+    await supplier.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Supplier reactivated successfully',
+      data: supplier,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   getSuppliers,
   getSupplierById,
@@ -254,4 +279,5 @@ module.exports = {
   updateSupplier,
   deleteSupplier,
   permanentDeleteSupplier,
+  reactivateSupplier,
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Loader2, Plus, Pencil, Trash2, AlertTriangle, 
-  MoreVertical,
+  MoreVertical, CheckCircle, X
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -18,7 +18,9 @@ import toast from 'react-hot-toast';
 export default function VehicleTypesPage() {
   const [list, setList] = useState<VehicleType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState<'create' | 'edit' | 'delete' | null>(null);
+  
+  const [modalOpen, setModalOpen] = useState<'create' | 'edit' | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ vehicle: VehicleType, type: 'delete' | 'reactivate' } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   const [editing, setEditing] = useState<VehicleType | null>(null);
@@ -31,13 +33,17 @@ export default function VehicleTypesPage() {
   });
   
   const [saving, setSaving] = useState(false);
-  const [selectedForDelete, setSelectedForDelete] = useState<VehicleType | null>(null);
 
   const fetchList = async () => {
     try {
       setLoading(true);
-      const res = await vehicleApi.getAll();
-      const data = (res as any)?.data ?? res ?? [];
+      
+      /** * Ép kiểu hàm getAll sang 'any' để truyền được tham số 
+       * mà không cần sửa định nghĩa trong file VehicleApi.ts
+       */
+      const res = await (vehicleApi.getAll as any)({ all: true });
+      
+      const data = res?.data ?? res ?? [];
       setList(Array.isArray(data) ? data : []);
     } catch {
       toast.error('Không tải được danh sách loại xe.');
@@ -66,14 +72,9 @@ export default function VehicleTypesPage() {
       description: v.description ?? '',
       isActive: v.isActive ?? true,
       capacity: v.capacity,
-      unit: v.unit ?? 'kg',
+      unit: (v.unit as any) ?? 'kg',
     });
     setModalOpen('edit');
-  };
-
-  const openDeleteConfirm = (v: VehicleType) => {
-    setSelectedForDelete(v);
-    setModalOpen('delete');
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -100,22 +101,25 @@ export default function VehicleTypesPage() {
     }
   };
 
-  const handleSoftDelete = async () => {
-    if (!selectedForDelete) return;
+  const handleConfirmAction = async () => {
+    if (!confirmModal) return;
+    const { vehicle, type } = confirmModal;
+    
     setSaving(true);
     try {
-      await vehicleApi.update(selectedForDelete._id, {
-        ...selectedForDelete,
-        isActive: false,
-      });
-      toast.success('Đã ngưng sử dụng.');
-      setModalOpen(null);
+      if (type === 'delete') {
+        await vehicleApi.delete(vehicle._id);
+        toast.success('Đã ngưng sử dụng.');
+      } else {
+        await (vehicleApi as any).reactivate(vehicle._id);
+        toast.success('Đã kích hoạt lại.');
+      }
+      setConfirmModal(null);
       fetchList();
     } catch (err: any) {
-      toast.error('Không thể cập nhật trạng thái.');
+      toast.error('Thao tác thất bại.');
     } finally {
       setSaving(false);
-      setSelectedForDelete(null);
     }
   };
 
@@ -141,11 +145,11 @@ export default function VehicleTypesPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b bg-slate-50/50">
-                  <th className="px-6 py-4 font-semibold">Tên loại xe</th>
-                  <th className="px-6 py-4 font-semibold">Mô tả</th>
-                  <th className="px-6 py-4 font-semibold">Sức chở tối đa</th>
-                  <th className="px-6 py-4 font-semibold text-center">Trạng thái</th>
-                  <th className="px-6 py-4 font-semibold text-right">Thao tác</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700">Tên loại xe</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700 text-center">Mô tả</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700 text-center">Sức chở tối đa</th>
+                  <th className="px-6 py-4 font-semibold text-center text-slate-700">Trạng thái</th>
+                  <th className="px-6 py-4 font-semibold text-right text-slate-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -165,18 +169,18 @@ export default function VehicleTypesPage() {
                         <td className={`px-6 py-4 font-medium text-slate-900 ${isInactive ? 'opacity-40' : ''}`}>
                           {v.name}
                         </td>
-                        <td className={`px-6 py-4 ${isInactive ? 'opacity-40' : ''}`}>
-                          <div className="group relative flex items-center text-slate-500 max-w-[200px] cursor-help">
-                            <span className="truncate">{v.description || '—'}</span>
+                        <td className={`px-6 py-4 text-center ${isInactive ? 'opacity-40' : ''}`}>
+                          <div className="group relative flex items-center justify-center text-slate-500 cursor-help">
+                            <span className="truncate max-w-[150px]">{v.description || '—'}</span>
                             {v.description && (
-                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-xl animate-in fade-in slide-in-from-bottom-1 text-left whitespace-normal font-normal">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-xl animate-in fade-in slide-in-from-bottom-1 whitespace-normal font-normal">
                                 {v.description}
-                                <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-800" />
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800" />
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className={`px-6 py-4 text-slate-600 ${isInactive ? 'opacity-40' : ''}`}>
+                        <td className={`px-6 py-4 text-center text-slate-600 ${isInactive ? 'opacity-40' : ''}`}>
                           {v.capacity != null ? `${v.capacity} ${v.unit}` : '—'}
                         </td>
                         <td className={`px-6 py-4 text-center ${isInactive ? 'opacity-40' : ''}`}>
@@ -193,22 +197,29 @@ export default function VehicleTypesPage() {
                             <MoreVertical className="h-4 w-4" />
                           </Button>
 
-                          {/* DROPDOWN MENU */}
                           {openMenuId === v._id && (
-                            <div className={`absolute right-10 ${isLastRows ? 'bottom-full mb-2' : 'top-12'} z-[100] w-40 rounded-md border bg-white shadow-xl animate-in fade-in zoom-in duration-100 text-left`}>
+                            <div className={`absolute right-10 ${isLastRows ? 'bottom-full mb-2' : 'top-12'} z-[100] w-44 rounded-md border bg-white shadow-xl animate-in fade-in zoom-in duration-100 text-left`}>
                               <div className="py-1">
                                 <button 
                                   onClick={() => openEdit(v)} 
                                   className="flex w-full items-center px-4 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
                                 >
-                                  <Pencil className="mr-2 h-4 w-4 text-blue-500" /> Sửa
+                                  <Pencil className="mr-2 h-4 w-4 text-blue-500" /> Chỉnh sửa
                                 </button>
-                                {v.isActive && (
+                                
+                                {v.isActive ? (
                                   <button 
-                                    onClick={() => openDeleteConfirm(v)}
+                                    onClick={() => setConfirmModal({ vehicle: v, type: 'delete' })}
                                     className="flex w-full items-center px-4 py-2 text-orange-600 hover:bg-orange-50 transition-colors"
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" /> Ngưng dùng
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => setConfirmModal({ vehicle: v, type: 'reactivate' })}
+                                    className="flex w-full items-center px-4 py-2 text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4" /> Kích hoạt lại
                                   </button>
                                 )}
                               </div>
@@ -270,7 +281,7 @@ export default function VehicleTypesPage() {
               <div className="space-y-1.5">
                 <Label>Đơn vị</Label>
                 <select
-                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500"
+                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 outline-none"
                   value={form.unit ?? 'kg'}
                   onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as any }))}
                 >
@@ -280,55 +291,48 @@ export default function VehicleTypesPage() {
                 </select>
               </div>
             </div>
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={form.isActive ?? true}
-                onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500 h-4 w-4"
-              />
-              <Label htmlFor="isActive" className="cursor-pointer font-normal text-slate-600">
-                Cho phép sử dụng khi điều phối
-              </Label>
-            </div>
+            
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>Hủy</Button>
-              <Button type="submit" disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Lưu'}
+              <Button type="submit" disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Lưu thông tin'}
               </Button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* MODAL XÁC NHẬN NGƯNG DÙNG */}
-      {modalOpen === 'delete' && (
+      {/* CONFIRM MODAL */}
+      {confirmModal && (
         <Modal
           isOpen={true}
-          onClose={() => setModalOpen(null)}
-          title="Xác nhận ngưng dùng"
+          onClose={() => setConfirmModal(null)}
+          title={confirmModal.type === 'reactivate' ? "Kích hoạt lại loại xe" : "Xác nhận ngưng dùng"}
         >
           <div className="space-y-6 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-              <AlertTriangle className="w-6 h-6" />
+            <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center 
+              ${confirmModal.type === 'reactivate' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+              {confirmModal.type === 'reactivate' ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
             </div>
             <div className="space-y-2">
               <p className="text-sm">
-                Loại xe <strong>{selectedForDelete?.name}</strong> sẽ được chuyển sang trạng thái <strong>Ngưng dùng</strong>. 
+                Xác nhận thực hiện hành động này cho loại xe: <br />
+                <strong className="text-lg">{confirmModal.vehicle.name}</strong>
               </p>
-              <p className="text-xs text-slate-500 px-4 italic">
-                (Dữ liệu vận tải cũ vẫn được giữ nguyên, nhưng bạn sẽ không thể chọn xe này cho các đơn hàng mới.)
-              </p>
+              {confirmModal.type === 'delete' && (
+                <p className="text-xs text-slate-500 px-4 italic">
+                  (Dữ liệu vận tải cũ vẫn được giữ nguyên, nhưng bạn sẽ không thể chọn xe này cho các đơn hàng mới.)
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)} disabled={saving}>
-                Quay lại
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmModal(null)} disabled={saving}>
+                Hủy
               </Button>
               <Button 
-                onClick={handleSoftDelete} 
+                onClick={handleConfirmAction} 
                 disabled={saving}
-                className="flex-1 bg-orange-500 hover:bg-orange-600"
+                className={`flex-1 ${confirmModal.type === 'reactivate' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Xác nhận'}
               </Button>

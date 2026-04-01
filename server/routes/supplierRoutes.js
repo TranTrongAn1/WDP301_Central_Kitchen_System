@@ -7,6 +7,7 @@ const {
   updateSupplier,
   deleteSupplier,
   permanentDeleteSupplier,
+  reactivateSupplier,
 } = require('../controllers/supplierController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -51,5 +52,5 @@ router.delete('/:id', protect, authorize('Admin'), deleteSupplier);
  * @access  Private (Admin only)
  */
 router.delete('/:id/permanent', protect, authorize('Admin'), permanentDeleteSupplier);
-
+router.patch('/:id/reactivate', authorize('Admin', 'Manager'), reactivateSupplier);
 module.exports = router;

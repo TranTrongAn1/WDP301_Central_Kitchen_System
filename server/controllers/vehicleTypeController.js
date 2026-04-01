@@ -186,3 +186,32 @@ exports.deleteVehicleType = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Reactivate vehicle type
+ * @route   PATCH /api/vehicle-types/:id/reactivate
+ * @access  Admin
+ */
+exports.reactivateVehicleType = async (req, res, next) => {
+  try {
+    const vehicleType = await VehicleType.findById(req.params.id);
+
+    if (!vehicleType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle type not found',
+      });
+    }
+
+    // Mở lại loại xe
+    vehicleType.isActive = true;
+    await vehicleType.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Vehicle type reactivated successfully',
+      data: vehicleType
+    });
+  } catch (error) {
+    next(error);
+  }
+};
