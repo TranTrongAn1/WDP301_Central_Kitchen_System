@@ -585,20 +585,36 @@ const receiveOrder = async (req, res, next) => {
       if (product && product.bundleItems && product.bundleItems.length > 0) {
         for (const child of product.bundleItems) {
           const qty = child.quantity * item.quantity;
-          const childBatch = await Batch.findOne({ 
+          
+          // 1. Try to find the oldest Active batch first (FEFO)
+          let childBatch = await Batch.findOne({ 
             productId: child.childProductId, 
             status: 'Active' 
           }).sort({ expDate: 1 }).session(session);
           
-          if (childBatch) {
-            itemsToReceive.push({
-              productId: child.childProductId,
-              productName: 'Child Product (from Combo)',
-              batchId: childBatch._id,
-              batchCode: childBatch.batchCode,
-              quantity: qty
-            });
+          // 2. FALLBACK FIX: If no Active batch is found (it might have been drained to 'SoldOut' during startShipping), 
+          // find the most recently updated batch for this product.
+          if (!childBatch) {
+            childBatch = await Batch.findOne({ 
+              productId: child.childProductId
+            }).sort({ updatedAt: -1 }).session(session);
           }
+
+          // 3. Bulletproof check
+          if (!childBatch) {
+            transactionAborted = true;
+            await session.abortTransaction();
+            res.status(400);
+            throw new Error(`Critical Inventory Error: Could not find ANY batch (Active or SoldOut) for combo child product ID: ${child.childProductId}. Cannot process receipt.`);
+          }
+
+          itemsToReceive.push({
+            productId: child.childProductId,
+            productName: 'Child Product (from Combo)',
+            batchId: childBatch._id,
+            batchCode: childBatch.batchCode,
+            quantity: qty
+          });
         }
       } else {
         if (!item.batchId) continue;
