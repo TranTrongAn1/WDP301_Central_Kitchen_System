@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  Loader2, Plus, Pencil, Trash2, AlertTriangle, 
-  MoreVertical, CheckCircle, 
+import {
+  Loader2, Plus, Pencil, Trash2, AlertTriangle,
+  MoreVertical, CheckCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -18,11 +18,11 @@ import toast from 'react-hot-toast';
 export default function VehicleTypesPage() {
   const [list, setList] = useState<VehicleType[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [modalOpen, setModalOpen] = useState<'create' | 'edit' | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ vehicle: VehicleType, type: 'delete' | 'reactivate' } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  
+
   const [editing, setEditing] = useState<VehicleType | null>(null);
   const [form, setForm] = useState<VehicleTypeInput>({
     name: '',
@@ -31,22 +31,22 @@ export default function VehicleTypesPage() {
     capacity: undefined,
     unit: 'kg',
   });
-  
+
   const [saving, setSaving] = useState(false);
 
-const fetchList = async () => {
-  try {
-    setLoading(true);
-    const res = await vehicleApi.getAll(); 
-    
-    const data = (res as any)?.data ?? res ?? [];
-    setList(Array.isArray(data) ? data : []);
-  } catch {
-    toast.error('Không tải được danh sách loại xe.');
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchList = async () => {
+    try {
+      setLoading(true);
+      const res = await vehicleApi.getAll();
+
+      const data = (res as any)?.data ?? res ?? [];
+      setList(Array.isArray(data) ? data : []);
+    } catch {
+      toast.error('Không tải được danh sách loại xe.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchList();
@@ -75,10 +75,36 @@ const fetchList = async () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Validate Tên
     if (!form.name.trim()) {
       toast.error('Nhập tên loại xe.');
       return;
     }
+
+    // 2. Validate Trọng tải (Capacity)
+    const capacity = form.capacity;
+    const unit = form.unit;
+
+    if (capacity !== undefined) {
+      // Chặn số âm
+      if (capacity <= 0) {
+        toast.error('Trọng tải phải lớn hơn 0.');
+        return;
+      }
+
+      // Chặn số quá lớn tùy theo đơn vị
+      if (unit === 'kg' && capacity > 500000) {
+        toast.error('Trọng tải không thể vượt quá 500.000 kg (500 tấn).');
+        return;
+      }
+
+      if (unit === 'ton' && capacity > 500) {
+        toast.error('Trọng tải không thể vượt quá 500 tấn.');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (editing) {
@@ -100,7 +126,7 @@ const fetchList = async () => {
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
     const { vehicle, type } = confirmModal;
-    
+
     setSaving(true);
     try {
       if (type === 'delete') {
@@ -196,22 +222,22 @@ const fetchList = async () => {
                           {openMenuId === v._id && (
                             <div className={`absolute right-10 ${isLastRows ? 'bottom-full mb-2' : 'top-12'} z-[100] w-44 rounded-md border bg-white shadow-xl animate-in fade-in zoom-in duration-100 text-left`}>
                               <div className="py-1">
-                                <button 
-                                  onClick={() => openEdit(v)} 
+                                <button
+                                  onClick={() => openEdit(v)}
                                   className="flex w-full items-center px-4 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
                                 >
                                   <Pencil className="mr-2 h-4 w-4 text-blue-500" /> Chỉnh sửa
                                 </button>
-                                
+
                                 {v.isActive ? (
-                                  <button 
+                                  <button
                                     onClick={() => setConfirmModal({ vehicle: v, type: 'delete' })}
                                     className="flex w-full items-center px-4 py-2 text-orange-600 hover:bg-orange-50 transition-colors"
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" /> Ngưng dùng
                                   </button>
                                 ) : (
-                                  <button 
+                                  <button
                                     onClick={() => setConfirmModal({ vehicle: v, type: 'reactivate' })}
                                     className="flex w-full items-center px-4 py-2 text-emerald-600 hover:bg-emerald-50 transition-colors"
                                   >
@@ -263,14 +289,15 @@ const fetchList = async () => {
                 <Input
                   type="number"
                   min={0}
+                  max={form.unit === 'ton' ? 500 : 500000}
                   step="0.01"
                   value={form.capacity ?? ''}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      capacity: e.target.value ? Number(e.target.value) : undefined,
-                    }))
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : undefined;
+                    // (Tùy chọn) Chặn không cho set State nếu số quá 10 chữ số
+                    if (val && val > 999999999) return;
+                    setForm((f) => ({ ...f, capacity: val }));
+                  }}
                   placeholder="VD: 500"
                 />
               </div>
@@ -287,7 +314,7 @@ const fetchList = async () => {
                 </select>
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>Hủy</Button>
               <Button type="submit" disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white">
@@ -325,8 +352,8 @@ const fetchList = async () => {
               <Button variant="outline" className="flex-1" onClick={() => setConfirmModal(null)} disabled={saving}>
                 Hủy
               </Button>
-              <Button 
-                onClick={handleConfirmAction} 
+              <Button
+                onClick={handleConfirmAction}
                 disabled={saving}
                 className={`flex-1 ${confirmModal.type === 'reactivate' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
               >
