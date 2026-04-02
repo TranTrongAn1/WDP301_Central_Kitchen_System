@@ -38,25 +38,51 @@ const OrderDetail = () => {
         reserved: number; 
         available: number 
     }[]>([]);
-  useEffect(() => {
-    const fetchAllData = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        const orderData = await OrderApi.getOrderById(id);
-        setOrder(orderData);
-        const inv = await invoiceApi.getFirstByOrderId(id).catch(() => null);
-        setInvoice(inv);
-      } catch (err) {
-        console.error(err);
-        setError('Không thể tải dữ liệu đối chiếu.');
-      } finally {
-        setLoading(false);
-      }
-    };
+useEffect(() => {
+  const fetchAllData = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      // 1. Lấy đơn hàng và toàn bộ sản phẩm cùng lúc
+      const [orderRes, productsRes, invRes] = await Promise.all([
+        OrderApi.getOrderById(id),
+        productApi.getAll(),
+        invoiceApi.getFirstByOrderId(id).catch(() => null)
+      ]);
 
-    fetchAllData();
-  }, [id, refreshTrigger]);
+      const allProducts = unwrapArrayData<any>(productsRes);
+
+      // 2. Duyệt qua từng item của đơn hàng, tìm ảnh tương ứng trong allProducts
+      if (orderRes && orderRes.items) {
+        const itemsWithImages = orderRes.items.map((item: any) => {
+          // Lấy ID sản phẩm (phòng trường hợp nó là string hoặc object)
+          const targetId = item.productId?._id ?? item.productId;
+          // Tìm sản phẩm gốc trong danh sách 22 món trả về
+          const productInfo = allProducts.find(p => p._id === targetId);
+          
+          return {
+            ...item,
+            // Ép dữ liệu productId phải chứa field image từ sản phẩm gốc
+            productId: productInfo || item.productId 
+          };
+        });
+        
+        // Cập nhật lại state order với items đã có đủ ảnh
+        setOrder({ ...orderRes, items: itemsWithImages });
+      } else {
+        setOrder(orderRes);
+      }
+
+      setInvoice(invRes);
+    } catch (err) {
+      console.error("Lỗi fetch:", err);
+      setError('Lỗi tải dữ liệu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchAllData();
+}, [id, refreshTrigger]);
 
   useEffect(() => {
     if (!id) return;
@@ -239,62 +265,83 @@ const unwrapArrayData = <T,>(res: unknown): T[] => {
       return [];
   };
 
-  useEffect(() => {
-      if (!order || !order.items || order.items.length === 0) {
-          setIngredientSummary([]);
-          return;
-      }
-      let cancelled = false;
-      const run = async () => {
-          try {
-              const [productsRes, ingredientsRes] = await Promise.all([
-                  productApi.getAll(),
-                  ingredientApi.getAll(),
-              ]);
-              const products: Product[] = unwrapArrayData<Product>(productsRes);
-              const ingredients: Ingredient[] = unwrapArrayData<Ingredient>(ingredientsRes);
-              
-              const ingMap: Record<string, { name: string; unit: string; totalQty: number; inStock: number; reserved: number; available: number }> = {};
-              
-              for (const item of order.items) {
-                  const pid = typeof item.productId === 'object' ? item.productId?._id : item.productId;
-                  const product = products.find(p => p._id === pid);
-                  
-                  // Chỉ lấy các product có công thức
-                  if (!product?.recipe) continue;
-                  
-                  const qty = item.quantity || 0;
-                  
-                  for (const rec of product.recipe) {
-                      const ingIdRaw = typeof rec.ingredientId === 'object' ? rec.ingredientId?._id : rec.ingredientId;
-                      const ingId = String(ingIdRaw || '');
-                      const need = (rec.quantity || 0) * qty;
-                      
-                      const ing = ingredients.find((i: Ingredient) => i._id === ingId);
-                      if (!ingMap[ingId]) {
-                          const inStock = ing?.totalQuantity ?? 0;
-                          const reserved = ing?.reservedQuantity ?? 0;
-                          ingMap[ingId] = {
-                              name: ing?.ingredientName ?? ingId,
-                              unit: ing?.unit ?? '',
-                              totalQty: 0,
-                              inStock: inStock,
-                              reserved: reserved,
-                              available: inStock - reserved
-                          };
-                      }
-                      ingMap[ingId].totalQty += need;
-                  }
+useEffect(() => {
+    if (!order || !order.items || order.items.length === 0) {
+      setIngredientSummary([]);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const [productsRes, ingredientsRes] = await Promise.all([
+          productApi.getAll(),
+          ingredientApi.getAll(),
+        ]);
+        const products = unwrapArrayData<any>(productsRes);
+        const ingredients = unwrapArrayData<Ingredient>(ingredientsRes);
+
+        const ingMap: Record<string, any> = {};
+
+        // Hàm phụ xử lý Recipe (Dùng để cộng dồn nguyên liệu)
+        const processRecipe = (recipe: any[], multiplier: number) => {
+          if (!recipe) return;
+          recipe.forEach((rec: any) => {
+            const ingId = String(rec.ingredientId?._id ?? rec.ingredientId ?? '');
+            if (!ingId) return;
+            const need = (rec.quantity || 0) * multiplier;
+            const ing = ingredients.find((i) => i._id === ingId);
+
+            if (!ingMap[ingId]) {
+              const inStock = ing?.totalQuantity ?? 0;
+              const reserved = ing?.reservedQuantity ?? 0;
+              ingMap[ingId] = {
+                name: ing?.ingredientName ?? 'N/A',
+                unit: ing?.unit ?? '',
+                totalQty: 0,
+                inStock,
+                reserved,
+                available: inStock - reserved,
+              };
+            }
+            ingMap[ingId].totalQty += need;
+          });
+        };
+
+        // Duyệt từng item trong đơn hàng để đối chiếu
+        order.items.forEach((item: any) => {
+          const pid = item.productId?._id ?? item.productId;
+          const product = products.find((p) => p._id === pid);
+          const orderQty = item.quantity || 0;
+          if (!product) return;
+
+          // CASE 1: NẾU LÀ COMBO (Có bundleItems)
+          if (product.bundleItems && Array.isArray(product.bundleItems) && product.bundleItems.length > 0) {
+            product.bundleItems.forEach((bundle: any) => {
+              const childId = bundle.childProductId?._id ?? bundle.childProductId;
+              const childProduct = products.find((p) => p._id === childId);
+              if (childProduct?.recipe) {
+                // Công thức trừ kho: NL của bánh con * SL bánh con trong combo * SL combo khách đặt
+                processRecipe(childProduct.recipe, (bundle.quantity || 1) * orderQty);
               }
-              if (!cancelled) {
-                  setIngredientSummary(Object.values(ingMap));
-              }
-          } catch (err) {
-              console.error('Lỗi khi tính toán nguyên liệu:', err);
+            });
           }
-      };
-      run();
-      return () => { cancelled = true; };
+          // CASE 2: NẾU LÀ SẢN PHẨM ĐƠN (Có recipe trực tiếp)
+          else if (product.recipe) {
+            processRecipe(product.recipe, orderQty);
+          }
+        });
+
+        if (!cancelled) {
+          setIngredientSummary(Object.values(ingMap));
+        }
+      } catch (err) {
+        console.error('Lỗi đối chiếu kho:', err);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [order]);
   if (loading && !order) return (
     <div className="flex h-screen items-center justify-center text-muted-foreground">
@@ -393,28 +440,32 @@ const unwrapArrayData = <T,>(res: unknown): T[] => {
                     <th className="pb-3 font-semibold">Sản phẩm</th>
                     <th className="pb-3 font-semibold text-center">Số lượng</th>
                     <th className="pb-3 font-semibold text-right">Đơn giá</th>
-                    <th className="pb-3 font-semibold text-right">Thành tiền</th>
+
                   </tr>
                 </thead>
                 <tbody className="text-sm text-foreground">
-                  {order.items.map((item: OrderType['items'][0], index: number) => {
-                    const productName = (typeof item.productId === 'object' && item.productId?.name) ? item.productId.name : 'Sản phẩm ' + (index + 1);
-                    const productPrice = (typeof item.productId === 'object' && item.productId?.price) ? item.productId.price : (item.unitPrice ?? (item.quantity ? item.subtotal / item.quantity : 0));
-                    const subtotal = item.subtotal ?? productPrice * item.quantity;
+{order.items.map((item: any, index: number) => {
+                    const product = item.productId;
+                    const imageUrl = product?.image || null;
+                    const productName = product?.name || `Sản phẩm ${index + 1}`;
 
                     return (
-                      <tr key={index} className="border-b border-border last:border-0">
+                      <tr key={index} className="border-b border-border last:border-0 hover:bg-gray-50/50">
                         <td className="py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary">
-                              <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
+                          <div className="flex items-center gap-4">
+                            {/* FIX: HIỂN THỊ ẢNH THẬT */}
+                            <div className="w-12 h-12 rounded-xl overflow-hidden border bg-secondary flex items-center justify-center">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={productName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="material-symbols-outlined text-gray-400">image</span>
+                              )}
                             </div>
-                            <span className="font-medium">{productName}</span>
+                            <span className="font-bold text-gray-700">{productName}</span>
                           </div>
                         </td>
-                        <td className="py-4 text-center font-bold text-amber-500">{item.quantity}</td>
-                        <td className="py-4 text-right">{formatCurrency(productPrice)}</td>
-                        <td className="py-4 text-right font-semibold">{formatCurrency(subtotal)}</td>
+                        <td className="py-4 text-center font-bold text-amber-500 text-lg">{item.quantity}</td>
+                        <td className="py-4 text-right font-black">{formatCurrency(item.subtotal || 0)}</td>
                       </tr>
                     );
                   })}
@@ -504,12 +555,6 @@ const unwrapArrayData = <T,>(res: unknown): T[] => {
                   {typeof order.storeId === 'object' && order.storeId?.storeName
                     ? order.storeId.storeName
                     : 'Cửa hàng không xác định'}
-                </p>
-                <p className="text-sm mt-1 text-muted-foreground">
-                  Mã:{' '}
-                  {typeof order.storeId === 'string'
-                    ? order.storeId
-                    : order.storeId?._id}
                 </p>
               </div>
             </div>
