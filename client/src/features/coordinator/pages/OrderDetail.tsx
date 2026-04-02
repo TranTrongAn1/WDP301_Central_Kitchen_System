@@ -5,7 +5,7 @@ import { invoiceApi, type Invoice } from '@/api/InvoiceApi';
 import { feedbackApi } from '@/api/FeedbackApi';
 import { StarRating } from '@/shared/components/StarRating';
 import toast from 'react-hot-toast';
-import { productApi, type Product } from '@/api/ProductApi';
+import { productApi, } from '@/api/ProductApi';
 import { ingredientApi, type Ingredient } from '@/api/IngredientApi';
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
