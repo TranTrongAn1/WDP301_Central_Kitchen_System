@@ -18,7 +18,7 @@ const vehicleTypeSchema = new mongoose.Schema(
     // [MỚI] Đơn vị đo lường
     unit: {
       type: String,
-      enum: ['kg', 'ton', 'box'], // Thường bánh kẹo dùng kg hoặc thùng (box)
+      enum: ['kg', 'ton'], 
       default: 'kg',
       required: true,
     },
