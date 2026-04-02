@@ -15,6 +15,8 @@ export interface BundleItem {
         _id: string;
         name: string;
         sku: string;
+        price?: number;
+        isActive?: boolean;
     } | string;
     quantity: number;
 }
@@ -35,6 +37,8 @@ export interface Product {
     image?: string;
     recipe: RecipeItem[];
     bundleItems: BundleItem[];
+    isActive?: boolean;
+    isOutOfStock?: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -67,6 +71,7 @@ export interface UpdateProductRequest {
     weight?: number;
     weightUnit?: string;
     image?: string;
+    isActive?: boolean;
     recipe?: {
         ingredientId: string;
         quantity: number;

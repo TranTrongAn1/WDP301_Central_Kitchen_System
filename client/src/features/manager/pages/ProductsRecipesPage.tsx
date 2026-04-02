@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UtensilsCrossed, Plus, Search, Loader2, Package, Eye, Filter } from 'lucide-react';
+import { UtensilsCrossed, Plus, Search, Loader2, Package, Eye, Filter, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -19,7 +19,7 @@ import { cn } from '@/shared/lib/utils';
 import { uploadProductImage } from '@/shared/lib/firebase';
 import toast from 'react-hot-toast';
 import { ingredientApi, type Ingredient } from '@/api/InventoryApi';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Wand2 } from 'lucide-react';
 const ProductsRecipesPage = () => {
     const navigate = useNavigate();
     const { isManagerReadOnly } = useManagerReadOnly();
@@ -33,6 +33,8 @@ const ProductsRecipesPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
+    const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
     const [_categoryLoading, setCategoryLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
@@ -50,6 +52,15 @@ const ProductsRecipesPage = () => {
     
     // 👇 THÊM STATE NÀY
     const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
+
+    // Helper: Lấy danh sách sản phẩm inactive từ localStorage
+    const getInactiveProducts = (): Product[] => {
+        try {
+            return JSON.parse(localStorage.getItem('inactiveProducts') || '[]');
+        } catch {
+            return [];
+        }
+    };
 
     // 👇 THÊM HÀM NÀY
     const fetchIngredients = async () => {
@@ -102,10 +113,25 @@ const ProductsRecipesPage = () => {
         fetchProducts();
     }, [selectedCategory]);
 
-    const filteredProducts = products.filter(product =>
-        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Lấy danh sách sản phẩm theo filter
+    const allDisplayedProducts = statusFilter === 'inactive'
+        ? getInactiveProducts()
+        : products;
+
+    const filteredProducts = allDisplayedProducts.filter(product => {
+        // Filter by search
+        const matchesSearch =
+            product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Filter by status (chỉ apply khi không phải inactive tab - vì inactive đã lấy từ localStorage)
+        const matchesStatus =
+            statusFilter !== 'inactive'
+                ? (statusFilter === 'all' || product.isActive !== false)
+                : true;
+
+        return matchesSearch && matchesStatus;
+    });
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -163,8 +189,17 @@ const ProductsRecipesPage = () => {
     const foundCategory = categories.find(c => c._id === catId);
 
     // 3. Trả về categoryName từ state đã fetch
-    return foundCategory?.categoryName || foundCategory?.categoryName || 'Chưa phân loại';
-};
+    return foundCategory?.categoryName || 'Chưa phân loại';
+    };
+
+    // Hàm tự động gen SKU
+    const generateSKU = () => {
+        const timestamp = Date.now().toString(36).toUpperCase();
+        const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const generatedSKU = `SKU-${timestamp}-${random}`;
+        setCreateForm((p) => ({ ...p, sku: generatedSKU }));
+        toast.success('Đã tạo mã SKU tự động!');
+    };
 
 const openCreate = () => {
         if (isManagerReadOnly) return;
@@ -370,7 +405,7 @@ const handleCreate = async () => {
                                 placeholder="Tìm kiếm theo tên hoặc SKU..."
                                 className="pl-10"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                             />
                         </div>
                         <div
@@ -389,7 +424,7 @@ const handleCreate = async () => {
                                         : "border-gray-200 bg-white text-gray-900"
                                 )}
                                 value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
                             >
                                 <option value="">Tất cả danh mục</option>
                                 {categories.map((cat) => (
@@ -399,16 +434,97 @@ const handleCreate = async () => {
                                 ))}
                             </select>
                         </div>
+                        {/* Status Filter Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                                    darkMode
+                                        ? "bg-neutral-800 border border-neutral-700 text-white hover:bg-neutral-700"
+                                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                                )}
+                            >
+                                {statusFilter === 'active' && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                {statusFilter === 'inactive' && <span className="w-2 h-2 rounded-full bg-red-500" />}
+                                {statusFilter === 'all' && <span className="w-2 h-2 rounded-full bg-blue-500" />}
+                                <span>
+                                    {statusFilter === 'active' ? 'Đang hoạt động' : statusFilter === 'inactive' ? 'Ngưng hoạt động' : 'Tất cả'}
+                                </span>
+                                <ChevronDown className={cn(
+                                    "w-4 h-4 transition-transform",
+                                    statusDropdownOpen && "rotate-180"
+                                )} />
+                            </button>
+                            
+                            {statusDropdownOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setStatusDropdownOpen(false)}
+                                    />
+                                    <div className={cn(
+                                        "absolute right-0 mt-2 z-50 w-48 rounded-xl shadow-lg border overflow-hidden",
+                                        darkMode ? "bg-neutral-900 border-neutral-700" : "bg-white border-gray-200"
+                                    )}>
+                                        <button
+                                            onClick={() => { setStatusFilter('active'); setStatusDropdownOpen(false); setCurrentPage(1); }}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-emerald-500/10 transition-colors",
+                                                statusFilter === 'active' && (darkMode ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                                            )}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            Đang hoạt động
+                                        </button>
+                                        <button
+                                            onClick={() => { setStatusFilter('inactive'); setStatusDropdownOpen(false); setCurrentPage(1); }}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-red-500/10 transition-colors",
+                                                statusFilter === 'inactive' && (darkMode ? "bg-red-500/20 text-red-400" : "bg-red-50 text-red-600")
+                                            )}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                                            Ngưng hoạt động
+                                        </button>
+                                        <button
+                                            onClick={() => { setStatusFilter('all'); setStatusDropdownOpen(false); setCurrentPage(1); }}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-blue-500/10 transition-colors",
+                                                statusFilter === 'all' && (darkMode ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")
+                                            )}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                            Tất cả
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
                     {filteredProducts.length === 0 ? (
                         <EmptyState
                             icon={UtensilsCrossed}
-                            title="Không tìm thấy sản phẩm"
-                            message={searchQuery ? 'Hãy thử từ khóa khác' : 'Thêm sản phẩm đầu tiên để bắt đầu quản lý'}
-                                actionLabel={!searchQuery && !isManagerReadOnly ? "Thêm sản phẩm" : undefined}
-                                onAction={!searchQuery && !isManagerReadOnly ? openCreate : undefined}
+                            title={statusFilter === 'inactive' ? "Chưa có sản phẩm ngưng hoạt động" : "Không tìm thấy sản phẩm"}
+                            message={
+                                statusFilter === 'inactive'
+                                    ? "Không có sản phẩm nào bị ngưng hoạt động. Khi bạn ngưng hoạt động sản phẩm, nó sẽ xuất hiện ở đây."
+                                    : searchQuery
+                                        ? 'Hãy thử từ khóa khác'
+                                        : 'Thêm sản phẩm đầu tiên để bắt đầu quản lý'
+                            }
+                            actionLabel={
+                                statusFilter !== 'inactive' && !searchQuery && !isManagerReadOnly
+                                    ? "Thêm sản phẩm"
+                                    : undefined
+                            }
+                            onAction={
+                                statusFilter !== 'inactive' && !searchQuery && !isManagerReadOnly
+                                    ? openCreate
+                                    : undefined
+                            }
                         />
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -434,10 +550,17 @@ const handleCreate = async () => {
                                                 </div>
                                             )}
                                             <div>
-                                                <h4 className={cn(
-                                                    "font-semibold",
-                                                    darkMode ? "text-foreground" : "text-gray-900"
-                                                )}>{product.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className={cn(
+                                                        "font-semibold",
+                                                        darkMode ? "text-foreground" : "text-gray-900"
+                                                    )}>{product.name}</h4>
+                                                    {product.isActive === false && (
+                                                        <Badge variant="destructive" className="text-xs">
+                                                            Ngưng hoạt động
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 <p className={cn(
                                                     "text-sm",
                                                     darkMode ? "text-muted-foreground" : "text-gray-500"
@@ -578,12 +701,28 @@ const handleCreate = async () => {
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1 block">SKU *</label>
-                            <Input
-                                maxLength={50} // Thêm dòng này
-                                value={createForm.sku}
-                                onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
-                                placeholder="VD: SKU-001 (tối đa 50 ký tự)"
-                            />
+                            <div className="flex gap-2">
+                                <Input
+                                    maxLength={50}
+                                    value={createForm.sku}
+                                    onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
+                                    placeholder="VD: SKU-001 (tối đa 50 ký tự)"
+                                    className="flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={generateSKU}
+                                    title="Tự động tạo SKU"
+                                    className="shrink-0"
+                                >
+                                    <Wand2 className="w-4 h-4 text-orange-500" />
+                                </Button>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Nhấn nút bên cạnh để tự động tạo mã SKU hoặc nhập tay.
+                            </p>
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1 block">Category *</label>

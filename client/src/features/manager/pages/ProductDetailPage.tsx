@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft, Loader2, Package, Tag, Clock,
-    DollarSign, Layers, Edit, Trash2, FlaskConical, Plus
+    DollarSign, Layers, Edit, Trash2, FlaskConical, Plus, AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -19,6 +19,8 @@ import type { Ingredient } from '@/api/InventoryApi';
 import { useManagerReadOnly } from '@/shared/hooks/useManagerReadOnly';
 import { useAuthStore } from '@/shared/zustand/authStore';
 import { uploadProductImage } from '@/shared/lib/firebase';
+import { cn } from '@/shared/lib/utils';
+import { productStatusBadgeClass, productStatusLabelVi } from '@/shared/lib/statusLabels';
 import toast from 'react-hot-toast';
 
 const ProductDetailPage = () => {
@@ -128,16 +130,42 @@ const ProductDetailPage = () => {
     const handleDelete = async () => {
         if (!id) return;
         if (isManagerReadOnly) {
-            toast.error('Manager không được phép xóa sản phẩm.');
+            toast.error('Manager không được phép thực hiện thao tác này.');
             return;
         }
         try {
             setDeleteLoading(true);
-            await productApi.delete(id);
+            if (product?.isActive === false) {
+                // Kích hoạt lại sản phẩm
+                await productApi.update(id, { isActive: true } as any);
+
+                // Xóa khỏi localStorage
+                const inactiveList = JSON.parse(localStorage.getItem('inactiveProducts') || '[]');
+                const updatedList = inactiveList.filter((p: any) => p._id !== id);
+                localStorage.setItem('inactiveProducts', JSON.stringify(updatedList));
+
+                toast.success('Sản phẩm đã được kích hoạt trở lại.');
+            } else {
+                // Xóa mềm sản phẩm bằng update (bypass check bundle của backend)
+                await productApi.update(id, { isActive: false } as any);
+
+                // Lưu vào localStorage để hiển thị ở tab inactive
+                const inactiveList = JSON.parse(localStorage.getItem('inactiveProducts') || '[]');
+                const existingIds = inactiveList.map((p: any) => p._id);
+                if (!existingIds.includes(id)) {
+                    inactiveList.push({ ...product, isActive: false });
+                    localStorage.setItem('inactiveProducts', JSON.stringify(inactiveList));
+                }
+
+                toast.success('Sản phẩm đã được ngưng hoạt động (xóa mềm).');
+            }
             navigate(productsBasePath);
-        } catch (err) {
-            console.error('Error deleting product:', err);
-            toast.error('Không xóa được sản phẩm. Có thể đang được dùng trong bundle.');
+        } catch (err: any) {
+            console.error('Error handling product:', err);
+            const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Không thể thực hiện thao tác.';
+
+            // Hiển thị message cụ thể từ backend
+            toast.error(errorMessage);
         } finally {
             setDeleteLoading(false);
         }
@@ -259,6 +287,17 @@ const ProductDetailPage = () => {
 
     const isBundle = product.bundleItems && product.bundleItems.length > 0;
 
+    // Filter bundle items - loại bỏ sản phẩm inactive
+    const activeBundleItems = product.bundleItems?.filter(item => {
+        const child = item.childProductId;
+        if (typeof child === 'object' && child !== null) {
+            return child.isActive !== false;
+        }
+        return true;
+    }) || [];
+
+    const inactiveBundleCount = (product.bundleItems?.length || 0) - activeBundleItems.length;
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -268,7 +307,17 @@ const ProductDetailPage = () => {
                         Quay lại
                     </Button>
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold">{product.name}</h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl sm:text-3xl font-bold">{product.name}</h1>
+                            <span
+                                className={cn(
+                                    'px-2.5 py-1 rounded text-xs font-semibold border',
+                                    productStatusBadgeClass(product.isActive)
+                                )}
+                            >
+                                {productStatusLabelVi(product.isActive)}
+                            </span>
+                        </div>
                         <p className="text-muted-foreground">SKU: {product.sku}</p>
                     </div>
                 </div>
@@ -280,11 +329,20 @@ const ProductDetailPage = () => {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-500"
+                        className={product.isActive === false ? "text-green-500 border-green-200 hover:bg-green-50 dark:border-green-500/30 dark:hover:bg-green-500/20" : "text-red-500"}
                         onClick={() => setIsDeleteModalOpen(true)}
                         disabled={isManagerReadOnly}
                     >
-                        <Trash2 className="w-4 h-4" />
+                        {product.isActive === false ? (
+                            <>
+                                <Edit className="w-4 h-4 mr-1" />
+                                Kích hoạt lại
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 className="w-4 h-4" />
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>
@@ -420,12 +478,18 @@ const ProductDetailPage = () => {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Layers className="w-5 h-5" />
-                                    Sản phẩm trong combo ({product.bundleItems?.length} sản phẩm)
+                                    Sản phẩm trong combo ({activeBundleItems.length} sản phẩm)
+                                    {inactiveBundleCount > 0 && (
+                                        <Badge variant="destructive" className="flex items-center gap-1">
+                                            <AlertTriangle className="w-3 h-3" />
+                                            {inactiveBundleCount} đã ngưng hoạt động
+                                        </Badge>
+                                    )}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-3">
-                                    {product.bundleItems?.map((item, idx) => (
+                                    {activeBundleItems.map((item, idx) => (
                                         <motion.div
                                             key={idx}
                                             initial={{ opacity: 0, y: 10 }}
@@ -508,9 +572,13 @@ const ProductDetailPage = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}
-                title="Xóa sản phẩm"
-                message={`Bạn có chắc chắn muốn xóa "${product.name}"? Hành động này không thể hoàn tác.`}
-                confirmLabel="Xóa"
+                title={product.isActive === false ? "Kích hoạt lại sản phẩm" : "Ngưng hoạt động sản phẩm"}
+                message={
+                    product.isActive === false
+                        ? `Bạn có chắc chắn muốn kích hoạt lại "${product.name}"? Sản phẩm sẽ hiển thị trở lại trong danh sách.`
+                        : `Bạn có chắc chắn muốn ngưng hoạt động "${product.name}"? Sản phẩm sẽ bị ẩn khỏi danh sách nhưng vẫn còn trong hệ thống (xóa mềm).`
+                }
+                confirmLabel={product.isActive === false ? "Kích hoạt lại" : "Ngưng hoạt động"}
                 variant="danger"
                 loading={deleteLoading}
             />

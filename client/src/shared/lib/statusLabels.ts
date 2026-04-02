@@ -107,3 +107,19 @@ export function feedbackActionBtnClass(darkMode: boolean, variant: 'approve' | '
     ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'
     : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200';
 }
+
+/** Badge trạng thái sản phẩm (hoạt động / ngưng hoạt động) */
+export function productStatusBadgeClass(isActive: boolean | undefined): string {
+  if (isActive === false) {
+    return 'bg-red-500 text-white border border-red-600';
+  }
+  return 'bg-emerald-500 text-white border border-emerald-600';
+}
+
+/** Nhãn trạng thái sản phẩm tiếng Việt */
+export function productStatusLabelVi(isActive: boolean | undefined): string {
+  if (isActive === false) {
+    return 'Đã ngưng hoạt động';
+  }
+  return 'Đang hoạt động';
+}
