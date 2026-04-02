@@ -13,7 +13,6 @@ interface UpdateUserModalProps {
 }
 
 const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkMode }: UpdateUserModalProps) => {
-    // Form state for update
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -23,7 +22,6 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
         isActive: true
     });
 
-    // Update form when user changes
     useEffect(() => {
         if (user) {
             setFormData({
@@ -39,7 +37,6 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
 
     if (!isOpen || !user) return null;
 
-    // Check if StoreStaff role is selected
     const isStoreStaffSelected = () => {
         const role = roles.find(r => r._id === formData.roleId);
         return role?.roleName === 'StoreStaff';
@@ -59,51 +56,61 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Create payload, remove empty password
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password;
-
         onUpdate(user._id, payload);
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className={`w-full max-w-lg rounded-xl shadow-2xl overflow-hidden ${darkMode ? 'bg-[#1C1C21] border border-gray-800' : 'bg-white'}`}>
-                {/* HEADER */}
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Cập nhật tài khoản: <span className="text-amber-600">{user.username}</span></h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-red-500">
+                
+                {/* HEADER - Đã sửa border theo darkMode */}
+                <div className={`px-6 py-4 border-b flex justify-between items-center ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                    <h3 className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Cập nhật tài khoản: <span className="text-amber-600">{user.username}</span>
+                    </h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
                         <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1.5">Họ và tên</label>
-                            <input type="text" required
-                                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700"
-                                value={formData.fullName}
-                                onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                            />
-                        </div>
+                    <div>
+                        <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Họ và tên</label>
+                        <input 
+                            type="text" required
+                            className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                            }`}
+                            value={formData.fullName}
+                            onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                        />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1.5">Email</label>
-                        <input type="email" required
-                            className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700"
+                        <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Email</label>
+                        <input 
+                            type="email" required
+                            className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                            }`}
                             value={formData.email}
                             onChange={e => setFormData({ ...formData, email: e.target.value })}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1.5">Mật khẩu mới <span className="text-xs text-gray-500 font-normal">(Để trống nếu không đổi)</span></label>
-                        <input type="password"
+                        <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            Mật khẩu mới <span className="text-xs text-gray-500 font-normal">(Để trống nếu không đổi)</span>
+                        </label>
+                        <input 
+                            type="password"
                             placeholder="••••••••"
-                            className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700"
+                            className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                darkMode ? 'bg-[#2A2A30] border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                            }`}
                             value={formData.password}
                             onChange={e => setFormData({ ...formData, password: e.target.value })}
                         />
@@ -111,9 +118,11 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1.5">Vai trò</label>
+                            <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Vai trò</label>
                             <select
-                                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21]"
+                                className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                    darkMode ? 'bg-[#2A2A30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                }`}
                                 value={formData.roleId}
                                 onChange={handleRoleChange}
                                 required
@@ -125,9 +134,13 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1.5">Cửa hàng</label>
+                            <label className={`block text-sm font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Cửa hàng</label>
                             <select
-                                className={`w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-[#1C1C21] ${!isStoreStaffSelected() ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ''}`}
+                                className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500 transition-colors ${
+                                    !isStoreStaffSelected() 
+                                    ? (darkMode ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-400 border-gray-700' : 'opacity-60 cursor-not-allowed bg-gray-100 text-gray-500 border-gray-300')
+                                    : (darkMode ? 'bg-[#2A2A30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900')
+                                }`}
                                 value={formData.storeId}
                                 onChange={e => setFormData({ ...formData, storeId: e.target.value })}
                                 disabled={!isStoreStaffSelected()}
@@ -140,13 +153,18 @@ const UpdateUserModal = ({ isOpen, onClose, onUpdate, user, roles, stores, darkM
                         </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={onClose}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    {/* FOOTER */}
+                    <div className={`pt-4 flex justify-end gap-3 border-t mt-6 ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                        <button 
+                            type="button" onClick={onClose}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                                darkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'
+                            }`}>
                             Hủy
                         </button>
-                        <button type="submit"
-                            className="px-6 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20">
+                        <button 
+                            type="submit"
+                            className="px-6 py-2 rounded-lg text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20 transition-all active:scale-95">
                             Lưu thay đổi
                         </button>
                     </div>
