@@ -3,25 +3,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft, Clock, CheckCircle2, AlertCircle, Loader2,
-    Package, Play, X, Trash2
+    Package, X, 
+    // Trash2, 
+    // Play
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../manager/components/ui/Card';
 import { Button } from '../../manager/components/ui/Button';
 import { Badge } from '../../manager/components/ui/Badge';
-import { Input } from '../../manager/components/ui/Input';
-import { Modal, ConfirmModal } from '../../manager/components/ui/Modal';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '../../manager/components/ui/Select';
+// import { Input } from '../../manager/components/ui/Input';
+// import { Modal, ConfirmModal } from '../../manager/components/ui/Modal';
+// import {
+//     Select,
+//     SelectContent,
+//     SelectItem,
+//     SelectTrigger,
+//     SelectValue,
+// } from '../../manager/components/ui/Select';
 import { ErrorState } from '../../manager/components/ui/ErrorState';
 import { productionPlanApi } from '@/api/ProductionPlanApi';
 import type { ProductionPlan, ProductionPlanDetail } from '@/api/ProductionPlanApi';
-import { inventoryApi, type IngredientBatch } from '@/api/InventoryApi';
-import toast from 'react-hot-toast';
+// import { inventoryApi, type IngredientBatch } from '@/api/InventoryApi';
+// import toast from 'react-hot-toast';
 import { useAuthStore } from '@/shared/zustand/authStore';
 
 const ProductionPlanDetailPage = () => {
@@ -41,16 +43,16 @@ const ProductionPlanDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [selectedDetail, setSelectedDetail] = useState<ProductionPlanDetail | null>(null);
-    const [actualQuantity, setActualQuantity] = useState<number>(0);
-    const [actionLoading, setActionLoading] = useState(false);
-    const [ingredientBatches, setIngredientBatches] = useState<IngredientBatch[]>([]);
-    const [batchesLoading, setBatchesLoading] = useState(false);
-    const [usedIngredients, setUsedIngredients] = useState<{ ingredientBatchId: string; quantityUsed: number; note?: string }[]>([
-        { ingredientBatchId: '', quantityUsed: 0, note: '' },
-    ]);
+    // const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+    // const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    // const [selectedDetail, setSelectedDetail] = useState<ProductionPlanDetail | null>(null);
+    // const [actualQuantity, setActualQuantity] = useState<number>(0);
+    // const [actionLoading, setActionLoading] = useState(false);
+    // const [ingredientBatches, setIngredientBatches] = useState<IngredientBatch[]>([]);
+    // const [batchesLoading, setBatchesLoading] = useState(false);
+    // const [usedIngredients, setUsedIngredients] = useState<{ ingredientBatchId: string; quantityUsed: number; note?: string }[]>([
+    //     { ingredientBatchId: '', quantityUsed: 0, note: '' },
+    // ]);
 
     const fetchPlan = useCallback(async () => {
         if (!id) return;
@@ -80,7 +82,7 @@ const ProductionPlanDetailPage = () => {
         const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
             Completed: { className: 'bg-green-500 text-white', icon: <CheckCircle2 className="w-3 h-3 mr-1" />, label: 'Đã hoàn thành' },
             In_Progress: { className: 'bg-orange-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'Đang sản xuất' },
-            InProgress: { className: 'bg-orange-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'Đang sản xuất' },
+            // InProgress: { className: 'bg-orange-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'Đang sản xuất' },
             Cancelled: { className: 'bg-red-500 text-white', icon: <X className="w-3 h-3 mr-1" />, label: 'Đã hủy' },
             Planned: { className: 'bg-blue-500 text-white', icon: <AlertCircle className="w-3 h-3 mr-1" />, label: 'Đã lên kế hoạch' },
             Pending: { className: 'bg-gray-500 text-white', icon: <Clock className="w-3 h-3 mr-1" />, label: 'Chờ xử lý' },
@@ -117,115 +119,115 @@ const ProductionPlanDetailPage = () => {
         };
     };
 
-    const openCompleteModal = (detail: ProductionPlanDetail) => {
-        setSelectedDetail(detail);
-        setActualQuantity(detail.plannedQuantity);
-        setUsedIngredients([{ ingredientBatchId: '', quantityUsed: detail.plannedQuantity, note: '' }]);
-        void loadIngredientBatches();
-        setIsCompleteModalOpen(true);
-    };
+    // const openCompleteModal = (detail: ProductionPlanDetail) => {
+    //     setSelectedDetail(detail);
+    //     setActualQuantity(detail.plannedQuantity);
+    //     setUsedIngredients([{ ingredientBatchId: '', quantityUsed: detail.plannedQuantity, note: '' }]);
+    //     void loadIngredientBatches();
+    //     setIsCompleteModalOpen(true);
+    // };
 
-    const loadIngredientBatches = async () => {
-        setBatchesLoading(true);
-        try {
-            // Lấy toàn bộ batch nguyên liệu active một lần để dropdown nhanh hơn
-            const res = await inventoryApi.getAllIngredientBatches();
-            const raw = res as unknown;
-            const body =
-                raw && typeof raw === 'object' && 'data' in (raw as { data?: IngredientBatch[] })
-                    ? (raw as { data?: IngredientBatch[] }).data
-                    : (raw as IngredientBatch[] | null) ?? [];
-            const list: IngredientBatch[] = Array.isArray(body) ? body : [];
-            setIngredientBatches(list.filter((b) => b.isActive));
-        } catch {
-            setIngredientBatches([]);
-        } finally {
-            setBatchesLoading(false);
-        }
-    };
+    // const loadIngredientBatches = async () => {
+    //     setBatchesLoading(true);
+    //     try {
+    //         // Lấy toàn bộ batch nguyên liệu active một lần để dropdown nhanh hơn
+    //         const res = await inventoryApi.getAllIngredientBatches();
+    //         const raw = res as unknown;
+    //         const body =
+    //             raw && typeof raw === 'object' && 'data' in (raw as { data?: IngredientBatch[] })
+    //                 ? (raw as { data?: IngredientBatch[] }).data
+    //                 : (raw as IngredientBatch[] | null) ?? [];
+    //         const list: IngredientBatch[] = Array.isArray(body) ? body : [];
+    //         setIngredientBatches(list.filter((b) => b.isActive));
+    //     } catch {
+    //         setIngredientBatches([]);
+    //     } finally {
+    //         setBatchesLoading(false);
+    //     }
+    // };
 
-    const handleCompleteItem = async () => {
-        if (!id || !selectedDetail) return;
+    // const handleCompleteItem = async () => {
+    //     if (!id || !selectedDetail) return;
 
-        const productId = !selectedDetail.productId || typeof selectedDetail.productId === 'string'
-            ? (selectedDetail.productId as string)
-            : selectedDetail.productId._id;
+    //     const productId = !selectedDetail.productId || typeof selectedDetail.productId === 'string'
+    //         ? (selectedDetail.productId as string)
+    //         : selectedDetail.productId._id;
 
-        const payloadUsed = usedIngredients
-            .filter((u) => u.ingredientBatchId && u.quantityUsed > 0)
-            .map((u) => ({
-                ingredientBatchId: u.ingredientBatchId,
-                quantityUsed: u.quantityUsed,
-                note: u.note?.trim() || undefined,
-            }));
+    //     const payloadUsed = usedIngredients
+    //         .filter((u) => u.ingredientBatchId && u.quantityUsed > 0)
+    //         .map((u) => ({
+    //             ingredientBatchId: u.ingredientBatchId,
+    //             quantityUsed: u.quantityUsed,
+    //             note: u.note?.trim() || undefined,
+    //         }));
 
-        if (payloadUsed.length === 0) {
-            toast.error('Vui lòng chọn ít nhất 1 batch nguyên liệu và số lượng sử dụng.');
-            return;
-        }
+    //     if (payloadUsed.length === 0) {
+    //         toast.error('Vui lòng chọn ít nhất 1 batch nguyên liệu và số lượng sử dụng.');
+    //         return;
+    //     }
 
-        try {
-            setActionLoading(true);
-            await productionPlanApi.completeItem(id, {
-                productId,
-                actualQuantity,
-                usedIngredients: payloadUsed,
-            });
-            setIsCompleteModalOpen(false);
-            setSelectedDetail(null);
-            fetchPlan();
-        } catch (err: unknown) {
-            console.error('Error completing item:', err);
-            const e = err as { response?: { data?: { message?: string } }; message?: string };
-            const rawMessage =
-                e?.response?.data?.message ||
-                e?.message ||
-                'Failed to complete production item';
-            toast.error(rawMessage);
-        } finally {
-            setActionLoading(false);
-        }
-    };
+    //     try {
+    //         setActionLoading(true);
+    //         await productionPlanApi.completeItem(id, {
+    //             productId,
+    //             actualQuantity,
+    //             usedIngredients: payloadUsed,
+    //         });
+    //         setIsCompleteModalOpen(false);
+    //         setSelectedDetail(null);
+    //         fetchPlan();
+    //     } catch (err: unknown) {
+    //         console.error('Error completing item:', err);
+    //         const e = err as { response?: { data?: { message?: string } }; message?: string };
+    //         const rawMessage =
+    //             e?.response?.data?.message ||
+    //             e?.message ||
+    //             'Failed to complete production item';
+    //         toast.error(rawMessage);
+    //     } finally {
+    //         setActionLoading(false);
+    //     }
+    // };
 
-    const handleDeletePlan = async () => {
-        if (!id) return;
-        try {
-            setActionLoading(true);
-            await productionPlanApi.delete(id);
-            toast.success('Đã xoá production plan.');
-            navigate(listPath);
-        } catch (err: unknown) {
-            console.error('Error deleting plan:', err);
-            const e = err as { response?: { data?: { message?: string } }; message?: string };
-            const msg =
-                e?.response?.data?.message ||
-                e?.message ||
-                'Failed to delete production plan';
-            toast.error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
+    // const handleDeletePlan = async () => {
+    //     if (!id) return;
+    //     try {
+    //         setActionLoading(true);
+    //         await productionPlanApi.delete(id);
+    //         toast.success('Đã xoá production plan.');
+    //         navigate(listPath);
+    //     } catch (err: unknown) {
+    //         console.error('Error deleting plan:', err);
+    //         const e = err as { response?: { data?: { message?: string } }; message?: string };
+    //         const msg =
+    //             e?.response?.data?.message ||
+    //             e?.message ||
+    //             'Failed to delete production plan';
+    //         toast.error(msg);
+    //     } finally {
+    //         setActionLoading(false);
+    //     }
+    // };
 
-    const handleUpdateStatus = async (newStatus: 'In_Progress' | 'Completed' | 'Cancelled') => {
-        if (!id) return;
-        try {
-            setActionLoading(true);
-            await productionPlanApi.updateStatus(id, { status: newStatus });
-            toast.success('Đã cập nhật trạng thái kế hoạch.');
-            fetchPlan();
-        } catch (err: unknown) {
-            console.error('Error updating status:', err);
-            const e = err as { response?: { data?: { message?: string } }; message?: string };
-            const msg =
-                e?.response?.data?.message ||
-                e?.message ||
-                'Failed to update status';
-            toast.error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
+    // const handleUpdateStatus = async (newStatus: 'In_Progress' | 'Completed' | 'Cancelled') => {
+    //     if (!id) return;
+    //     try {
+    //         setActionLoading(true);
+    //         await productionPlanApi.updateStatus(id, { status: newStatus });
+    //         toast.success('Đã cập nhật trạng thái kế hoạch.');
+    //         fetchPlan();
+    //     } catch (err: unknown) {
+    //         console.error('Error updating status:', err);
+    //         const e = err as { response?: { data?: { message?: string } }; message?: string };
+    //         const msg =
+    //             e?.response?.data?.message ||
+    //             e?.message ||
+    //             'Failed to update status';
+    //         toast.error(msg);
+    //     } finally {
+    //         setActionLoading(false);
+    //     }
+    // };
 
     if (loading) {
         return (
@@ -263,11 +265,11 @@ const ProductionPlanDetailPage = () => {
         )
         : 0;
 
-    const canDelete =
-        (plan.status === 'Planned' || plan.status === 'Cancelled') &&
-        (role === 'Manager' || role === 'Admin');
-    const canComplete = plan.status !== 'Completed' && plan.status !== 'Cancelled';
-    const isCoordinator = role === 'Coordinator';
+    // const canDelete =
+    //     (plan.status === 'Planned' || plan.status === 'Cancelled') &&
+    //     (role === 'Manager' || role === 'Admin');
+    // const canComplete = plan.status !== 'Completed' && plan.status !== 'Cancelled';
+    // const isCoordinator = role === 'Coordinator';
 
     return (
         <div className="space-y-6">
@@ -289,7 +291,7 @@ const ProductionPlanDetailPage = () => {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* <div className="flex items-center gap-2 flex-wrap">
                     {getStatusBadge(plan.status)}
                     {!isCoordinator && plan.status === 'Planned' && (
                         <Button onClick={() => handleUpdateStatus('In_Progress')} size="sm">
@@ -297,7 +299,7 @@ const ProductionPlanDetailPage = () => {
                             Bắt đầu thực hiện
                         </Button>
                     )}
-                    {!isCoordinator && (plan.status === 'In_Progress' || plan.status === 'InProgress') && (
+                    {!isCoordinator && (plan.status === 'In_Progress') && (
                         <>
                                 <Button
                                 size="sm"
@@ -330,7 +332,7 @@ const ProductionPlanDetailPage = () => {
                             <Trash2 className="w-4 h-4" />
                         </Button>
                     )}
-                </div>
+                </div> */}
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6">
@@ -370,7 +372,7 @@ const ProductionPlanDetailPage = () => {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {getStatusBadge(detail.status)}
-                                                    {!isCoordinator && !isCompleted && canComplete && (
+                                                    {/* {isCoordinator && !isCompleted && canComplete && (
                                                             <Button
                                                             size="sm"
                                                             onClick={() => openCompleteModal(detail)}
@@ -379,7 +381,7 @@ const ProductionPlanDetailPage = () => {
                                                             <CheckCircle2 className="w-4 h-4 mr-1" />
                                                             Hoàn tất mẻ
                                                         </Button>
-                                                    )}
+                                                    )} */}
                                                 </div>
                                             </div>
 
@@ -488,7 +490,7 @@ const ProductionPlanDetailPage = () => {
                 </div>
             </div>
 
-            <Modal
+            {/* <Modal
                 isOpen={isCompleteModalOpen}
                 onClose={() => setIsCompleteModalOpen(false)}
                 title="Hoàn tất mẻ sản xuất"
@@ -693,7 +695,8 @@ const ProductionPlanDetailPage = () => {
                 variant="danger"
                 loading={actionLoading}
             />
-        </div>
+            */}
+        </div> 
     );
 };
 
